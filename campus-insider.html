@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CUSA Campus Insider Lower-Third Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;700&display=swap">
+<style>
+@font-face{font-family:'Proxima Nova';font-weight:400;font-style:normal;src:url('fonts/ProximaNovaRegular.woff') format('woff'),url('fonts/ProximaNovaRegular.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:700;font-style:normal;src:url('fonts/ProximaNovaBold.woff') format('woff'),url('fonts/ProximaNovaBold.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:900;font-style:normal;src:url('fonts/ProximaNovaBlack.woff') format('woff'),url('fonts/ProximaNovaBlack.ttf') format('truetype');font-display:swap}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Barlow',sans-serif;background:#060f1a;color:#fff}
+body{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Topbar ── */
+.topbar{width:100%;background:#0a1624;border-bottom:2px solid rgba(235,25,70,0.5);display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:54px;flex-shrink:0;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.topbar-eyebrow{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:4px;color:rgba(255,255,255,0.45)}
+.topbar-sep{width:1px;height:18px;background:rgba(255,255,255,0.2)}
+.topbar-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:2px;color:#fff}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-status{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.5)}
+.topbar-status.error{color:#ff6f8b}
+.back{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.6);text-decoration:none;border:1px solid rgba(255,255,255,0.18);padding:7px 12px;border-radius:4px}
+.back:hover{color:#fff;border-color:rgba(235,25,70,0.6)}
+
+/* ── Tabs ── */
+.tabs{width:100%;background:rgba(10,22,36,0.9);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;gap:0;padding:0 12px;flex-shrink:0}
+.tab{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.45);text-transform:uppercase;background:transparent;border:none;padding:11px 18px;cursor:pointer;border-bottom:2px solid transparent}
+.tab:hover{color:rgba(255,255,255,0.75)}
+.tab.active{color:#fff;border-bottom-color:#EB1946}
+
+/* ── Main grid ── */
+.main{display:flex;width:100%;gap:14px;padding:12px;flex:1;min-height:0;overflow:hidden}
+
+/* Disabled select look (used when Interview locks plate count) */
+select:disabled{opacity:0.45;cursor:not-allowed}
+
+/* ── Left controls panel ── */
+.panel{background:#0e1d2e;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:14px;width:340px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;height:100%}
+.panel-head{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid rgba(235,25,70,0.18)}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.55);text-transform:uppercase}
+.field input[type=text],.field input[type=number],.field select{font-family:'Barlow',sans-serif;font-size:13px;background:#0a1624;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:8px 10px;width:100%}
+.field input[type=text]:focus,.field input[type=number]:focus,.field select:focus{outline:none;border-color:#EB1946}
+.field input[type=range]{width:100%}
+.scale-row{display:flex;align-items:center;gap:10px}
+.scale-readout{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,0.65);min-width:38px;text-align:right}
+.nudge-readout{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(235,25,70,0.85);margin-left:6px}
+
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.frame-card{border:1px solid rgba(235,25,70,0.18);border-radius:6px;padding:10px 11px;background:rgba(235,25,70,0.04);display:flex;flex-direction:column;gap:8px}
+.frame-card-title{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase}
+
+.btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:#fff;background:#EB1946;border:none;padding:11px 16px;border-radius:4px;cursor:pointer;text-transform:uppercase;width:100%}
+.btn:hover{background:#c91240}
+.btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.25)}
+.btn.secondary:hover{background:rgba(255,255,255,0.06)}
+
+.panel-spacer{flex:1}
+
+/* ── Canvas area ── */
+.canvas-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:0;height:100%;padding:8px}
+.canvas-wrap{position:relative;aspect-ratio:16/9;max-width:100%;max-height:100%;width:auto;height:auto;background:transparent;border:1px dashed rgba(255,255,255,0.10);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.canvas-wrap canvas{display:block;width:100%;height:100%}
+.preview-meta{margin-top:10px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-align:center}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-eyebrow">CONFERENCE USA</div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-title">CAMPUS INSIDER</div>
+  </div>
+  <div class="topbar-right">
+    <div id="topStatus" class="topbar-status"></div>
+    <a class="back" href="index.html">← HUB</a>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-mode="standard">Standard Lower-Third</button>
+  <button class="tab" data-mode="interview">Interview · Inside The Huddle</button>
+</div>
+
+<div class="main">
+
+  <!-- ── Left controls panel ── -->
+  <div class="panel" id="panel">
+    <div class="panel-head">Layout</div>
+    <div class="field">
+      <label class="field-label" for="frameCount">Plate Count</label>
+      <select id="frameCount">
+        <option value="1">Single Plate</option>
+        <option value="2" selected>Two-Plate (16:9)</option>
+        <option value="3">Three-Plate (16:9)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label" for="scale">Plate Size · linked</label>
+      <div class="scale-row">
+        <input id="scale" type="range" min="0.30" max="1.30" step="0.01" value="0.60">
+        <span id="scaleReadout" class="scale-readout">60%</span>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label" for="bgRef">Framing Reference · preview only</label>
+      <select id="bgRef">
+        <option value="">None (transparent)</option>
+        <option value="single-host">Single-Host (Insider)</option>
+        <option value="two-host">Two-Host (Insider)</option>
+        <option value="inside-the-huddle">Inside The Huddle (Interview)</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.55);text-transform:uppercase;cursor:pointer">
+        <input type="checkbox" id="bgInExport" style="margin:0;width:auto"> Include reference in exported PNG
+      </label>
+    </div>
+
+    <div class="panel-head" style="margin-top:6px">Plates</div>
+    <div id="frames" style="display:flex;flex-direction:column;gap:10px"></div>
+
+    <div class="panel-spacer"></div>
+    <button class="btn" id="download">Download PNG</button>
+  </div>
+
+  <!-- ── Center preview ── -->
+  <div class="canvas-area">
+    <div class="canvas-wrap">
+      <canvas id="cvs" width="1920" height="1080"></canvas>
+    </div>
+    <div class="preview-meta">1920 × 1080  ·  Proxima Nova Bold  ·  #06253a  ·  exports as transparent PNG</div>
+  </div>
+
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────
+const SCHOOLS = [
+  { id:'CUSA',             name:'CUSA (Conference)' },
+  { id:'Delaware',         name:'Delaware' },
+  { id:'FIU',              name:'FIU' },
+  { id:'Jax State',        name:'Jacksonville State' },
+  { id:'Kennesaw State',   name:'Kennesaw State' },
+  { id:'Liberty',          name:'Liberty' },
+  { id:'Middle Tennessee', name:'Middle Tennessee' },
+  { id:'MO State',         name:'Missouri State' },
+  { id:'Sam Houston',      name:'Sam Houston' },
+  { id:'Western Kentucky', name:'Western Kentucky' },
+];
+const FOLDER = 'Nameplate Lower-Third';
+const FILE   = id => `${FOLDER}/Nameplate Lower-Thirds Only - ${id}.png`;
+
+// Nameplate bbox in the source 1920x1080 PNG
+const SRC = { left:560, right:1410, top:769, bottom:976, w:850, h:207 };
+const SRC_CX = (SRC.left + SRC.right) / 2;   // 985
+const SRC_CY = (SRC.top  + SRC.bottom) / 2;  // 872.5
+
+// Text metrics (source PNG coords)
+const TEXT_COLOR  = '#06253a';
+const FONT_FAMILY = "'Proxima Nova','proxima-nova','Montserrat','Helvetica Neue',Arial,sans-serif";
+const HEADER_EM   = 76;
+const SUB_EM      = 24;
+const HEADER_CY   = 865;
+const SUB_CY      = 944;
+const TEXT_CX     = 991;
+
+const CANVAS_W = 1920, CANVAS_H = 1080;
+const MARGIN_X = 40;
+
+const DEFAULT_SCALE  = { 1:1.00, 2:0.60, 3:0.45 };
+const DEFAULT_ALIGNS = { 1:['center'], 2:['left','right'], 3:['left','center','right'] };
+const DEFAULT_BG_REF = { 1:'single-host', 2:'two-host', 3:'' };
+const BG_REF_FILE = id => `frame-references/${id}.png`;
+
+// Interview mode: locked 2-plate layout positioned BELOW the Inside The Huddle webcam frames.
+// Calibrated from "Nameplate Reference" overlay: at 0.92 scale, target plate bboxes are
+// LEFT  x=[117,901],  cy≈937 (bottom y≈1029)
+// RIGHT x=[1057,1842], cy≈935 (bottom y≈1024)
+const INTERVIEW_DEFAULTS = {
+  scale: 0.92,
+  bgRef: 'inside-the-huddle',
+  bgInExport: true,
+  plates: [
+    { align:'left',  xOff:  77, yOff: 50 },
+    { align:'right', xOff: -38, yOff: 50 },
+  ],
+};
+const STARTER = [
+  { header:'JOHN DOE',   sub:'LIBERTY HEAD COACH' },
+  { header:'JANE SMITH', sub:'CUSA INSIDER' },
+  { header:'CHRIS LEE',  sub:'JAX STATE PLAYER' },
+];
+
+// ─── State ────────────────────────────────────────────────────────────────
+const state = { mode:'standard', frameCount:2, scale:0.60, frames:[], bgRef:'two-host', bgInExport:false, bgRefImg:null };
+
+// ─── DOM refs ─────────────────────────────────────────────────────────────
+const cvs        = document.getElementById('cvs');
+const ctx        = cvs.getContext('2d');
+const fcSel      = document.getElementById('frameCount');
+const scaleR     = document.getElementById('scale');
+const scaleN     = document.getElementById('scaleReadout');
+const framesEl   = document.getElementById('frames');
+const topStatus  = document.getElementById('topStatus');
+const bgRefSel   = document.getElementById('bgRef');
+const bgInExport = document.getElementById('bgInExport');
+
+function setStatus(msg, isErr){
+  topStatus.textContent = msg || '';
+  topStatus.classList.toggle('error', !!isErr);
+}
+
+// ─── Image loader ─────────────────────────────────────────────────────────
+const imgCache = new Map();
+function loadImage(src){
+  if (imgCache.has(src)) return imgCache.get(src);
+  const p = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload  = () => resolve(img);
+    img.onerror = () => reject(new Error('Image load failed: ' + img.src));
+    img.src = src;
+  });
+  imgCache.set(src, p);
+  return p;
+}
+const loadBg    = id => loadImage(encodeURI(FILE(id)));
+const loadBgRef = id => loadImage(encodeURI(BG_REF_FILE(id)));
+
+// ─── Layout math ──────────────────────────────────────────────────────────
+function plateTargetCenter(align, scale){
+  const plateW = SRC.w * scale;
+  let cx;
+  if (align === 'left')       cx = MARGIN_X + plateW / 2;
+  else if (align === 'right') cx = CANVAS_W - MARGIN_X - plateW / 2;
+  else                        cx = CANVAS_W / 2;
+  const cy = SRC.bottom - (SRC.h * scale) / 2;
+  return { cx, cy };
+}
+
+// ─── Frame factory ────────────────────────────────────────────────────────
+function makeFrame(idx){
+  const aligns = DEFAULT_ALIGNS[state.frameCount];
+  const align = aligns[idx] || 'center';
+  const starter = STARTER[idx] || STARTER[0];
+  return { school:'Liberty', header:starter.header, sub:starter.sub, align, xOff:0, yOff:0, bgImg:null };
+}
+
+function escapeAttr(s){ return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function renderFrameControls(){
+  framesEl.innerHTML = '';
+  state.frames.forEach((f, i) => {
+    const card = document.createElement('div');
+    card.className = 'frame-card';
+    card.innerHTML = `
+      <div class="frame-card-title">Plate ${i+1}</div>
+      <div class="field">
+        <label class="field-label">School</label>
+        <select data-i="${i}" data-k="school">
+          ${SCHOOLS.map(s => `<option value="${s.id}"${s.id===f.school?' selected':''}>${s.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Header (Name)</label>
+        <input data-i="${i}" data-k="header" type="text" value="${escapeAttr(f.header)}" maxlength="40">
+      </div>
+      <div class="field">
+        <label class="field-label">Subheader (Title)</label>
+        <input data-i="${i}" data-k="sub" type="text" value="${escapeAttr(f.sub)}" maxlength="60">
+      </div>
+      <div class="field">
+        <label class="field-label">Alignment</label>
+        <select data-i="${i}" data-k="align">
+          <option value="left"${f.align==='left'?' selected':''}>Left</option>
+          <option value="center"${f.align==='center'?' selected':''}>Center</option>
+          <option value="right"${f.align==='right'?' selected':''}>Right</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">X Nudge <span class="nudge-readout" data-readout="x-${i}">${f.xOff}px</span></label>
+        <input data-i="${i}" data-k="xOff" type="range" min="-900" max="900" step="5" value="${f.xOff}">
+      </div>
+      <div class="field">
+        <label class="field-label">Y Nudge <span class="nudge-readout" data-readout="y-${i}">${f.yOff}px</span></label>
+        <input data-i="${i}" data-k="yOff" type="range" min="-700" max="100" step="5" value="${f.yOff}">
+      </div>
+      <button class="btn secondary" data-i="${i}" data-k="reset" style="font-size:10px;padding:6px 10px">Reset Position</button>
+    `;
+    framesEl.appendChild(card);
+  });
+  framesEl.querySelectorAll('input,select').forEach(el => {
+    const evt = (el.tagName === 'SELECT') ? 'change' : 'input';
+    el.addEventListener(evt, onFrameInput);
+  });
+  framesEl.querySelectorAll('button[data-k="reset"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = +btn.dataset.i;
+      state.frames[i].xOff = 0;
+      state.frames[i].yOff = 0;
+      renderFrameControls();
+      draw();
+    });
+  });
+}
+
+async function onFrameInput(e){
+  const i = +e.target.dataset.i;
+  const k = e.target.dataset.k;
+  const isRange = e.target.type === 'range';
+  const v = (e.target.type === 'number' || isRange) ? Number(e.target.value || 0) : e.target.value;
+  state.frames[i][k] = v;
+  if (isRange) {
+    const axis = k === 'xOff' ? 'x' : 'y';
+    const ro = framesEl.querySelector(`[data-readout="${axis}-${i}"]`);
+    if (ro) ro.textContent = v + 'px';
+  }
+  if (k === 'school') await ensureBg(state.frames[i]);
+  draw();
+}
+
+// ─── Frame count / scale ──────────────────────────────────────────────────
+// ─── Mode (tab) switching ─────────────────────────────────────────────────
+async function applyMode(mode){
+  state.mode = mode;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  if (mode === 'interview') {
+    // Lock 2-plate, set Inside The Huddle defaults.
+    state.frameCount = 2;
+    fcSel.value = '2';
+    fcSel.disabled = true;
+    state.scale = INTERVIEW_DEFAULTS.scale;
+    scaleR.value = String(state.scale);
+    scaleN.textContent = Math.round(state.scale * 100) + '%';
+    while (state.frames.length < 2) state.frames.push(makeFrame(state.frames.length));
+    state.frames.length = 2;
+    INTERVIEW_DEFAULTS.plates.forEach((p, i) => {
+      state.frames[i].align = p.align;
+      state.frames[i].xOff = p.xOff;
+      state.frames[i].yOff = p.yOff;
+    });
+    state.bgRef = INTERVIEW_DEFAULTS.bgRef;
+    bgRefSel.value = state.bgRef;
+    state.bgInExport = INTERVIEW_DEFAULTS.bgInExport;
+    bgInExport.checked = state.bgInExport;
+  } else {
+    // Standard: re-enable the count selector and apply count-based defaults.
+    fcSel.disabled = false;
+    state.scale = DEFAULT_SCALE[state.frameCount];
+    scaleR.value = String(state.scale);
+    scaleN.textContent = Math.round(state.scale * 100) + '%';
+    const aligns = DEFAULT_ALIGNS[state.frameCount];
+    state.frames.forEach((f, i) => { f.align = aligns[i]; f.xOff = 0; f.yOff = 0; });
+    state.bgRef = DEFAULT_BG_REF[state.frameCount] || '';
+    bgRefSel.value = state.bgRef;
+  }
+  renderFrameControls();
+  await Promise.all([...state.frames.map(ensureBg), ensureBgRef()]);
+  draw();
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => applyMode(t.dataset.mode));
+});
+
+fcSel.addEventListener('change', async () => {
+  const n = +fcSel.value;
+  state.frameCount = n;
+  state.scale = DEFAULT_SCALE[n];
+  scaleR.value = String(state.scale);
+  scaleN.textContent = Math.round(state.scale * 100) + '%';
+  while (state.frames.length < n) state.frames.push(makeFrame(state.frames.length));
+  state.frames.length = n;
+  const aligns = DEFAULT_ALIGNS[n];
+  state.frames.forEach((f, i) => { f.align = aligns[i]; f.xOff = 0; f.yOff = 0; });
+  // Auto-pick a sensible reference for the new layout
+  state.bgRef = DEFAULT_BG_REF[n] || '';
+  bgRefSel.value = state.bgRef;
+  renderFrameControls();
+  await Promise.all([...state.frames.map(ensureBg), ensureBgRef()]);
+  draw();
+});
+
+bgRefSel.addEventListener('change', async () => {
+  state.bgRef = bgRefSel.value;
+  await ensureBgRef();
+  draw();
+});
+
+bgInExport.addEventListener('change', () => {
+  state.bgInExport = bgInExport.checked;
+});
+
+scaleR.addEventListener('input', () => {
+  state.scale = parseFloat(scaleR.value);
+  scaleN.textContent = Math.round(state.scale * 100) + '%';
+  draw();
+});
+
+async function ensureBg(frame){
+  try {
+    frame.bgImg = await loadBg(frame.school);
+    setStatus('');
+  } catch (e) {
+    frame.bgImg = null;
+    setStatus('Could not load "' + frame.school + '". Open via http://localhost:8765/.', true);
+    console.error(e);
+  }
+}
+
+async function ensureBgRef(){
+  if (!state.bgRef) { state.bgRefImg = null; return; }
+  try {
+    state.bgRefImg = await loadBgRef(state.bgRef);
+  } catch (e) {
+    state.bgRefImg = null;
+    setStatus('Could not load reference "' + state.bgRef + '".', true);
+    console.error(e);
+  }
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────
+function drawPlate(frame){
+  if (!frame) return;
+  const scale = state.scale;
+  const { cx, cy } = plateTargetCenter(frame.align, scale);
+  const tx = cx + (frame.xOff || 0);
+  const ty = cy + (frame.yOff || 0);
+
+  ctx.save();
+  ctx.translate(tx, ty);
+  ctx.scale(scale, scale);
+  ctx.translate(-SRC_CX, -SRC_CY);
+
+  if (frame.bgImg) ctx.drawImage(frame.bgImg, 0, 0);
+
+  ctx.fillStyle = TEXT_COLOR;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `700 ${HEADER_EM}px ${FONT_FAMILY}`;
+  ctx.fillText(frame.header || '', TEXT_CX, HEADER_CY);
+  ctx.font = `700 ${SUB_EM}px ${FONT_FAMILY}`;
+  ctx.fillText(frame.sub || '', TEXT_CX, SUB_CY);
+
+  ctx.restore();
+}
+
+function draw(opts){
+  const includeBg = opts && opts.includeBg !== undefined ? opts.includeBg : true;
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  if (includeBg && state.bgRefImg) {
+    ctx.drawImage(state.bgRefImg, 0, 0, CANVAS_W, CANVAS_H);
+  }
+  state.frames.forEach(drawPlate);
+}
+
+// ─── Download ─────────────────────────────────────────────────────────────
+document.getElementById('download').addEventListener('click', () => {
+  const safe = (s) => (s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'') || 'untitled';
+  const desc = state.frames.map(f => `${safe(f.school)}-${safe(f.header)}`).join('__');
+  // Re-render without the reference image unless the user opted in
+  draw({ includeBg: state.bgInExport });
+  const dataUrl = cvs.toDataURL('image/png');
+  // Restore the on-screen preview (with reference if it was on)
+  draw();
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `Campus_Insider_${state.frameCount}plate_${desc}.png`;
+  a.click();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+(async () => {
+  state.frameCount = +fcSel.value;
+  state.scale = DEFAULT_SCALE[state.frameCount];
+  scaleR.value = String(state.scale);
+  scaleN.textContent = Math.round(state.scale * 100) + '%';
+  state.frames = Array.from({length: state.frameCount}, (_, i) => makeFrame(i));
+  state.bgRef = DEFAULT_BG_REF[state.frameCount] || '';
+  bgRefSel.value = state.bgRef;
+  renderFrameControls();
+
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.load(`700 ${HEADER_EM}px "Proxima Nova"`); } catch(_){}
+    try { await document.fonts.load(`700 ${SUB_EM}px "Proxima Nova"`); } catch(_){}
+    await document.fonts.ready;
+  }
+
+  await Promise.all([...state.frames.map(ensureBg), ensureBgRef()]);
+  draw();
+})();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+</script>
+</body>
+</html>

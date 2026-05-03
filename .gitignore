@@ -1,0 +1,16 @@
+.DS_Store
+**/.DS_Store
+
+# Source design assets — not used by the deployed site
+*.psd
+*.psb
+*.eps
+*.ai
+
+# Local zips / archives
+**/*.zip
+
+# Source asset folders that aren't referenced by any page
+Nameplate Lower-Third/Logos/
+Nameplate Lower-Third/Stark/
+Nameplate Lower-Third/Screenshot*.png
