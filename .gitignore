@@ -13,4 +13,11 @@
 # Source asset folders that aren't referenced by any page
 Nameplate Lower-Third/Logos/
 Nameplate Lower-Third/Stark/
+Nameplate Lower-Third/Assest/
 Nameplate Lower-Third/Screenshot*.png
+# Source folder for podcast-graphics — the deployed copy lives at /podcast-graphics
+Nameplate Lower-Third/Podcast Graphics/
+
+# Unrelated work files
+IMS Images/
+IMS_Color_Mapping.xlsx

@@ -1,0 +1,313 @@
+/* ============================================
+   CUSA INSIDER PODCAST — GRAPHICS SYSTEM
+   Brand tokens from CUSA Brand Identity Guide
+   ============================================ */
+
+:root {
+  /* CUSA Core */
+  --cusa-navy: #00263A;        /* CUSA Black Navy — PMS 539 */
+  --cusa-gray: #BFCED6;        /* CUSA Gray — PMS 5455 */
+  --cusa-white: #FFFFFF;
+
+  /* CUSA Accents */
+  --cusa-red: #E40046;         /* Relentless Seeker Red — PMS 192 */
+  --cusa-blue: #00B5E2;        /* Exacting Doer Blue — PMS 306 */
+  --cusa-green: #A7D500;       /* Ambitious Dreamer Green — PMS 2291 */
+
+  /* Tints / utility */
+  --navy-deep: #001E2D;
+  --navy-pattern: rgba(255,255,255,0.04);
+  --plate-light: #E2E8EC;
+  --plate-mid: #C9D5DC;
+
+  /* Active accent (sport-controlled) */
+  --accent: var(--cusa-red);
+  --accent-2: var(--cusa-blue);
+  --accent-3: var(--cusa-green);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Saira Condensed', 'Oswald', 'Arial Narrow', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================
+   16:9 FRAME
+   1920×1080 design, scaled responsively via outer wrapper
+   ============================================ */
+
+.frame-1920 {
+  width: 1920px;
+  height: 1080px;
+  position: relative;
+  overflow: hidden;
+  background: var(--cusa-navy);
+  font-family: 'Saira Condensed', sans-serif;
+}
+
+.frame-1920.transparent {
+  background: transparent;
+}
+
+/* Stark watermark pattern in dark backgrounds */
+.bg-pattern {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'><g fill='none' stroke='%23ffffff' stroke-opacity='0.045' stroke-width='2'><path d='M40 40 L75 70 L110 30 L80 75 L120 110 L75 80 L40 120 L70 75 Z'/><path d='M150 130 L185 160 L220 120 L190 165 L230 200 L185 170 L150 210 L180 165 Z'/></g></svg>");
+  background-size: 220px 220px;
+  pointer-events: none;
+}
+
+/* ============================================
+   THE STARK — signature 4-point pinched star
+   Per brand book: "DO NOT rotate the stark"
+   ============================================ */
+
+.stark {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+  fill: var(--accent);
+}
+
+/* ============================================
+   DIAGONAL STRIPE MOTIF
+   ============================================ */
+
+.stripe-corner {
+  position: absolute;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.stripe-corner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================
+   NAMEPLATE / SLAB SHARED
+   ============================================ */
+
+.slab {
+  position: relative;
+  font-family: 'Saira Condensed', sans-serif;
+}
+
+.slab-plate {
+  background: linear-gradient(180deg, var(--plate-light) 0%, var(--plate-mid) 100%);
+  border: 1px solid rgba(0, 38, 58, 0.15);
+}
+
+.slab-sub {
+  background: var(--cusa-white);
+  color: var(--cusa-navy);
+}
+
+.slab-logo-tile {
+  background: var(--cusa-white);
+  border: 1px solid rgba(0, 38, 58, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================
+   TYPE
+   ============================================ */
+
+.t-display {
+  font-family: 'Saira Condensed', sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  color: var(--cusa-navy);
+  line-height: 0.95;
+}
+
+.t-display-light {
+  color: var(--cusa-white);
+}
+
+.t-meta {
+  font-family: 'Saira Condensed', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cusa-navy);
+}
+
+.t-score {
+  font-family: 'Saira Condensed', sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  color: var(--cusa-white);
+  line-height: 0.85;
+}
+
+.t-vs {
+  font-family: 'Saira Condensed', sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  color: var(--cusa-red);
+  line-height: 1;
+}
+
+/* ============================================
+   ANIMATION STAGES
+   Elements use data-anim-state="in" | "out" | "rest"
+   Each element animates independently for AE-friendly handoff.
+   ============================================ */
+
+[data-anim] {
+  will-change: transform, opacity, clip-path;
+}
+
+@keyframes slabSlideIn {
+  0% { transform: translateX(-110%); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes slabSlideInRight {
+  0% { transform: translateX(110%); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes slabSlideOut {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-110%); opacity: 0; }
+}
+@keyframes slabSlideOutRight {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(110%); opacity: 0; }
+}
+
+@keyframes wipeRevealLeft {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes wipeRevealRight {
+  0% { clip-path: inset(0 0 0 100%); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes wipeOutLeft {
+  0% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 100% 0 0); }
+}
+
+@keyframes scaleStarkIn {
+  0% { transform: scale(0) rotate(-25deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes fadeUp {
+  0% { transform: translateY(30px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes scoreFlipIn {
+  0% { transform: scale(0.4) rotateX(90deg); opacity: 0; }
+  60% { transform: scale(1.1) rotateX(0); opacity: 1; }
+  100% { transform: scale(1) rotateX(0); opacity: 1; }
+}
+
+@keyframes finalStamp {
+  0% { transform: scale(2.5) rotate(-15deg); opacity: 0; }
+  50% { transform: scale(0.92) rotate(-8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+}
+
+@keyframes stripeSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes logoPop {
+  0% { transform: scale(0); opacity: 0; }
+  70% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Animation "in" durations are staggered via inline styles */
+[data-anim-state="in"] {
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+
+[data-anim-state="rest"] {
+  /* Static end state */
+}
+
+[data-anim-state="hidden"] {
+  opacity: 0;
+}
+
+[data-anim-state="out"] {
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+/* Specific anim assignments */
+.anim-slab-left[data-anim-state="in"] { animation-name: slabSlideIn; animation-duration: 0.7s; }
+.anim-slab-left[data-anim-state="out"] { animation-name: slabSlideOut; animation-duration: 0.5s; }
+
+.anim-slab-right[data-anim-state="in"] { animation-name: slabSlideInRight; animation-duration: 0.7s; }
+.anim-slab-right[data-anim-state="out"] { animation-name: slabSlideOutRight; animation-duration: 0.5s; }
+
+.anim-wipe-left[data-anim-state="in"] { animation-name: wipeRevealLeft; animation-duration: 0.65s; }
+.anim-wipe-right[data-anim-state="in"] { animation-name: wipeRevealRight; animation-duration: 0.65s; }
+.anim-wipe-left[data-anim-state="out"] { animation-name: wipeOutLeft; animation-duration: 0.45s; }
+
+.anim-stark[data-anim-state="in"] { animation-name: scaleStarkIn; animation-duration: 0.8s; }
+.anim-stark[data-anim-state="out"] { animation-name: fadeOut; animation-duration: 0.3s; }
+
+.anim-fadeup[data-anim-state="in"] { animation-name: fadeUp; animation-duration: 0.6s; }
+.anim-fadeup[data-anim-state="out"] { animation-name: fadeOut; animation-duration: 0.3s; }
+
+.anim-score[data-anim-state="in"] { animation-name: scoreFlipIn; animation-duration: 0.7s; }
+.anim-score[data-anim-state="out"] { animation-name: fadeOut; animation-duration: 0.3s; }
+
+.anim-final[data-anim-state="in"] { animation-name: finalStamp; animation-duration: 0.6s; }
+.anim-final[data-anim-state="out"] { animation-name: fadeOut; animation-duration: 0.3s; }
+
+.anim-stripe[data-anim-state="in"] { animation-name: stripeSlide; animation-duration: 0.8s; }
+.anim-stripe[data-anim-state="out"] { animation-name: fadeOut; animation-duration: 0.3s; }
+
+.anim-logo[data-anim-state="in"] { animation-name: logoPop; animation-duration: 0.6s; }
+.anim-logo[data-anim-state="out"] { animation-name: fadeOut; animation-duration: 0.3s; }
+
+/* Replay key — bumping a key restarts animation by remounting */
+
+/* ============================================
+   FRAME WRAPPERS — scaled previews
+   ============================================ */
+
+.frame-scaler {
+  position: relative;
+  display: block;
+}
+.frame-scaler > .frame-1920 {
+  transform-origin: top left;
+}
+
+/* ============================================
+   PAGE CHROME
+   ============================================ */
+
+body {
+  background: #0b0f14;
+  color: #e8eef2;
+}

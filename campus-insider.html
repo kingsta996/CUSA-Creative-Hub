@@ -88,9 +88,15 @@ select:disabled{opacity:0.45;cursor:not-allowed}
 <div class="tabs">
   <button class="tab active" data-mode="standard">Standard Lower-Third</button>
   <button class="tab" data-mode="interview">Interview · Inside The Huddle</button>
+  <button class="tab" data-mode="matchup">Matchup &amp; Final Score</button>
 </div>
 
-<div class="main">
+<!-- iframe-embedded React app (lazy-loaded on first activation) -->
+<div class="matchup-frame" id="matchupFrame" style="display:none;flex:1;min-height:0;width:100%">
+  <iframe id="matchupIframe" src="about:blank" style="width:100%;height:100%;border:none;background:#060f1a;display:block"></iframe>
+</div>
+
+<div class="main" id="mainBuilder">
 
   <!-- ── Left controls panel ── -->
   <div class="panel" id="panel">
@@ -327,9 +333,26 @@ async function onFrameInput(e){
 
 // ─── Frame count / scale ──────────────────────────────────────────────────
 // ─── Mode (tab) switching ─────────────────────────────────────────────────
+const matchupFrame  = document.getElementById('matchupFrame');
+const matchupIframe = document.getElementById('matchupIframe');
+const mainBuilder   = document.getElementById('mainBuilder');
+
 async function applyMode(mode){
   state.mode = mode;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+
+  // Matchup tab: swap the builder UI for an embedded React app via iframe.
+  if (mode === 'matchup') {
+    if (matchupIframe.src === 'about:blank' || !matchupIframe.src.includes('podcast-graphics')) {
+      matchupIframe.src = 'podcast-graphics/index.html?embedded=1';
+    }
+    mainBuilder.style.display = 'none';
+    matchupFrame.style.display = 'flex';
+    return;
+  }
+  matchupFrame.style.display = 'none';
+  mainBuilder.style.display = 'flex';
+
   if (mode === 'interview') {
     // Lock 2-plate, set Inside The Huddle defaults.
     state.frameCount = 2;
