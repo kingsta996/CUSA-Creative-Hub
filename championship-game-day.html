@@ -226,8 +226,12 @@ const LAYERS = {
 // Network logos. Each has a sourceBox = the bbox of opaque content within
 // the file, used to crop padding when scaling to a target height.
 const NETWORKS = {
-  cbssn: { src: ASSET_DIR + 'CBSSN_white.png',   sourceBox: { x: 209, y: 493, w: 1502, h:  98 } },
-  espn:  { src: ASSET_DIR + 'ESPN_WHITE.PNG',    sourceBox: { x:  49, y: 205, w:  420, h: 104 } },
+  cbssn: { src: ASSET_DIR + 'CBSSN_white.png',                  sourceBox: { x: 209, y:  493, w: 1502, h:  98 } },
+  // ESPN+ wordmark (the "+" mark, not plain ESPN). Source PNG is a full
+  // 1080×1350 canvas with the logo pre-placed at its target spot; we
+  // source-crop just the wordmark bbox so the existing row-layout math
+  // can scale + position it like any other network logo.
+  espn:  { src: ASSET_DIR + '26 SB Gameday Post - ESPN+.png',   sourceBox: { x: 644, y: 1292, w:  165, h:  32 } },
 };
 
 // Geometry — measured from the reference PNGs.
