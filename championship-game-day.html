@@ -218,7 +218,8 @@ const SCHOOLS = [
 ];
 
 const LAYERS = {
-  bg:           ASSET_DIR + '26 SB Gameday Post - BG.png',
+  bg:             ASSET_DIR + '26 SB Gameday Post - BG.png',
+  redBar:         ASSET_DIR + '26 SB Gameday Post - Red Bar.png',
   champLogoSplit: ASSET_DIR + '26 SB Gameday Post - Champ Logo and Split.png',
   seedingOverlay: ASSET_DIR + '26 SB Gameday Post - Seeding Overlay.png',
 };
@@ -423,7 +424,12 @@ async function draw(){
     ctx.fillText('UPLOAD RIGHT PHOTO', PHOTO.rightX + PHOTO.fullW/2, PHOTO.y + PHOTO.h/2);
   }
 
-  // 3. School logos (425×221 each)
+  // 3. Red Bar — sits ON TOP of the photos to bring the subtitle banner back
+  //    in front (the BG's banner gets covered when the photo cover-fits past
+  //    its top boundary). Bar y=382..441 in source coords.
+  try { ctx.drawImage(await ensureLayer('redBar'), 0, 0, 1080, 1350); } catch (_) {}
+
+  // 4. School logos (425×221 each)
   if (state.top.logoImg) {
     ctx.drawImage(state.top.logoImg,
       SCHOOL_LOGO.leftX + state.adj.leftLogo.dx,
@@ -437,10 +443,10 @@ async function draw(){
       SCHOOL_LOGO.w, SCHOOL_LOGO.h);
   }
 
-  // 4. Champ Logo and Split (vertical divider line + championship logo at bottom center)
+  // 5. Champ Logo and Split (vertical divider line + championship logo at bottom center)
   try { ctx.drawImage(await ensureLayer('champLogoSplit'), 0, 0, 1080, 1350); } catch (_) {}
 
-  // 5. Seeding Overlay (small light-gray seed boxes at far edges)
+  // 6. Seeding Overlay (small light-gray seed boxes at far edges)
   try { ctx.drawImage(await ensureLayer('seedingOverlay'), 0, 0, 1080, 1350); } catch (_) {}
 
   // ── Text overlays ──
@@ -581,6 +587,7 @@ document.getElementById('download').addEventListener('click', () => {
   }
   await Promise.all([
     ensureLayer('bg').catch(()=>null),
+    ensureLayer('redBar').catch(()=>null),
     ensureLayer('champLogoSplit').catch(()=>null),
     ensureLayer('seedingOverlay').catch(()=>null),
     ensureNetwork(state.network).catch(()=>null),
