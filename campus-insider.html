@@ -1209,29 +1209,54 @@ document.getElementById('psSchool').addEventListener('change', resetPlayerPicker
 document.getElementById('psSport').addEventListener('change', resetStatsPullState);
 document.getElementById('psSchool').addEventListener('change', resetStatsPullState);
 
-// ─── Live stat scrape (Phase 2B v2: ESPN-based) ───────────────────────────
-// ESPN exposes per-game box scores AND per-athlete season averages over JSON
-// with CORS allowed — no PDF parsing, no proxy chain. Each school maps to
-// one ESPN team_id (verified via /sports/.../teams?limit=600); within a sport
-// the schedule lists every event_id, /summary?event=… returns the box score,
-// and /athletes/{id}/stats?season=… returns season averages.
-const ESPN_TEAM_IDS = {
-  'Delaware':         48,
-  'FIU':              2229,
-  'Jax State':        55,
-  'Kennesaw State':   338,
-  'Liberty':          2335,
-  'Middle Tennessee': 2393,
-  'MO State':         2623,
-  'Sam Houston':      2534,
-  'Western Kentucky': 98,
+// ─── Live stat scrape (Phase 2B v3: ESPN-based, basketball + football + baseball) ──
+// ESPN exposes per-game box scores (and basketball season averages) over JSON
+// with CORS allowed — no PDF parsing, no proxy chain. Each sport has its own
+// path + team_id table; football and baseball are multi-group sports, so the
+// Quick Fill list prefixes the group (PASS_YDS, REC_TD, BAT_AVG, PITCH_ERA…).
+//
+// Coverage check (verified via /sports/{path}/summary?event=…):
+//   ✅ MBB/WBB:    per-game ✓, season averages ✓
+//   ✅ Football:   per-game ✓ (multi-group), season averages ✗ — auto-pick most recent game
+//   ✅ Baseball:   per-game ✓ (batting + pitching), season averages ✗
+//   ❌ Volleyball: ESPN /summary returns no per-player stats; same for soccer + softball.
+const _ESPN_TEAMS_SHARED = {
+  'Delaware': 48, 'FIU': 2229, 'Jax State': 55, 'Kennesaw State': 338,
+  'Liberty': 2335, 'Middle Tennessee': 2393, 'MO State': 2623,
+  'Sam Houston': 2534, 'Western Kentucky': 98,
 };
-const ESPN_SPORT_PATH = {
-  "Men's Basketball":   'basketball/mens-college-basketball',
-  "Women's Basketball": 'basketball/womens-college-basketball',
+const _ESPN_TEAMS_BASEBALL = {
+  'Delaware': 339, 'FIU': 164, 'Jax State': 73, 'Kennesaw State': 307,
+  'Liberty': 172, 'Middle Tennessee': 177, 'MO State': 197,
+  'Sam Houston': 190, 'Western Kentucky': 84,
 };
 const ESPN_BASE  = 'https://site.api.espn.com/apis/site/v2/sports';
 const ESPN_BASE2 = 'https://site.web.api.espn.com/apis/common/v3/sports';
+
+function footballPrefixer(groupName){
+  const m = {
+    passing: 'PASS', rushing: 'RUSH', receiving: 'REC',
+    defensive: 'DEF', fumbles: 'FUM', interceptions: 'INT',
+    kicking: 'K', punting: 'PUNT', puntReturns: 'PR', kickReturns: 'KR',
+  };
+  return ((m[groupName] || (groupName || '').toUpperCase().slice(0, 4)) || 'STAT') + '_';
+}
+function baseballPrefixer(_groupName, labels){
+  // Baseball groups have empty names — detect by labels.
+  if (labels.includes('OBP') || labels.includes('SLG') || labels.includes('AB')) return 'BAT_';
+  if (labels.includes('IP')  || labels.includes('ERA') || labels.includes('PC')) return 'PITCH_';
+  return '';
+}
+
+const ESPN_SPORT_CONFIG = {
+  "Men's Basketball":   { path: 'basketball/mens-college-basketball',   teamIds: _ESPN_TEAMS_SHARED,   multiGroup: false, hasSeasonStats: true,  seasonHint: end => end - (new Date().getMonth() < 7 ? 0 : -1) },
+  "Women's Basketball": { path: 'basketball/womens-college-basketball', teamIds: _ESPN_TEAMS_SHARED,   multiGroup: false, hasSeasonStats: true },
+  'Football · QB':      { path: 'football/college-football',             teamIds: _ESPN_TEAMS_SHARED,   multiGroup: true,  hasSeasonStats: false, prefixer: footballPrefixer },
+  'Football · Skill':   { path: 'football/college-football',             teamIds: _ESPN_TEAMS_SHARED,   multiGroup: true,  hasSeasonStats: false, prefixer: footballPrefixer },
+  'Baseball':           { path: 'baseball/college-baseball',             teamIds: _ESPN_TEAMS_BASEBALL, multiGroup: true,  hasSeasonStats: false, prefixer: baseballPrefixer },
+  // Volleyball, Softball, Women's Soccer intentionally absent — ESPN's
+  // public API doesn't expose per-player box-score data for them.
+};
 
 state.playerStats._gamesList      = null;   // [{ id, date, label }]
 state.playerStats._espnAthleteId  = null;
@@ -1260,28 +1285,54 @@ function setStatsStatus(msg, kind){
   el.style.color = kind === 'err' ? '#ff6f8b' : (kind === 'ok' ? '#9bd56b' : 'rgba(255,255,255,0.55)');
 }
 
-function currentSeason(){
-  // Basketball season starts in fall. ESPN's API uses the END year (2024-25 → 2025).
+function currentSeason(sport){
   const now = new Date();
+  // Football: season is one calendar year (Aug-Dec). ESPN uses that calendar year.
+  if (sport === 'Football · QB' || sport === 'Football · Skill') {
+    return now.getMonth() < 7 ? now.getFullYear() - 1 : now.getFullYear();
+  }
+  // Baseball: spring season — ESPN uses the calendar year of play.
+  if (sport === 'Baseball') {
+    return now.getMonth() < 1 ? now.getFullYear() - 1 : now.getFullYear();
+  }
+  // Basketball: starts in fall, ESPN's API uses the END year (2024-25 → 2025).
   return now.getFullYear() + (now.getMonth() >= 7 ? 1 : 0);
 }
 
-// Build a Quick-Fill list from a game box score's labels + stats arrays.
-// FG / 3PT / FT come back as "made-attempted"; expose both raw and a
-// derived percent so operators can pick either.
-function gameStatsToLabelMap(labels, stats){
-  const map = [];
-  labels.forEach((lbl, i) => {
-    const v = stats[i];
-    if (v == null || v === '') return;
-    map.push({ label: lbl, value: v });
-    if ((lbl === 'FG' || lbl === '3PT' || lbl === 'FT') && /^\d+-\d+$/.test(v)) {
-      const [m, a] = v.split('-').map(Number);
-      const pct = a > 0 ? (m / a).toFixed(3).replace(/^0/, '') : '';
-      if (pct) map.push({ label: lbl + '%', value: pct });
+// ESPN's roster JSON is flat for basketball/baseball but nested-by-position
+// for football (each entry has .items). Flatten so we can search uniformly.
+function flattenEspnRoster(rosterJson){
+  const aths = rosterJson.athletes || [];
+  if (!Array.isArray(aths) || !aths.length) return [];
+  if (aths[0] && Array.isArray(aths[0].items)) return aths.flatMap(g => g.items || []);
+  return aths;
+}
+
+// Walk every stat group in the box score and collect the picked athlete's
+// stats. For multi-group sports (football, baseball), labels are prefixed
+// with the group abbreviation so PASS_YDS and RUSH_YDS don't collide.
+function buildGameStatsFromBox(boxJson, athleteId, cfg){
+  const out = [];
+  for (const tm of (boxJson.boxscore?.players || [])) {
+    for (const grp of (tm.statistics || [])) {
+      const labels = grp.labels || [];
+      const ath = (grp.athletes || []).find(a => String(a.athlete?.id || '') === String(athleteId));
+      if (!ath) continue;
+      const stats = ath.stats || [];
+      const prefix = cfg.multiGroup && cfg.prefixer ? cfg.prefixer(grp.name || '', labels) : '';
+      labels.forEach((lbl, i) => {
+        const v = stats[i];
+        if (v == null || v === '') return;
+        out.push({ label: prefix + lbl, value: v });
+        // Derived percent for the basketball "made-attempted" pairs.
+        if (!cfg.multiGroup && (lbl === 'FG' || lbl === '3PT' || lbl === 'FT') && /^\d+-\d+$/.test(v)) {
+          const [m, a] = v.split('-').map(Number);
+          if (a > 0) out.push({ label: prefix + lbl + '%', value: (m / a).toFixed(3).replace(/^0/, '') });
+        }
+      });
     }
-  });
-  return map;
+  }
+  return out;
 }
 
 // Convert ESPN's season-averages category into the Quick Fill list with
@@ -1304,34 +1355,36 @@ async function pullLiveStatsForCurrentPlayer(){
   const f      = state.frames[0];
   const sport  = ps.sport;
   const school = f?.school;
-  const path   = ESPN_SPORT_PATH[sport];
-  const teamId = ESPN_TEAM_IDS[school];
+  const cfg    = ESPN_SPORT_CONFIG[sport];
 
-  if (!path)   { setStatsStatus(`Live stats only support basketball today — ${sport} coming later.`, 'err'); return; }
-  if (!teamId) { setStatsStatus(`No ESPN team mapping for ${school}.`, 'err'); return; }
+  if (!cfg) {
+    setStatsStatus(`Live stats not yet supported for ${sport} — ESPN doesn't publish per-player data for that sport. Enter manually.`, 'err');
+    return;
+  }
+  const teamId = cfg.teamIds[school];
+  if (!teamId) { setStatsStatus(`No ESPN team mapping for ${school} (${sport}).`, 'err'); return; }
   if (!f?.header) { setStatsStatus('Pick a player first (Load Roster + select).', 'err'); return; }
 
   const btn = document.getElementById('psPullStats');
   const origLabel = btn.textContent;
   btn.disabled = true;
   btn.textContent = '⏳ Loading…';
-  setStatsStatus(`Fetching ESPN data for ${school}…`);
+  setStatsStatus(`Fetching ESPN data for ${school} ${sport}…`);
 
   try {
-    const season = currentSeason();
+    const season = currentSeason(sport);
     const [rosterRes, schedRes] = await Promise.all([
-      fetch(`${ESPN_BASE}/${path}/teams/${teamId}/roster?enable=stats`),
-      fetch(`${ESPN_BASE}/${path}/teams/${teamId}/schedule?season=${season}`),
+      fetch(`${ESPN_BASE}/${cfg.path}/teams/${teamId}/roster?enable=stats`),
+      fetch(`${ESPN_BASE}/${cfg.path}/teams/${teamId}/schedule?season=${season}`),
     ]);
     if (!rosterRes.ok) throw new Error(`ESPN roster ${rosterRes.status}`);
     if (!schedRes.ok)  throw new Error(`ESPN schedule ${schedRes.status}`);
     const rosterJson = await rosterRes.json();
     const schedJson  = await schedRes.json();
 
-    // Match the picked player against ESPN's roster.
+    const athletes = flattenEspnRoster(rosterJson);
     const wantJersey = String(ps.jersey || '').replace(/\D/g, '');
     const wantNameLc = String(f.header || '').toLowerCase().trim();
-    const athletes   = rosterJson.athletes || [];
     let athlete = null;
     if (wantJersey) athlete = athletes.find(a => String(a.jersey || '') === wantJersey);
     if (!athlete && wantNameLc) {
@@ -1347,7 +1400,7 @@ async function pullLiveStatsForCurrentPlayer(){
     if (!athlete) throw new Error(`Player "${f.header}" not found on ESPN's ${school} roster (${athletes.length} athletes).`);
     ps._espnAthleteId = athlete.id;
 
-    // Build the games list, most-recent-first.
+    // Build games list, most-recent-first.
     const events = (schedJson.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed === true);
     events.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     ps._gamesList = events.map(e => {
@@ -1360,28 +1413,40 @@ async function pullLiveStatsForCurrentPlayer(){
       return { id: e.id, date: d, label: `${isHome ? 'vs' : 'at'} ${opp.toUpperCase()} · ${d}` };
     });
 
-    // Season averages (best effort).
-    setStatsStatus('Fetching season averages…');
-    try {
-      const r = await fetch(`${ESPN_BASE2}/${path}/athletes/${athlete.id}/stats?season=${season}`);
-      if (r.ok) {
-        const j = await r.json();
-        const avg = (j.categories || []).find(c => c.name === 'averages');
-        if (avg) ps._seasonStats = seasonStatsToLabelMap(avg);
-      }
-    } catch (_) { /* best effort */ }
+    // Season averages (basketball only; other sports rely on per-game pulls).
+    if (cfg.hasSeasonStats) {
+      setStatsStatus('Fetching season averages…');
+      try {
+        const r = await fetch(`${ESPN_BASE2}/${cfg.path}/athletes/${athlete.id}/stats?season=${season}`);
+        if (r.ok) {
+          const j = await r.json();
+          const avg = (j.categories || []).find(c => c.name === 'averages');
+          if (avg) ps._seasonStats = seasonStatsToLabelMap(avg);
+        }
+      } catch (_) { /* best effort */ }
+    }
 
     // Populate Game picker.
     const gameSel = document.getElementById('psGameSel');
     gameSel.innerHTML =
-      '<option value="">— Season Average —</option>' +
+      (cfg.hasSeasonStats ? '<option value="">— Season Average —</option>' : '<option value="">— Pick a game —</option>') +
       ps._gamesList.map(g => `<option value="${escapeAttr(g.id)}">${escapeAttr(g.label)}</option>`).join('');
     document.getElementById('psGameSelectField').style.display = '';
 
-    // Default view: season averages.
-    ps._availableStats = ps._seasonStats || [];
-    renderPlayerStatsControls();
-    setStatsStatus(`✓ ${athletes.length} athletes · ${ps._gamesList.length} games · pick from Quick Fill or change Game above.`, 'ok');
+    // Default view: season averages if we have them; otherwise auto-pull the
+    // most recent game so Quick Fill has something to show right away.
+    if (cfg.hasSeasonStats && ps._seasonStats?.length) {
+      ps._availableStats = ps._seasonStats;
+      renderPlayerStatsControls();
+      setStatsStatus(`✓ Season averages loaded · ${ps._gamesList.length} games available · Quick Fill any slot or change Game.`, 'ok');
+    } else if (ps._gamesList.length) {
+      gameSel.value = ps._gamesList[0].id;
+      btn.textContent = '⏳ Loading box score…';
+      await onGameSelect();
+      setStatsStatus(`✓ Most recent game loaded · ${ps._gamesList.length} games available · pick another above to switch.`, 'ok');
+    } else {
+      setStatsStatus(`No completed games found for ${school} ${sport} in season ${season}.`, 'err');
+    }
     btn.textContent = '✓ Loaded — Refresh';
   } catch (err) {
     console.error(err);
@@ -1394,6 +1459,8 @@ async function pullLiveStatsForCurrentPlayer(){
 
 async function onGameSelect(){
   const ps = state.playerStats;
+  const cfg = ESPN_SPORT_CONFIG[ps.sport];
+  if (!cfg) return;
   const eventId = document.getElementById('psGameSel').value;
   if (!eventId) {
     ps._availableStats = ps._seasonStats || [];
@@ -1406,21 +1473,13 @@ async function onGameSelect(){
     renderPlayerStatsControls();
     return;
   }
-  const path = ESPN_SPORT_PATH[ps.sport];
   setStatsStatus('Fetching box score…');
   try {
-    const r = await fetch(`${ESPN_BASE}/${path}/summary?event=${eventId}`);
+    const r = await fetch(`${ESPN_BASE}/${cfg.path}/summary?event=${eventId}`);
     if (!r.ok) throw new Error(`ESPN box score ${r.status}`);
     const j = await r.json();
-    let myStats = null, myLabels = null;
-    for (const tm of (j.boxscore?.players || [])) {
-      const grp = (tm.statistics || [])[0];
-      if (!grp) continue;
-      const ath = (grp.athletes || []).find(a => String(a.athlete?.id || '') === String(ps._espnAthleteId));
-      if (ath) { myStats = ath.stats || []; myLabels = grp.labels || []; break; }
-    }
-    if (!myStats) throw new Error('Player did not appear in this game (DNP?).');
-    const map = gameStatsToLabelMap(myLabels, myStats);
+    const map = buildGameStatsFromBox(j, ps._espnAthleteId, cfg);
+    if (!map.length) throw new Error('Player did not appear in this game (DNP?).');
     ps._gameStatsCache[eventId] = map;
     ps._availableStats = map;
     renderPlayerStatsControls();
