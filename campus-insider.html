@@ -171,6 +171,8 @@ select:disabled{opacity:0.45;cursor:not-allowed}
 
       <div class="panel-head" style="margin-top:6px">Stats</div>
       <div id="psStats" style="display:flex;flex-direction:column;gap:10px"></div>
+      <button class="btn secondary" id="psPullStats" style="font-size:10px;padding:8px 10px">📊 Pull Live Stats (basketball v1)</button>
+      <span id="psStatsStatus" style="font-size:10px;color:rgba(255,255,255,0.55);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-top:-4px;display:none"></span>
       <button class="btn secondary" id="psResetDefaults" style="font-size:10px;padding:8px 10px">Reset Stat Labels for Sport</button>
     </div>
 
@@ -1175,6 +1177,267 @@ function resetPlayerPicker(){
 }
 document.getElementById('psSport').addEventListener('change', resetPlayerPicker);
 document.getElementById('psSchool').addEventListener('change', resetPlayerPicker);
+
+// ─── Live stat scrape (Phase 2B v1: basketball) ───────────────────────────
+// Slim port of the Production Hub's stats-master cume.pdf pipeline. Discovers
+// each school's Sidearm site key from its stats page HTML, builds the AWS
+// cume.pdf URL, fetches via public CORS proxies, extracts text via pdf.js
+// (lazy-loaded from CDN), and parses the basketball player table.
+const SIDEARM_HOST_BY_SCHOOL = {
+  'Delaware':         'bluehens.com',
+  'FIU':              'fiusports.com',
+  'Jax State':        'jaxstatesports.com',
+  'Kennesaw State':   'ksuowls.com',
+  'Liberty':          'libertyflames.com',
+  'Middle Tennessee': 'goblueraiders.com',
+  'MO State':         'missouristatebears.com',
+  'Sam Houston':      'gobearkats.com',
+  'Western Kentucky': 'wkusports.com',
+};
+const STATS_CORS_PROXIES = [
+  { name: 'corsproxy.io',   build: u => 'https://corsproxy.io/?'                + encodeURIComponent(u) },
+  { name: 'codetabs.com',   build: u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u) },
+  { name: 'allorigins.win', build: u => 'https://api.allorigins.win/raw?url='   + encodeURIComponent(u) },
+];
+const SPORT_PATH_ALIASES = {
+  'mens-basketball':   ['mbball', 'mens-basketball', 'mbb'],
+  'womens-basketball': ['wbball', 'womens-basketball', 'wbb'],
+};
+const PDFJS_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let _pdfjsPromise = null;
+function loadPdfJs(){
+  if (_pdfjsPromise) return _pdfjsPromise;
+  _pdfjsPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = PDFJS_CDN;
+    s.onload = () => {
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
+        resolve(window.pdfjsLib);
+      } else {
+        reject(new Error('pdfjsLib failed to load'));
+      }
+    };
+    s.onerror = () => reject(new Error('Failed to load PDF.js from CDN'));
+    document.head.appendChild(s);
+  });
+  return _pdfjsPromise;
+}
+
+async function fetchTextViaProxies(url){
+  const failures = [];
+  for (const p of STATS_CORS_PROXIES) {
+    try {
+      const res = await fetch(p.build(url));
+      if (!res.ok) { failures.push(`${p.name}: HTTP ${res.status}`); continue; }
+      const text = await res.text();
+      if (!text || text.length < 200) { failures.push(`${p.name}: empty`); continue; }
+      return text;
+    } catch (e) { failures.push(`${p.name}: ${e.message || 'fetch failed'}`); }
+  }
+  throw new Error('All proxies failed: ' + failures.join('; '));
+}
+async function fetchPdfBufferViaProxies(url){
+  const failures = [];
+  for (const p of STATS_CORS_PROXIES) {
+    try {
+      const res = await fetch(p.build(url));
+      if (!res.ok) { failures.push(`${p.name}: HTTP ${res.status}`); continue; }
+      const buf = await res.arrayBuffer();
+      // Verify it's actually a PDF (starts with %PDF)
+      const sig = new TextDecoder().decode(new Uint8Array(buf.slice(0, 4)));
+      if (sig !== '%PDF') { failures.push(`${p.name}: not a PDF (got "${sig}")`); continue; }
+      if (buf.byteLength < 1000) { failures.push(`${p.name}: too small (${buf.byteLength}b)`); continue; }
+      return buf;
+    } catch (e) { failures.push(`${p.name}: ${e.message || 'fetch failed'}`); }
+  }
+  throw new Error('All proxies failed: ' + failures.join('; '));
+}
+
+// Cache the discovered Sidearm site key per host to skip re-discovery.
+const SITE_KEY_CACHE = 'cusa_creative_stats_site_keys_v1';
+function _readSiteKeyCache(){ try { return JSON.parse(localStorage.getItem(SITE_KEY_CACHE) || '{}'); } catch(_) { return {}; } }
+function _writeSiteKeyCache(host, key){
+  const m = _readSiteKeyCache(); m[host] = key;
+  try { localStorage.setItem(SITE_KEY_CACHE, JSON.stringify(m)); } catch(_) {}
+}
+
+async function discoverSidearmSiteKey(host, statsPageUrl){
+  const cached = _readSiteKeyCache()[host];
+  if (cached) return cached;
+  const html = await fetchTextViaProxies(statsPageUrl);
+  const matches = Array.from(html.matchAll(/sidearm\.nextgen\.sites\/([a-z0-9][a-z0-9.\-]+\.(?:com|org|net|edu|us))/gi));
+  if (!matches.length) throw new Error('Sidearm site key not found in stats page HTML.');
+  const counts = {};
+  for (const mm of matches) counts[mm[1]] = (counts[mm[1]] || 0) + 1;
+  const key = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  _writeSiteKeyCache(host, key);
+  return key;
+}
+
+function buildCumePdfCandidates(siteKey, sport, year){
+  const aliases = SPORT_PATH_ALIASES[sport] || [sport];
+  return aliases.map(slug =>
+    `https://s3.us-east-2.amazonaws.com/sidearm.nextgen.sites/${siteKey}/stats/${slug}/${year}/pdf/cume.pdf`
+  );
+}
+
+async function extractPdfText(buf){
+  const pdfjs = await loadPdfJs();
+  const pdf = await pdfjs.getDocument({ data: buf }).promise;
+  let out = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    out += tc.items.map(it => it.str).join(' ') + '\n';
+  }
+  return out;
+}
+
+// Slim port of parseBasketballPdf from stats-master.html. Looks for the
+// "# Player ... GP-GS ... FG-FGA ..." header line, then parses each row.
+function parseBasketballCumeText(text){
+  const lines = text.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  let headerIdx = -1, headers = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^#\s+Player\b/i.test(l) && /\bGP-GS\b/.test(l) && /\bFG-FGA\b/.test(l)) {
+      headerIdx = i;
+      headers = l.replace(/^#\s+Player\s+/i, '').split(/\s+/);
+      break;
+    }
+  }
+  if (headerIdx < 0) return [];
+  const findIdx    = (n) => headers.indexOf(n);
+  const findAllIdx = (n) => headers.reduce((acc, h, i) => (h === n && acc.push(i), acc), []);
+  const avgs = findAllIdx('AVG');
+  const idx = {
+    gpGs: findIdx('GP-GS'),
+    mpg:  avgs[0],     // MPG (first AVG col)
+    rpg:  avgs[1],     // RPG (second AVG col)
+    a:    findIdx('A'),
+    ppg:  avgs[2],     // PPG (third AVG col)
+  };
+  const rows = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^(Total|Opponents?|Team)\b/i.test(l)) break;
+    const m = l.match(/^(\d{1,3})\s+(.+)$/);
+    if (!m) continue;
+    const jersey = parseInt(m[1], 10);
+    if (jersey < 0 || jersey > 99) continue;
+    const rest = m[2].split(/\s+/);
+    if (rest.length < headers.length + 1) continue;
+    const values = rest.slice(-headers.length);
+    const name   = rest.slice(0, rest.length - headers.length).join(' ');
+    const gp     = parseInt((values[idx.gpGs] || '0').split('-')[0], 10) || 0;
+    const aTotal = parseInt(values[idx.a], 10);
+    rows.push({
+      jersey, name, gp,
+      ppg: values[idx.ppg],
+      rpg: values[idx.rpg],
+      apg: gp > 0 && Number.isFinite(aTotal) ? (aTotal / gp).toFixed(1) : '',
+    });
+  }
+  return rows;
+}
+
+function setStatsStatus(msg, kind){
+  const el = document.getElementById('psStatsStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+  el.style.color = kind === 'err' ? '#ff6f8b' : (kind === 'ok' ? '#9bd56b' : 'rgba(255,255,255,0.55)');
+}
+
+async function pullLiveStatsForCurrentPlayer(){
+  const ps = state.playerStats;
+  const f = state.frames[0];
+  const sport = ps.sport;
+  const school = f?.school;
+
+  // Phase 2B v1: only basketball is supported. Other sports need cume.pdf
+  // section-specific parsers — coming in follow-up commits.
+  const SPORT_TO_SIDEARM = {
+    "Men's Basketball":   'mens-basketball',
+    "Women's Basketball": 'womens-basketball',
+  };
+  const sidearmSport = SPORT_TO_SIDEARM[sport];
+  if (!sidearmSport) {
+    setStatsStatus(`Live scrape not yet supported for ${sport} — enter manually.`, 'err');
+    return;
+  }
+  const host = SIDEARM_HOST_BY_SCHOOL[school];
+  if (!host) {
+    setStatsStatus(`No Sidearm host mapped for ${school}.`, 'err');
+    return;
+  }
+
+  // Default to the most recently completed season (CB seasons start in fall;
+  // before August we want the previous calendar year's start year).
+  const now = new Date();
+  const year = now.getFullYear() - (now.getMonth() < 8 ? 1 : 0);
+  const statsPageUrl = `https://${host}/sports/${sidearmSport}/stats/${year}`;
+
+  const btn = document.getElementById('psPullStats');
+  btn.disabled = true;
+  const origLabel = btn.textContent;
+  btn.textContent = '⏳ Discovering site key…';
+  setStatsStatus('Locating cume.pdf for ' + school + '…');
+
+  try {
+    const siteKey = await discoverSidearmSiteKey(host, statsPageUrl);
+    btn.textContent = '⏳ Fetching PDF…';
+    const candidates = buildCumePdfCandidates(siteKey, sidearmSport, year);
+    let buf = null, lastErr = null;
+    for (const candidate of candidates) {
+      try { buf = await fetchPdfBufferViaProxies(candidate); break; }
+      catch (e) { lastErr = e; }
+    }
+    if (!buf) throw new Error('cume.pdf fetch failed: ' + (lastErr?.message || 'no candidates worked'));
+    btn.textContent = '⏳ Extracting text…';
+    const text = await extractPdfText(buf);
+    btn.textContent = '⏳ Parsing…';
+    const rows = parseBasketballCumeText(text);
+    if (!rows.length) throw new Error('No player rows found in PDF (column layout may have changed).');
+
+    // Match the picked player. Try jersey first (most reliable), then name.
+    const wantJersey = parseInt(String(ps.jersey || '').replace(/\D/g, ''), 10);
+    const wantName = String(f?.header || '').toLowerCase().trim();
+    let row = null;
+    if (Number.isFinite(wantJersey)) row = rows.find(r => r.jersey === wantJersey);
+    if (!row && wantName) {
+      row = rows.find(r => r.name.toLowerCase() === wantName)
+         || rows.find(r => r.name.toLowerCase().includes(wantName.split(' ')[0]) && r.name.toLowerCase().includes(wantName.split(' ').pop()));
+    }
+    if (!row) {
+      throw new Error(`Player "${f?.header || '?'}" not found in PDF (${rows.length} rows scanned).`);
+    }
+
+    // Fill the 3 stat slots (PPG / RPG / APG) — match by current label.
+    const map = { 'PPG': row.ppg, 'RPG': row.rpg, 'APG': row.apg };
+    let filled = 0;
+    ps.stats.forEach((s, i) => {
+      const k = String(s.label || '').toUpperCase();
+      if (map[k] != null && map[k] !== '') { ps.stats[i] = { label: s.label, value: String(map[k]) }; filled++; }
+    });
+    renderPlayerStatsControls();
+    syncFrameFromPlayerStats();
+    draw();
+    setStatsStatus(`✓ Pulled ${filled}/3 stats for ${row.name} (#${row.jersey}, ${row.gp} GP).`, 'ok');
+    btn.textContent = '✓ Pulled — Refresh';
+  } catch (err) {
+    console.error(err);
+    setStatsStatus('Pull failed: ' + (err.message || err), 'err');
+    btn.textContent = origLabel;
+  } finally {
+    setTimeout(() => { btn.disabled = false; }, 50);
+  }
+}
+
+document.getElementById('psPullStats').addEventListener('click', pullLiveStatsForCurrentPlayer);
 
 // ─── Download ─────────────────────────────────────────────────────────────
 document.getElementById('download').addEventListener('click', () => {
