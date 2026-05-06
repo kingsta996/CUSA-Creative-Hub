@@ -135,7 +135,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
     </label>
     <button class="btn secondary" id="clearPhotoBtn" style="font-size:10px;padding:8px 10px">Clear photo</button>
 
-    <div class="panel-head" style="margin-top:6px">Position Tuning</div>
+    <div class="panel-head" style="margin-top:6px">Position Tuning <span style="font-weight:600;color:rgba(255,255,255,0.35);letter-spacing:1px">· auto-saved</span></div>
     <div class="team-card">
       <div class="team-card-title">Top Logo</div>
       <div class="row-2">
@@ -448,6 +448,50 @@ document.querySelectorAll('input[data-team][data-stat]').forEach(inp => {
   });
 });
 
+// Position adjustments persist to localStorage so the operator's tuning
+// sticks across reloads (per browser). Saved transparently on every slider
+// input — no Save button needed. Reset writes zeros back so the reset
+// state persists too.
+const POS_STORAGE_KEY = 'cusa_championship_softball_finalscore_positions_v1';
+
+function persistPositions(){
+  try { localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(state.adj)); } catch (_) {}
+}
+
+function restorePositions(){
+  try {
+    const raw = localStorage.getItem(POS_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object') return;
+    if (saved.topLogo && typeof saved.topLogo === 'object') Object.assign(state.adj.topLogo, saved.topLogo);
+    if (saved.botLogo && typeof saved.botLogo === 'object') Object.assign(state.adj.botLogo, saved.botLogo);
+    ['topScoreDy','botScoreDy','rColDx','hColDx','eColDx'].forEach(k => {
+      if (typeof saved[k] === 'number') state.adj[k] = saved[k];
+    });
+  } catch (_) {}
+}
+
+function syncSlidersFromState(){
+  const m = {
+    topLogoDx:  state.adj.topLogo.dx,
+    topLogoDy:  state.adj.topLogo.dy,
+    botLogoDx:  state.adj.botLogo.dx,
+    botLogoDy:  state.adj.botLogo.dy,
+    topScoreDy: state.adj.topScoreDy,
+    botScoreDy: state.adj.botScoreDy,
+    rColDx:     state.adj.rColDx,
+    hColDx:     state.adj.hColDx,
+    eColDx:     state.adj.eColDx,
+  };
+  for (const [id, val] of Object.entries(m)) {
+    const inp = document.getElementById(id);
+    const ro  = document.getElementById(id + 'R');
+    if (inp) inp.value = String(val);
+    if (ro)  ro.textContent = (val >= 0 ? '+' : '') + val + 'px';
+  }
+}
+
 // Position-tuning sliders. Each slider updates the corresponding state.adj
 // field and re-draws. Readouts show the current px value.
 const ADJ_BINDINGS = [
@@ -468,6 +512,7 @@ ADJ_BINDINGS.forEach(([id, setter]) => {
     const v = Number(inp.value || 0);
     setter(v);
     if (ro) ro.textContent = (v >= 0 ? '+' : '') + v + 'px';
+    persistPositions();
     draw();
   });
 });
@@ -478,12 +523,8 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     topScoreDy: 0, botScoreDy: 0,
     rColDx: 0, hColDx: 0, eColDx: 0,
   };
-  ADJ_BINDINGS.forEach(([id]) => {
-    const inp = document.getElementById(id);
-    const ro  = document.getElementById(id + 'R');
-    inp.value = 0;
-    if (ro) ro.textContent = '0px';
-  });
+  syncSlidersFromState();
+  persistPositions();
   draw();
 });
 
@@ -499,6 +540,8 @@ document.getElementById('download').addEventListener('click', () => {
 // ─── Init ─────────────────────────────────────────────────────────────────
 (async () => {
   populateSchools();
+  restorePositions();
+  syncSlidersFromState();
   // Pre-warm fonts so the first paint already has the right glyphs.
   if (document.fonts && document.fonts.load) {
     try { await document.fonts.load('900 50px "Gazzetta Black"'); } catch(_) {}
