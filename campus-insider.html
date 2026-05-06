@@ -670,14 +670,35 @@ const GB_GAP_PJ    = 16;   // Gap between position and jersey
 const GB_GAP_JN    = 24;   // Gap between jersey and name
 const GB_LEFT_X    = 775;  // source x — start of gray-bar text layout
 
-// White-bar stats layout: 3 blocks across the white band (y=926..964).
-// Centers in source coords; all sit inside the middle stretch zone so they
-// shift uniformly with extension. Tiny tracked label on top, navy value below.
-const WB_LABEL_FS    = 14;
-const WB_VALUE_FS    = 26;
-const WB_LABEL_CY    = 933;
-const WB_VALUE_CY    = 951;
-const WB_BLOCK_BASES = [820, 985, 1150];  // source x of each block center
+// Stats layout splits the original white bar into:
+//   • Color bar (school primary) at y=926..944 — category labels in school FG
+//   • White value strip at y=944..964 — values in navy
+const COLOR_BAR_TOP    = 926;
+const COLOR_BAR_BOTTOM = 944;
+const COLOR_BAR_LEFT_BASE  = 745;   // source x → keeps left edge at canvas 720 (just past logo)
+const COLOR_BAR_RIGHT_BASE = 1370;  // source x → tracks plate right edge as it extends
+const CAT_LABEL_FS  = 16;
+const CAT_LABEL_CY  = 935;
+const WB_VALUE_FS    = 24;
+const WB_VALUE_CY    = 954;          // centered in the remaining white area
+const WB_BLOCK_BASES = [820, 985, 1150];  // source x of each stat block center
+
+// School primary colors for the category bar. Hex values pulled from
+// IMS_Color_Mapping.xlsx (Swatch column, ESPN Primary fallback). `fg` is the
+// text color used on top of `bg` — white for dark bars, near-black on the
+// gold (Kennesaw) where contrast against white type would fail.
+const SCHOOL_PRIMARY_COLORS = {
+  'CUSA':              { bg: '#00263A', fg: '#FFFFFF' },
+  'Delaware':          { bg: '#00539F', fg: '#FFFFFF' },
+  'FIU':               { bg: '#091F3F', fg: '#FFFFFF' },
+  'Jax State':         { bg: '#CC0000', fg: '#FFFFFF' },
+  'Kennesaw State':    { bg: '#FDBB30', fg: '#0A0A0A' },
+  'Liberty':           { bg: '#0A254E', fg: '#FFFFFF' },
+  'Middle Tennessee':  { bg: '#036EB7', fg: '#FFFFFF' },
+  'MO State':          { bg: '#5E0009', fg: '#FFFFFF' },
+  'Sam Houston':       { bg: '#FF5000', fg: '#FFFFFF' },
+  'Western Kentucky':  { bg: '#E13A3E', fg: '#FFFFFF' },
+};
 
 function measureGrayBarPrefix(name, position, jersey){
   ctx.save();
@@ -759,17 +780,36 @@ function drawPlayerStatsPlate(frame){
   ctx.font = `700 ${HEADER_EM}px ${FONT_FAMILY}`;
   ctx.fillText(name, curX, HEADER_CY);
 
-  // ── White bar: 3 stat blocks at fixed canvas positions ────────────────
+  // ── Color bar (school primary) ────────────────────────────────────────
+  // Sits between the gray bar and the white-value strip. Left edge stays at
+  // canvas x=720 (just past every school's logo) regardless of any plate
+  // extension; right edge tracks the plate's right edge as it widens.
+  const colors = SCHOOL_PRIMARY_COLORS[frame.school] || { bg: '#00263A', fg: '#FFFFFF' };
+  const barLeftX  = COLOR_BAR_LEFT_BASE  + halfL;
+  const barRightX = COLOR_BAR_RIGHT_BASE + halfL + (extraWidth - halfL);
+  ctx.fillStyle = colors.bg;
+  ctx.fillRect(barLeftX, COLOR_BAR_TOP, barRightX - barLeftX, COLOR_BAR_BOTTOM - COLOR_BAR_TOP);
+
+  // ── Color-bar category labels (school FG) ─────────────────────────────
   ctx.textAlign = 'center';
+  ctx.fillStyle = colors.fg;
+  ctx.font = `800 ${CAT_LABEL_FS}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
   ps.stats.forEach((s, i) => {
     const base = WB_BLOCK_BASES[i];
     if (base === undefined) return;
     const bx = base + halfL;
     const label = String(s.label || '').toUpperCase();
+    ctx.fillText(label.split('').join(' '), bx, CAT_LABEL_CY);
+  });
+
+  // ── White value strip (navy values) ────────────────────────────────────
+  ctx.fillStyle = TEXT_COLOR;
+  ctx.font = `900 ${WB_VALUE_FS}px ${FONT_FAMILY}`;
+  ps.stats.forEach((s, i) => {
+    const base = WB_BLOCK_BASES[i];
+    if (base === undefined) return;
+    const bx = base + halfL;
     const value = String(s.value || '');
-    ctx.font = `800 ${WB_LABEL_FS}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
-    ctx.fillText(label.split('').join(' '), bx, WB_LABEL_CY);
-    ctx.font = `900 ${WB_VALUE_FS}px ${FONT_FAMILY}`;
     ctx.fillText(value || '—', bx, WB_VALUE_CY);
   });
 
