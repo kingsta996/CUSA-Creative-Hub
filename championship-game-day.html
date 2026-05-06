@@ -188,6 +188,10 @@ body{display:flex;flex-direction:column;overflow:hidden}
         <div class="field"><label class="field-label">Headline X <span class="nudge-readout" id="headlineDxR">0px</span></label><input id="headlineDx" type="range" min="-300" max="300" step="1" value="0"></div>
         <div class="field"><label class="field-label">Headline Y <span class="nudge-readout" id="headlineDyR">0px</span></label><input id="headlineDy" type="range" min="-100" max="100" step="1" value="0"></div>
       </div>
+      <div class="field">
+        <label class="field-label">Champ Medallion Y <span class="nudge-readout" id="champLayerDyR">0px</span></label>
+        <input id="champLayerDy" type="range" min="-100" max="100" step="1" value="0">
+      </div>
     </div>
     <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
 
@@ -251,6 +255,10 @@ const TIME_FONT_SIZE = 47.03;
 const SEED_LEFT_CENTER  = { x: 35,   y: 1083 };
 const SEED_RIGHT_CENTER = { x: 1047, y: 1083 };
 const TIME_ROW_CY = 1320;       // bottom navy band center y
+// Champ medallion in the source asset is at y=1049..1271; school logos sit
+// at y=1075..1295. Shift the Champ-Logo-and-Split layer down by this many
+// px so the medallion's top + bottom align with the school logos.
+const CHAMP_LAYER_DY_BASE = 26;
 const NAVY = '#082338';
 const WHITE = '#FFFFFF';
 
@@ -274,6 +282,7 @@ const state = {
     timeRowDy: 0,
     headlineDx: 0,
     headlineDy: 0,
+    champLayerDy: 0,  // additional fine-tune on top of CHAMP_LAYER_DY_BASE
   },
 };
 
@@ -450,8 +459,12 @@ async function draw(){
       SCHOOL_LOGO.w, SCHOOL_LOGO.h);
   }
 
-  // 5. Champ Logo and Split (vertical divider line + championship logo at bottom center)
-  try { ctx.drawImage(await ensureLayer('champLogoSplit'), 0, 0, 1080, 1350); } catch (_) {}
+  // 5. Champ Logo and Split (vertical divider line + championship logo at bottom center).
+  //    Shifted down so the medallion's top + bottom align with the school-logo row.
+  try {
+    const dy = CHAMP_LAYER_DY_BASE + state.adj.champLayerDy;
+    ctx.drawImage(await ensureLayer('champLogoSplit'), 0, dy, 1080, 1350);
+  } catch (_) {}
 
   // 6. Seeding Overlay (small light-gray seed boxes at far edges)
   try { ctx.drawImage(await ensureLayer('seedingOverlay'), 0, 0, 1080, 1350); } catch (_) {}
@@ -504,7 +517,7 @@ function restorePositions(){
     ['leftPhoto','rightPhoto','leftLogo','rightLogo'].forEach(k => {
       if (saved[k] && typeof saved[k] === 'object') Object.assign(state.adj[k], saved[k]);
     });
-    ['leftSeedDy','rightSeedDy','timeRowDx','timeRowDy','headlineDx','headlineDy'].forEach(k => {
+    ['leftSeedDy','rightSeedDy','timeRowDx','timeRowDy','headlineDx','headlineDy','champLayerDy'].forEach(k => {
       if (typeof saved[k] === 'number') state.adj[k] = saved[k];
     });
   } catch(_){}
@@ -525,6 +538,7 @@ const ADJ_BINDINGS = [
   ['timeRowDy',    v => state.adj.timeRowDy     = v],
   ['headlineDx',   v => state.adj.headlineDx    = v],
   ['headlineDy',   v => state.adj.headlineDy    = v],
+  ['champLayerDy', v => state.adj.champLayerDy  = v],
 ];
 
 function syncSlidersFromState(){
@@ -543,6 +557,7 @@ function syncSlidersFromState(){
     timeRowDy:    state.adj.timeRowDy,
     headlineDx:   state.adj.headlineDx,
     headlineDy:   state.adj.headlineDy,
+    champLayerDy: state.adj.champLayerDy,
   };
   for (const [id, val] of Object.entries(m)) {
     const inp = document.getElementById(id);
@@ -568,7 +583,7 @@ document.getElementById('resetPositions').addEventListener('click', () => {
   state.adj = {
     leftPhoto: { dx: 0, dy: 0 }, rightPhoto: { dx: 0, dy: 0 },
     leftLogo:  { dx: 0, dy: 0 }, rightLogo:  { dx: 0, dy: 0 },
-    leftSeedDy: 0, rightSeedDy: 0, timeRowDx: 0, timeRowDy: 0, headlineDx: 0, headlineDy: 0,
+    leftSeedDy: 0, rightSeedDy: 0, timeRowDx: 0, timeRowDy: 0, headlineDx: 0, headlineDy: 0, champLayerDy: 0,
   };
   syncSlidersFromState();
   persistPositions();
