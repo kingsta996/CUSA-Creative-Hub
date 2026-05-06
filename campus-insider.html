@@ -256,16 +256,6 @@ const SPORT_STATS = {
 
 const PS_DEFAULT_SPORT = "Men's Basketball";
 
-// Stat overlay geometry (source 1920×1080 PNG coords). Three blocks centered
-// across the plate width (560..1410), positioned above the plate top (769).
-const PS_BLOCK_CXS = [711, 985, 1259];   // three columns
-const PS_VALUE_CY  = 540;                // big number baseline (middle)
-const PS_LABEL_CY  = 700;                // small label baseline (middle)
-const PS_VALUE_EM  = 168;                // big number font size
-const PS_LABEL_EM  = 38;                 // label font size
-const PS_DIVIDER_Y = 730;                // thin red rule between stats and plate
-const PS_DIVIDER_H = 4;                  // rule thickness
-
 // ─── State ────────────────────────────────────────────────────────────────
 const state = {
   mode:'standard', frameCount:2, scale:0.60, frames:[],
@@ -551,17 +541,133 @@ async function ensureBgRef(){
 }
 
 // ─── Player + Stats helpers ───────────────────────────────────────────────
+// Position + jersey now render IN the plate's gray bar (in front of the name),
+// so frame.sub is unused in this mode. Header still holds the player name.
 function syncFrameFromPlayerStats(){
-  const ps = state.playerStats;
   const f = state.frames[0];
   if (!f) return;
-  // Plate header is the player name; sub is computed from position + jersey.
   f.header = (document.getElementById('psName')?.value || f.header || 'PLAYER NAME').toUpperCase();
-  const parts = [];
-  if (ps.position) parts.push(ps.position.toUpperCase());
-  if (ps.jersey)   parts.push('#' + String(ps.jersey).replace(/^#/, ''));
-  f.sub = parts.join(' · ');
+  f.sub = '';  // suppressed — pos/jersey live in the gray bar prefix
 }
+
+// Gray-bar prefix layout: [POS] [#JERSEY] [NAME], left-to-right, all navy,
+// vertically centered on the gray band (HEADER_CY). Left-aligned starting
+// just past the school logo (source x=775 → canvas x≈750 at scale 1.0).
+const GB_POS_FS    = 40;   // Position
+const GB_JERSEY_FS = 56;   // Jersey
+const GB_GAP_PJ    = 16;   // Gap between position and jersey
+const GB_GAP_JN    = 24;   // Gap between jersey and name
+const GB_LEFT_X    = 775;  // source x — start of gray-bar text layout
+
+// White-bar stats layout: 3 blocks across the white band (y=926..964).
+// Centers in source coords; all sit inside the middle stretch zone so they
+// shift uniformly with extension. Tiny tracked label on top, navy value below.
+const WB_LABEL_FS    = 14;
+const WB_VALUE_FS    = 26;
+const WB_LABEL_CY    = 933;
+const WB_VALUE_CY    = 951;
+const WB_BLOCK_BASES = [820, 985, 1150];  // source x of each block center
+
+function measureGrayBarPrefix(name, position, jersey){
+  ctx.save();
+  let w = 0;
+  if (position) {
+    ctx.font = `800 ${GB_POS_FS}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
+    w += ctx.measureText(position).width + GB_GAP_PJ;
+  }
+  if (jersey) {
+    ctx.font = `900 ${GB_JERSEY_FS}px ${FONT_FAMILY}`;
+    w += ctx.measureText(jersey).width + GB_GAP_JN;
+  }
+  ctx.font = `700 ${HEADER_EM}px ${FONT_FAMILY}`;
+  w += ctx.measureText(String(name || '')).width;
+  ctx.restore();
+  return w;
+}
+
+// Player + Stats plate has its own extension formula. Layout is left-aligned
+// starting at canvas x=750 (just past every school's logo); plate's safe
+// right edge before the decorative swoosh starts is canvas x=1320. So the
+// budget = 570px, minus 15px margin = 555. When grayW exceeds the budget,
+// we add 2× the shortfall to the plate (split symmetrically) so the right
+// edge widens far enough to keep the text inside the gray bar.
+function calcPlayerStatsExtension(grayW){
+  const BUDGET = 555;
+  if (grayW <= BUDGET) return 0;
+  return Math.min(2 * Math.ceil(grayW - BUDGET), PLATE_MAX_EXTENSION);
+}
+
+function drawPlayerStatsPlate(frame){
+  const scale = state.scale;
+  const { cx, cy } = plateTargetCenter(frame.align, scale);
+  const tx = cx + (frame.xOff || 0);
+  const ty = cy + (frame.yOff || 0);
+
+  const ps = state.playerStats;
+  const name    = String(frame.header || '').trim();
+  const pos     = String(ps.position || '').trim().toUpperCase();
+  const jerseyN = String(ps.jersey || '').replace(/^#/, '').trim();
+  const jersey  = jerseyN ? '#' + jerseyN : '';
+
+  const grayW = measureGrayBarPrefix(name, pos, jersey);
+  const extraWidth = calcPlayerStatsExtension(grayW);
+  const halfL = Math.floor(extraWidth / 2);
+
+  const plateImg = (frame.bgImg && extraWidth > 0)
+    ? buildExtendedPlate(frame.bgImg, extraWidth)
+    : frame.bgImg;
+
+  ctx.save();
+  ctx.translate(tx, ty);
+  ctx.scale(scale, scale);
+  ctx.translate(-(SRC_CX + halfL), -SRC_CY);
+
+  if (plateImg) ctx.drawImage(plateImg, 0, 0);
+
+  ctx.fillStyle = TEXT_COLOR;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+
+  // ── Gray bar: [POS] [#JERSEY] [NAME], left-aligned past the logo ──────
+  // Drawing at X = GB_LEFT_X + halfL keeps the layout pinned at the same
+  // canvas position regardless of any plate extension (logo and text both
+  // sit in the unchanged-on-extension portion of the transform).
+  let curX = GB_LEFT_X + halfL;
+  if (pos) {
+    ctx.font = `800 ${GB_POS_FS}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
+    const w = ctx.measureText(pos).width;
+    ctx.fillText(pos, curX, HEADER_CY);
+    curX += w + GB_GAP_PJ;
+  }
+  if (jersey) {
+    ctx.font = `900 ${GB_JERSEY_FS}px ${FONT_FAMILY}`;
+    const w = ctx.measureText(jersey).width;
+    ctx.fillText(jersey, curX, HEADER_CY);
+    curX += w + GB_GAP_JN;
+  }
+  ctx.font = `700 ${HEADER_EM}px ${FONT_FAMILY}`;
+  ctx.fillText(name, curX, HEADER_CY);
+
+  // ── White bar: 3 stat blocks at fixed canvas positions ────────────────
+  ctx.textAlign = 'center';
+  ps.stats.forEach((s, i) => {
+    const base = WB_BLOCK_BASES[i];
+    if (base === undefined) return;
+    const bx = base + halfL;
+    const label = String(s.label || '').toUpperCase();
+    const value = String(s.value || '');
+    ctx.font = `800 ${WB_LABEL_FS}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
+    ctx.fillText(label.split('').join(' '), bx, WB_LABEL_CY);
+    ctx.font = `900 ${WB_VALUE_FS}px ${FONT_FAMILY}`;
+    ctx.fillText(value || '—', bx, WB_VALUE_CY);
+  });
+
+  ctx.restore();
+}
+
+// (Stats now render INSIDE the plate's white bar via drawPlayerStatsPlate;
+// the legacy above-plate overlay was removed in favor of higher-contrast
+// navy-on-white inside the plate art.)
 
 function renderPlayerStatsControls(){
   const ps = state.playerStats;
@@ -613,46 +719,6 @@ function renderPlayerStatsControls(){
   });
 }
 
-function drawPlayerStatsOverlay(){
-  const ps = state.playerStats;
-  if (!ps || !ps.stats?.length) return;
-
-  // Stats are drawn in source-PNG coordinates so they line up with the plate
-  // exactly the way drawPlate does (no per-stat scaling). The plate itself is
-  // already drawn by drawPlate() — we layer on top of the same canvas.
-  ctx.save();
-  ctx.fillStyle = TEXT_COLOR;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // Big number row
-  ctx.font = `900 ${PS_VALUE_EM}px ${FONT_FAMILY}`;
-  ps.stats.forEach((s, i) => {
-    const cx = PS_BLOCK_CXS[i] ?? PS_BLOCK_CXS[0];
-    ctx.fillText(String(s.value || '—'), cx, PS_VALUE_CY);
-  });
-
-  // Small label row (Barlow Condensed for tracked-out broadcast feel)
-  ctx.font = `800 ${PS_LABEL_EM}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
-  // Approximate letter-spacing via a minor x-stretch trick: just space chars.
-  ps.stats.forEach((s, i) => {
-    const cx = PS_BLOCK_CXS[i] ?? PS_BLOCK_CXS[0];
-    const label = String(s.label || '').toUpperCase();
-    // Crude tracking: insert thin space between chars for the broadcast look.
-    const tracked = label.split('').join(' ');
-    ctx.fillText(tracked, cx, PS_LABEL_CY);
-  });
-
-  // Thin red divider above the plate — width tracks any auto-extension so it
-  // visually frames the (possibly-widened) plate.
-  const f = state.frames[0];
-  const ext = calcPlateExtension(f?.header, f?.sub);
-  const halfL = Math.floor(ext / 2);
-  ctx.fillStyle = '#EB1946';
-  ctx.fillRect(560 - halfL, PS_DIVIDER_Y, 850 + ext, PS_DIVIDER_H);
-  ctx.restore();
-}
-
 // ─── Plate auto-extension ─────────────────────────────────────────────────
 // When header or sub text is too long for the plate's default usable width,
 // we 5-slice the nameplate PNG and stretch a 1px column on each side of the
@@ -666,6 +732,12 @@ const PLATE_TEXT_PADDING     = 30;    // breathing room each side of the longest
 const PLATE_MAX_EXTENSION    = 600;   // hard cap — keeps plate within canvas bounds
 const _extendedPlateCache    = new Map(); // bgImg+extra → offscreen canvas
 
+function calcPlateExtensionFromWidth(longestWidth){
+  const need = longestWidth + PLATE_TEXT_PADDING * 2;
+  if (need <= PLATE_USABLE_WIDTH) return 0;
+  return Math.min(Math.ceil(need - PLATE_USABLE_WIDTH), PLATE_MAX_EXTENSION);
+}
+
 function calcPlateExtension(header, sub){
   // Measure widest line at its actual font, in source coords.
   ctx.save();
@@ -674,9 +746,7 @@ function calcPlateExtension(header, sub){
   ctx.font = `700 ${SUB_EM}px ${FONT_FAMILY}`;
   const sw = ctx.measureText(String(sub || '')).width;
   ctx.restore();
-  const need = Math.max(hw, sw) + PLATE_TEXT_PADDING * 2;
-  if (need <= PLATE_USABLE_WIDTH) return 0;
-  return Math.min(Math.ceil(need - PLATE_USABLE_WIDTH), PLATE_MAX_EXTENSION);
+  return calcPlateExtensionFromWidth(Math.max(hw, sw));
 }
 
 function buildExtendedPlate(bgImg, extraWidth){
@@ -714,6 +784,7 @@ function buildExtendedPlate(bgImg, extraWidth){
 // ─── Render ───────────────────────────────────────────────────────────────
 function drawPlate(frame){
   if (!frame) return;
+  if (state.mode === 'player-stats') return drawPlayerStatsPlate(frame);
   const scale = state.scale;
   const { cx, cy } = plateTargetCenter(frame.align, scale);
   const tx = cx + (frame.xOff || 0);
@@ -752,7 +823,6 @@ function draw(opts){
   if (includeBg && state.bgRefImg) {
     ctx.drawImage(state.bgRefImg, 0, 0, CANVAS_W, CANVAS_H);
   }
-  if (state.mode === 'player-stats') drawPlayerStatsOverlay();
   state.frames.forEach(drawPlate);
 }
 
