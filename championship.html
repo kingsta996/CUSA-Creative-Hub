@@ -44,6 +44,8 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.field input[type=range]{width:100%;accent-color:#EB1946}
+.nudge-readout{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(235,25,70,0.85);margin-left:6px}
 
 .team-card{border:1px solid rgba(235,25,70,0.18);border-radius:6px;padding:10px 11px;background:rgba(235,25,70,0.04);display:flex;flex-direction:column;gap:8px}
 .team-card-title{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase}
@@ -133,6 +135,62 @@ body{display:flex;flex-direction:column;overflow:hidden}
     </label>
     <button class="btn secondary" id="clearPhotoBtn" style="font-size:10px;padding:8px 10px">Clear photo</button>
 
+    <div class="panel-head" style="margin-top:6px">Position Tuning</div>
+    <div class="team-card">
+      <div class="team-card-title">Top Logo</div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label">X Nudge <span class="nudge-readout" id="topLogoDxR">0px</span></label>
+          <input id="topLogoDx" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Y Nudge <span class="nudge-readout" id="topLogoDyR">0px</span></label>
+          <input id="topLogoDy" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Bottom Logo</div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label">X Nudge <span class="nudge-readout" id="botLogoDxR">0px</span></label>
+          <input id="botLogoDx" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Y Nudge <span class="nudge-readout" id="botLogoDyR">0px</span></label>
+          <input id="botLogoDy" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">R / H / E Numbers</div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label">Top Row Y <span class="nudge-readout" id="topScoreDyR">0px</span></label>
+          <input id="topScoreDy" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Bot Row Y <span class="nudge-readout" id="botScoreDyR">0px</span></label>
+          <input id="botScoreDy" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+      </div>
+      <div class="row-3">
+        <div class="field">
+          <label class="field-label">R Col X <span class="nudge-readout" id="rColDxR">0px</span></label>
+          <input id="rColDx" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">H Col X <span class="nudge-readout" id="hColDxR">0px</span></label>
+          <input id="hColDx" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">E Col X <span class="nudge-readout" id="eColDxR">0px</span></label>
+          <input id="eColDx" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+      </div>
+    </div>
+    <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
+
     <div class="panel-spacer"></div>
     <button class="btn" id="download">Download PNG</button>
   </div>
@@ -187,6 +245,18 @@ const state = {
   bot: { school: SCHOOLS[6].id, seed: '2', r: '0', h: '0', e: '0', logoImg: null },
   photo: null,
   layerImgs: {},
+  // Per-element nudges. Logos shift by (dx, dy); the score row Ys nudge the
+  // R/H/E values vertically per row, and each column has its own X offset
+  // applied to BOTH rows so columns align even after fine-tuning.
+  adj: {
+    topLogo:  { dx: 0, dy: 0 },
+    botLogo:  { dx: 0, dy: 0 },
+    topScoreDy: 0,
+    botScoreDy: 0,
+    rColDx: 0,
+    hColDx: 0,
+    eColDx: 0,
+  },
 };
 
 const cvs = document.getElementById('cvs');
@@ -307,9 +377,19 @@ async function draw(){
   //     logos render on top of the navy background.
   try { ctx.drawImage(await ensureLayer('scoreBox'), 0, 0, 1080, 1350); } catch (_) {}
 
-  // 4. Team logos
-  if (state.top.logoImg) ctx.drawImage(state.top.logoImg, TEAM_LOGO.x, TEAM_LOGO.topY, TEAM_LOGO.w, TEAM_LOGO.h);
-  if (state.bot.logoImg) ctx.drawImage(state.bot.logoImg, TEAM_LOGO.x, TEAM_LOGO.botY, TEAM_LOGO.w, TEAM_LOGO.h);
+  // 4. Team logos (with per-team X/Y nudge)
+  if (state.top.logoImg) {
+    ctx.drawImage(state.top.logoImg,
+      TEAM_LOGO.x + state.adj.topLogo.dx,
+      TEAM_LOGO.topY + state.adj.topLogo.dy,
+      TEAM_LOGO.w, TEAM_LOGO.h);
+  }
+  if (state.bot.logoImg) {
+    ctx.drawImage(state.bot.logoImg,
+      TEAM_LOGO.x + state.adj.botLogo.dx,
+      TEAM_LOGO.botY + state.adj.botLogo.dy,
+      TEAM_LOGO.w, TEAM_LOGO.h);
+  }
 
   // 5. Score Overlay (C-USA + R/H/E label strip + column dividers)
   try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
@@ -327,14 +407,16 @@ async function draw(){
   ctx.fillText(state.top.seed || '', SEED_CX, SEED_CY.top);
   ctx.fillText(state.bot.seed || '', SEED_CX, SEED_CY.bot);
 
-  // R / H / E values (Gazzetta ExtraBold 161.59pt white)
+  // R / H / E values (Gazzetta ExtraBold 161.59pt white). Each row gets a
+  // shared Y nudge; each column has its own X nudge applied to both rows.
   ctx.fillStyle = WHITE;
   ctx.font = SCORE_FONT;
   for (const side of ['top', 'bot']) {
-    const cy = side === 'top' ? SEED_CY.top : SEED_CY.bot;
-    ctx.fillText(state[side].r || '', COLS_CX.r, cy);
-    ctx.fillText(state[side].h || '', COLS_CX.h, cy);
-    ctx.fillText(state[side].e || '', COLS_CX.e, cy);
+    const baseCy = side === 'top' ? SEED_CY.top : SEED_CY.bot;
+    const cy = baseCy + (side === 'top' ? state.adj.topScoreDy : state.adj.botScoreDy);
+    ctx.fillText(state[side].r || '', COLS_CX.r + state.adj.rColDx, cy);
+    ctx.fillText(state[side].h || '', COLS_CX.h + state.adj.hColDx, cy);
+    ctx.fillText(state[side].e || '', COLS_CX.e + state.adj.eColDx, cy);
   }
 }
 
@@ -364,6 +446,45 @@ document.querySelectorAll('input[data-team][data-stat]').forEach(inp => {
     state[e.target.dataset.team][e.target.dataset.stat] = e.target.value;
     draw();
   });
+});
+
+// Position-tuning sliders. Each slider updates the corresponding state.adj
+// field and re-draws. Readouts show the current px value.
+const ADJ_BINDINGS = [
+  ['topLogoDx', v => state.adj.topLogo.dx = v],
+  ['topLogoDy', v => state.adj.topLogo.dy = v],
+  ['botLogoDx', v => state.adj.botLogo.dx = v],
+  ['botLogoDy', v => state.adj.botLogo.dy = v],
+  ['topScoreDy', v => state.adj.topScoreDy = v],
+  ['botScoreDy', v => state.adj.botScoreDy = v],
+  ['rColDx', v => state.adj.rColDx = v],
+  ['hColDx', v => state.adj.hColDx = v],
+  ['eColDx', v => state.adj.eColDx = v],
+];
+ADJ_BINDINGS.forEach(([id, setter]) => {
+  const inp = document.getElementById(id);
+  const ro  = document.getElementById(id + 'R');
+  inp.addEventListener('input', () => {
+    const v = Number(inp.value || 0);
+    setter(v);
+    if (ro) ro.textContent = (v >= 0 ? '+' : '') + v + 'px';
+    draw();
+  });
+});
+
+document.getElementById('resetPositions').addEventListener('click', () => {
+  state.adj = {
+    topLogo: { dx: 0, dy: 0 }, botLogo: { dx: 0, dy: 0 },
+    topScoreDy: 0, botScoreDy: 0,
+    rColDx: 0, hColDx: 0, eColDx: 0,
+  };
+  ADJ_BINDINGS.forEach(([id]) => {
+    const inp = document.getElementById(id);
+    const ro  = document.getElementById(id + 'R');
+    inp.value = 0;
+    if (ro) ro.textContent = '0px';
+  });
+  draw();
 });
 
 document.getElementById('download').addEventListener('click', () => {
