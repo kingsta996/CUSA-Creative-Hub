@@ -222,10 +222,11 @@ const SCHOOLS = [
 
 // Layer assets (loaded once)
 const LAYERS = {
-  bg:           ASSET_DIR + '26 SB Final Score - BG.png',
-  scoreBox:     ASSET_DIR + '26 SB Final Score - Score Box.png',
-  scoreOverlay: ASSET_DIR + '26 SB Final Score - Score Overlay.png',
-  seedsBoxes:   ASSET_DIR + '26 SB Final Score - Seeds Boxes.png',
+  bg:            ASSET_DIR + '26 SB Final Score - BG.png',
+  cusaWatermark: ASSET_DIR + '26 SB Final Score - CUSA Logo Overlay.png',
+  scoreBox:      ASSET_DIR + '26 SB Final Score - Score Box.png',
+  scoreOverlay:  ASSET_DIR + '26 SB Final Score - Score Overlay.png',
+  seedsBoxes:    ASSET_DIR + '26 SB Final Score - Seeds Boxes.png',
 };
 
 // Geometry (1080×1350 source coords; measured from the reference PNGs).
@@ -372,12 +373,17 @@ async function draw(){
     ctx.fillText('UPLOAD AN ACTION PHOTO', PHOTO_AREA.x + PHOTO_AREA.w/2, PHOTO_AREA.y + PHOTO_AREA.h/2);
   }
 
-  // 3. Score Box (FINAL SCORE banner + dark navy body — provides the substrate
+  // 3. CUSA Logo Overlay watermark — translucent CUSA mark in the upper-right
+  //     of the photo area. Sits ON TOP of the photo so it brands every photo
+  //     uploaded; under the score box / team logos so it never obscures them.
+  try { ctx.drawImage(await ensureLayer('cusaWatermark'), 0, 0, 1080, 1350); } catch (_) {}
+
+  // 4. Score Box (FINAL SCORE banner + dark navy body — provides the substrate
   //     the team logos sit on). Drawn between Photo and Team Logos so the
   //     logos render on top of the navy background.
   try { ctx.drawImage(await ensureLayer('scoreBox'), 0, 0, 1080, 1350); } catch (_) {}
 
-  // 4. Team logos (with per-team X/Y nudge)
+  // 5. Team logos (with per-team X/Y nudge)
   if (state.top.logoImg) {
     ctx.drawImage(state.top.logoImg,
       TEAM_LOGO.x + state.adj.topLogo.dx,
@@ -391,10 +397,10 @@ async function draw(){
       TEAM_LOGO.w, TEAM_LOGO.h);
   }
 
-  // 5. Score Overlay (C-USA + R/H/E label strip + column dividers)
+  // 6. Score Overlay (C-USA + R/H/E label strip + column dividers)
   try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
 
-  // 6. Seed Boxes (small light-gray squares to the left of each team logo)
+  // 7. Seed Boxes (small light-gray squares to the left of each team logo)
   try { ctx.drawImage(await ensureLayer('seedsBoxes'), 0, 0, 1080, 1350); } catch (_) {}
 
   // ── Text overlays ──
@@ -549,6 +555,7 @@ document.getElementById('download').addEventListener('click', () => {
   }
   await Promise.all([
     ensureLayer('bg').catch(()=>null),
+    ensureLayer('cusaWatermark').catch(()=>null),
     ensureLayer('scoreBox').catch(()=>null),
     ensureLayer('scoreOverlay').catch(()=>null),
     ensureLayer('seedsBoxes').catch(()=>null),
