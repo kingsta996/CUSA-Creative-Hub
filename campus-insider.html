@@ -89,6 +89,7 @@ select:disabled{opacity:0.45;cursor:not-allowed}
   <button class="tab active" data-mode="standard">Standard Lower-Third</button>
   <button class="tab" data-mode="interview">Interview · Inside The Huddle</button>
   <button class="tab" data-mode="matchup">Matchup &amp; Final Score</button>
+  <button class="tab" data-mode="player-stats">Player + Stats</button>
 </div>
 
 <!-- iframe-embedded React app (lazy-loaded on first activation) -->
@@ -100,37 +101,71 @@ select:disabled{opacity:0.45;cursor:not-allowed}
 
   <!-- ── Left controls panel ── -->
   <div class="panel" id="panel">
-    <div class="panel-head">Layout</div>
-    <div class="field">
-      <label class="field-label" for="frameCount">Plate Count</label>
-      <select id="frameCount">
-        <option value="1">Single Plate</option>
-        <option value="2" selected>Two-Plate (16:9)</option>
-        <option value="3">Three-Plate (16:9)</option>
-      </select>
-    </div>
-    <div class="field">
-      <label class="field-label" for="scale">Plate Size · linked</label>
-      <div class="scale-row">
-        <input id="scale" type="range" min="0.30" max="1.30" step="0.01" value="0.60">
-        <span id="scaleReadout" class="scale-readout">60%</span>
+    <!-- Standard / Interview controls -->
+    <div id="standardSections" style="display:flex;flex-direction:column;gap:12px">
+      <div class="panel-head">Layout</div>
+      <div class="field">
+        <label class="field-label" for="frameCount">Plate Count</label>
+        <select id="frameCount">
+          <option value="1">Single Plate</option>
+          <option value="2" selected>Two-Plate (16:9)</option>
+          <option value="3">Three-Plate (16:9)</option>
+        </select>
       </div>
-    </div>
-    <div class="field">
-      <label class="field-label" for="bgRef">Framing Reference · preview only</label>
-      <select id="bgRef">
-        <option value="">None (transparent)</option>
-        <option value="single-host">Single-Host (Insider)</option>
-        <option value="two-host">Two-Host (Insider)</option>
-        <option value="inside-the-huddle">Inside The Huddle (Interview)</option>
-      </select>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.55);text-transform:uppercase;cursor:pointer">
-        <input type="checkbox" id="bgInExport" style="margin:0;width:auto"> Include reference in exported PNG
-      </label>
+      <div class="field">
+        <label class="field-label" for="scale">Plate Size · linked</label>
+        <div class="scale-row">
+          <input id="scale" type="range" min="0.30" max="1.30" step="0.01" value="0.60">
+          <span id="scaleReadout" class="scale-readout">60%</span>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="bgRef">Framing Reference · preview only</label>
+        <select id="bgRef">
+          <option value="">None (transparent)</option>
+          <option value="single-host">Single-Host (Insider)</option>
+          <option value="two-host">Two-Host (Insider)</option>
+          <option value="inside-the-huddle">Inside The Huddle (Interview)</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.55);text-transform:uppercase;cursor:pointer">
+          <input type="checkbox" id="bgInExport" style="margin:0;width:auto"> Include reference in exported PNG
+        </label>
+      </div>
+
+      <div class="panel-head" style="margin-top:6px">Plates</div>
+      <div id="frames" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
 
-    <div class="panel-head" style="margin-top:6px">Plates</div>
-    <div id="frames" style="display:flex;flex-direction:column;gap:10px"></div>
+    <!-- Player + Stats controls (hidden until that tab is active) -->
+    <div id="playerStatsSections" style="display:none;flex-direction:column;gap:12px">
+      <div class="panel-head">Player</div>
+      <div class="field">
+        <label class="field-label" for="psSport">Sport</label>
+        <select id="psSport"></select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="psSchool">School</label>
+        <select id="psSchool"></select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="psName">Player Name</label>
+        <input id="psName" type="text" maxlength="40" value="">
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label" for="psPosition">Position</label>
+          <input id="psPosition" type="text" maxlength="6" value="">
+        </div>
+        <div class="field">
+          <label class="field-label" for="psJersey">Jersey</label>
+          <input id="psJersey" type="text" maxlength="3" value="">
+        </div>
+      </div>
+
+      <div class="panel-head" style="margin-top:6px">Stats</div>
+      <div id="psStats" style="display:flex;flex-direction:column;gap:10px"></div>
+      <button class="btn secondary" id="psResetDefaults" style="font-size:10px;padding:8px 10px">Reset Stat Labels for Sport</button>
+    </div>
 
     <div class="panel-spacer"></div>
     <button class="btn" id="download">Download PNG</button>
@@ -204,8 +239,45 @@ const STARTER = [
   { header:'CHRIS LEE',  sub:'JAX STATE PLAYER' },
 ];
 
+// ─── Player + Stats config ────────────────────────────────────────────────
+// Default stat slate per sport. Operator can edit both label and value before
+// download; "Reset Stat Labels for Sport" pulls these defaults back in.
+// Football has separate QB / Skill entries (per yesterday's open question).
+const SPORT_STATS = {
+  "Men's Basketball":   { defPos:'G',  stats:[['PPG','23.4'], ['RPG','8.2'], ['APG','4.9']] },
+  "Women's Basketball": { defPos:'G',  stats:[['PPG','18.6'], ['RPG','6.4'], ['APG','5.1']] },
+  'Football · QB':      { defPos:'QB', stats:[['YDS','2,847'],['TD','24'],   ['INT','7']]   },
+  'Football · Skill':   { defPos:'WR', stats:[['YDS','1,124'],['TD','11'],   ['REC','68']]  },
+  'Baseball':           { defPos:'OF', stats:[['AVG','.344'],['HR','12'],   ['RBI','48']]  },
+  'Softball':           { defPos:'OF', stats:[['AVG','.412'],['HR','9'],    ['RBI','37']]  },
+  'Volleyball':         { defPos:'OH', stats:[['K','3.92'],  ['D','2.41'],  ['A','0.32']]  },
+  "Women's Soccer":     { defPos:'F',  stats:[['G','11'],    ['A','7'],     ['GP','18']]   },
+};
+
+const PS_DEFAULT_SPORT = "Men's Basketball";
+
+// Stat overlay geometry (source 1920×1080 PNG coords). Three blocks centered
+// across the plate width (560..1410), positioned above the plate top (769).
+const PS_BLOCK_CXS = [711, 985, 1259];   // three columns
+const PS_VALUE_CY  = 540;                // big number baseline (middle)
+const PS_LABEL_CY  = 700;                // small label baseline (middle)
+const PS_VALUE_EM  = 168;                // big number font size
+const PS_LABEL_EM  = 38;                 // label font size
+const PS_DIVIDER_Y = 730;                // thin red rule between stats and plate
+const PS_DIVIDER_H = 4;                  // rule thickness
+
 // ─── State ────────────────────────────────────────────────────────────────
-const state = { mode:'standard', frameCount:2, scale:0.60, frames:[], bgRef:'two-host', bgInExport:false, bgRefImg:null };
+const state = {
+  mode:'standard', frameCount:2, scale:0.60, frames:[],
+  bgRef:'two-host', bgInExport:false, bgRefImg:null,
+  // Player + Stats mode
+  playerStats: {
+    sport: PS_DEFAULT_SPORT,
+    position: SPORT_STATS[PS_DEFAULT_SPORT].defPos,
+    jersey: '1',
+    stats: SPORT_STATS[PS_DEFAULT_SPORT].stats.map(([l,v]) => ({label:l, value:v})),
+  },
+};
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────
 const cvs        = document.getElementById('cvs');
@@ -353,6 +425,36 @@ async function applyMode(mode){
   matchupFrame.style.display = 'none';
   mainBuilder.style.display = 'flex';
 
+  // Toggle the panel sections between Standard/Interview vs Player+Stats.
+  const inPlayerStats = (mode === 'player-stats');
+  document.getElementById('standardSections').style.display = inPlayerStats ? 'none' : 'flex';
+  document.getElementById('playerStatsSections').style.display = inPlayerStats ? 'flex' : 'none';
+
+  if (inPlayerStats) {
+    // Lock to a single centered plate at full scale (the stat block geometry
+    // is calibrated to plate-at-1.0 in source-PNG coords).
+    state.frameCount = 1;
+    fcSel.value = '1';
+    state.scale = 1.0;
+    scaleR.value = String(state.scale);
+    scaleN.textContent = Math.round(state.scale * 100) + '%';
+    while (state.frames.length < 1) state.frames.push(makeFrame(0));
+    state.frames.length = 1;
+    state.frames[0].align = 'center';
+    state.frames[0].xOff = 0;
+    state.frames[0].yOff = 0;
+    if (!state.frames[0].school) state.frames[0].school = 'Liberty';
+    state.bgRef = '';
+    bgRefSel.value = '';
+    state.bgInExport = false;
+    bgInExport.checked = false;
+    syncFrameFromPlayerStats();
+    renderPlayerStatsControls();
+    await Promise.all([...state.frames.map(ensureBg), ensureBgRef()]);
+    draw();
+    return;
+  }
+
   if (mode === 'interview') {
     // Lock 2-plate, set Inside The Huddle defaults.
     state.frameCount = 2;
@@ -448,6 +550,167 @@ async function ensureBgRef(){
   }
 }
 
+// ─── Player + Stats helpers ───────────────────────────────────────────────
+function syncFrameFromPlayerStats(){
+  const ps = state.playerStats;
+  const f = state.frames[0];
+  if (!f) return;
+  // Plate header is the player name; sub is computed from position + jersey.
+  f.header = (document.getElementById('psName')?.value || f.header || 'PLAYER NAME').toUpperCase();
+  const parts = [];
+  if (ps.position) parts.push(ps.position.toUpperCase());
+  if (ps.jersey)   parts.push('#' + String(ps.jersey).replace(/^#/, ''));
+  f.sub = parts.join(' · ');
+}
+
+function renderPlayerStatsControls(){
+  const ps = state.playerStats;
+
+  // Sport
+  const sportSel = document.getElementById('psSport');
+  sportSel.innerHTML = Object.keys(SPORT_STATS)
+    .map(s => `<option value="${escapeAttr(s)}"${s === ps.sport ? ' selected' : ''}>${s}</option>`)
+    .join('');
+
+  // School (reuse the same SCHOOLS list as the rest of the page)
+  const schoolSel = document.getElementById('psSchool');
+  const f = state.frames[0];
+  schoolSel.innerHTML = SCHOOLS
+    .map(s => `<option value="${escapeAttr(s.id)}"${s.id === f?.school ? ' selected' : ''}>${s.name}</option>`)
+    .join('');
+
+  // Player name / position / jersey
+  document.getElementById('psName').value     = f?.header || '';
+  document.getElementById('psPosition').value = ps.position || '';
+  document.getElementById('psJersey').value   = ps.jersey   || '';
+
+  // Three stat blocks (label + value)
+  const wrap = document.getElementById('psStats');
+  wrap.innerHTML = ps.stats.map((s, i) => `
+    <div class="frame-card">
+      <div class="frame-card-title">Stat ${i+1}</div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label">Label</label>
+          <input data-ps-i="${i}" data-ps-k="label" type="text" maxlength="6" value="${escapeAttr(s.label)}">
+        </div>
+        <div class="field">
+          <label class="field-label">Value</label>
+          <input data-ps-i="${i}" data-ps-k="value" type="text" maxlength="10" value="${escapeAttr(s.value)}">
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // Wire input listeners for the dynamic stat inputs.
+  wrap.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const i = +e.target.dataset.psI;
+      const k = e.target.dataset.psK;
+      ps.stats[i][k] = e.target.value;
+      draw();
+    });
+  });
+}
+
+function drawPlayerStatsOverlay(){
+  const ps = state.playerStats;
+  if (!ps || !ps.stats?.length) return;
+
+  // Stats are drawn in source-PNG coordinates so they line up with the plate
+  // exactly the way drawPlate does (no per-stat scaling). The plate itself is
+  // already drawn by drawPlate() — we layer on top of the same canvas.
+  ctx.save();
+  ctx.fillStyle = TEXT_COLOR;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Big number row
+  ctx.font = `900 ${PS_VALUE_EM}px ${FONT_FAMILY}`;
+  ps.stats.forEach((s, i) => {
+    const cx = PS_BLOCK_CXS[i] ?? PS_BLOCK_CXS[0];
+    ctx.fillText(String(s.value || '—'), cx, PS_VALUE_CY);
+  });
+
+  // Small label row (Barlow Condensed for tracked-out broadcast feel)
+  ctx.font = `800 ${PS_LABEL_EM}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
+  // Approximate letter-spacing via a minor x-stretch trick: just space chars.
+  ps.stats.forEach((s, i) => {
+    const cx = PS_BLOCK_CXS[i] ?? PS_BLOCK_CXS[0];
+    const label = String(s.label || '').toUpperCase();
+    // Crude tracking: insert thin space between chars for the broadcast look.
+    const tracked = label.split('').join(' ');
+    ctx.fillText(tracked, cx, PS_LABEL_CY);
+  });
+
+  // Thin red divider above the plate — width tracks any auto-extension so it
+  // visually frames the (possibly-widened) plate.
+  const f = state.frames[0];
+  const ext = calcPlateExtension(f?.header, f?.sub);
+  const halfL = Math.floor(ext / 2);
+  ctx.fillStyle = '#EB1946';
+  ctx.fillRect(560 - halfL, PS_DIVIDER_Y, 850 + ext, PS_DIVIDER_H);
+  ctx.restore();
+}
+
+// ─── Plate auto-extension ─────────────────────────────────────────────────
+// When header or sub text is too long for the plate's default usable width,
+// we 5-slice the nameplate PNG and stretch a 1px column on each side of the
+// text area to widen the plate symmetrically. The stretch columns sit in the
+// uniform mid-fill zone of every host-school nameplate (verified pixel-stable
+// across all 10 plates: x=770 and x=1150 are inside the safe range).
+const PLATE_SPLIT_L          = 770;   // source x — past every school's logo zone
+const PLATE_SPLIT_R          = 1150;  // source x — before any right-edge decoration
+const PLATE_USABLE_WIDTH     = 620;   // text width budget before extending kicks in
+const PLATE_TEXT_PADDING     = 30;    // breathing room each side of the longest line
+const PLATE_MAX_EXTENSION    = 600;   // hard cap — keeps plate within canvas bounds
+const _extendedPlateCache    = new Map(); // bgImg+extra → offscreen canvas
+
+function calcPlateExtension(header, sub){
+  // Measure widest line at its actual font, in source coords.
+  ctx.save();
+  ctx.font = `700 ${HEADER_EM}px ${FONT_FAMILY}`;
+  const hw = ctx.measureText(String(header || '')).width;
+  ctx.font = `700 ${SUB_EM}px ${FONT_FAMILY}`;
+  const sw = ctx.measureText(String(sub || '')).width;
+  ctx.restore();
+  const need = Math.max(hw, sw) + PLATE_TEXT_PADDING * 2;
+  if (need <= PLATE_USABLE_WIDTH) return 0;
+  return Math.min(Math.ceil(need - PLATE_USABLE_WIDTH), PLATE_MAX_EXTENSION);
+}
+
+function buildExtendedPlate(bgImg, extraWidth){
+  const cacheKey = (bgImg.src || '') + '|' + extraWidth;
+  if (_extendedPlateCache.has(cacheKey)) return _extendedPlateCache.get(cacheKey);
+  const halfL = Math.floor(extraWidth / 2);
+  const halfR = extraWidth - halfL;
+  const W = bgImg.naturalWidth  || bgImg.width  || CANVAS_W;
+  const H = bgImg.naturalHeight || bgImg.height || CANVAS_H;
+  const out = document.createElement('canvas');
+  out.width  = W + extraWidth;
+  out.height = H;
+  const o = out.getContext('2d');
+  // Left cap (school logo + brand stripe)
+  o.drawImage(bgImg, 0, 0, PLATE_SPLIT_L, H,  0, 0, PLATE_SPLIT_L, H);
+  // Stretch L (1px column repeated)
+  if (halfL > 0) {
+    o.drawImage(bgImg, PLATE_SPLIT_L, 0, 1, H,  PLATE_SPLIT_L, 0, halfL, H);
+  }
+  // Middle uniform zone (drawn unchanged width)
+  const midSrcW = PLATE_SPLIT_R - PLATE_SPLIT_L;
+  o.drawImage(bgImg, PLATE_SPLIT_L, 0, midSrcW, H,  PLATE_SPLIT_L + halfL, 0, midSrcW, H);
+  // Stretch R (1px column repeated, sampled just before the right cap)
+  if (halfR > 0) {
+    o.drawImage(bgImg, PLATE_SPLIT_R - 1, 0, 1, H,  PLATE_SPLIT_R + halfL, 0, halfR, H);
+  }
+  // Right cap (right edge + drop shadow)
+  o.drawImage(bgImg, PLATE_SPLIT_R, 0, W - PLATE_SPLIT_R, H,  PLATE_SPLIT_R + halfL + halfR, 0, W - PLATE_SPLIT_R, H);
+  // Cap the cache so we don't accumulate canvases forever.
+  if (_extendedPlateCache.size > 16) _extendedPlateCache.clear();
+  _extendedPlateCache.set(cacheKey, out);
+  return out;
+}
+
 // ─── Render ───────────────────────────────────────────────────────────────
 function drawPlate(frame){
   if (!frame) return;
@@ -456,20 +719,29 @@ function drawPlate(frame){
   const tx = cx + (frame.xOff || 0);
   const ty = cy + (frame.yOff || 0);
 
+  // If text overflows the plate's usable width, widen the plate art via 5-slice.
+  const extraWidth = calcPlateExtension(frame.header, frame.sub);
+  const halfL = Math.floor(extraWidth / 2);
+  const plateImg = (frame.bgImg && extraWidth > 0)
+    ? buildExtendedPlate(frame.bgImg, extraWidth)
+    : frame.bgImg;
+
   ctx.save();
   ctx.translate(tx, ty);
   ctx.scale(scale, scale);
-  ctx.translate(-SRC_CX, -SRC_CY);
+  // Shift origin so the plate's bbox center stays at (tx, ty) regardless of
+  // any extension — text x is also shifted by halfL so it tracks the plate.
+  ctx.translate(-(SRC_CX + halfL), -SRC_CY);
 
-  if (frame.bgImg) ctx.drawImage(frame.bgImg, 0, 0);
+  if (plateImg) ctx.drawImage(plateImg, 0, 0);
 
   ctx.fillStyle = TEXT_COLOR;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `700 ${HEADER_EM}px ${FONT_FAMILY}`;
-  ctx.fillText(frame.header || '', TEXT_CX, HEADER_CY);
+  ctx.fillText(frame.header || '', TEXT_CX + halfL, HEADER_CY);
   ctx.font = `700 ${SUB_EM}px ${FONT_FAMILY}`;
-  ctx.fillText(frame.sub || '', TEXT_CX, SUB_CY);
+  ctx.fillText(frame.sub || '', TEXT_CX + halfL, SUB_CY);
 
   ctx.restore();
 }
@@ -480,13 +752,82 @@ function draw(opts){
   if (includeBg && state.bgRefImg) {
     ctx.drawImage(state.bgRefImg, 0, 0, CANVAS_W, CANVAS_H);
   }
+  if (state.mode === 'player-stats') drawPlayerStatsOverlay();
   state.frames.forEach(drawPlate);
 }
+
+// ─── Player + Stats panel listeners ───────────────────────────────────────
+document.getElementById('psSport').addEventListener('change', e => {
+  // Update sport. Keep custom values if the user has typed any; only refresh
+  // labels they haven't manually changed (heuristic: any label that still
+  // matches a default for *any* sport gets remapped to the new sport's defaults).
+  const ps = state.playerStats;
+  const newSport = e.target.value;
+  const def = SPORT_STATS[newSport];
+  if (!def) return;
+  ps.sport = newSport;
+  if (!ps.position || isDefaultPositionFor(ps.position)) ps.position = def.defPos;
+  // Remap labels: replace each slot's label with the new sport's default,
+  // but preserve user-typed values.
+  ps.stats = def.stats.map(([l, v], i) => ({
+    label: l,
+    value: ps.stats[i]?.value ?? v,
+  }));
+  syncFrameFromPlayerStats();
+  renderPlayerStatsControls();
+  draw();
+});
+function isDefaultPositionFor(pos){
+  const p = String(pos || '').toUpperCase().trim();
+  return Object.values(SPORT_STATS).some(s => s.defPos === p);
+}
+
+document.getElementById('psSchool').addEventListener('change', async e => {
+  const f = state.frames[0];
+  if (!f) return;
+  f.school = e.target.value;
+  await ensureBg(f);
+  draw();
+});
+
+document.getElementById('psName').addEventListener('input', () => {
+  syncFrameFromPlayerStats();
+  draw();
+});
+document.getElementById('psPosition').addEventListener('input', e => {
+  state.playerStats.position = e.target.value;
+  syncFrameFromPlayerStats();
+  draw();
+});
+document.getElementById('psJersey').addEventListener('input', e => {
+  state.playerStats.jersey = e.target.value;
+  syncFrameFromPlayerStats();
+  draw();
+});
+
+document.getElementById('psResetDefaults').addEventListener('click', () => {
+  const ps = state.playerStats;
+  const def = SPORT_STATS[ps.sport];
+  if (!def) return;
+  ps.position = def.defPos;
+  ps.stats = def.stats.map(([l, v]) => ({ label: l, value: v }));
+  syncFrameFromPlayerStats();
+  renderPlayerStatsControls();
+  draw();
+});
 
 // ─── Download ─────────────────────────────────────────────────────────────
 document.getElementById('download').addEventListener('click', () => {
   const safe = (s) => (s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'') || 'untitled';
-  const desc = state.frames.map(f => `${safe(f.school)}-${safe(f.header)}`).join('__');
+  let filename;
+  if (state.mode === 'player-stats') {
+    const f = state.frames[0] || {};
+    const ps = state.playerStats;
+    filename = `Player_Stats_${safe(ps.sport)}_${safe(f.school)}_${safe(f.header)}.png`;
+  } else {
+    const desc = state.frames.map(f => `${safe(f.school)}-${safe(f.header)}`).join('__');
+    filename = `Campus_Insider_${state.frameCount}plate_${desc}.png`;
+  }
   // Re-render without the reference image unless the user opted in
   draw({ includeBg: state.bgInExport });
   const dataUrl = cvs.toDataURL('image/png');
@@ -494,7 +835,7 @@ document.getElementById('download').addEventListener('click', () => {
   draw();
   const a = document.createElement('a');
   a.href = dataUrl;
-  a.download = `Campus_Insider_${state.frameCount}plate_${desc}.png`;
+  a.download = filename;
   a.click();
 });
 
