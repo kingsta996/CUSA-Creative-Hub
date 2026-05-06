@@ -184,7 +184,10 @@ body{display:flex;flex-direction:column;overflow:hidden}
         <div class="field"><label class="field-label">Time Row X <span class="nudge-readout" id="timeRowDxR">0px</span></label><input id="timeRowDx" type="range" min="-200" max="200" step="1" value="0"></div>
         <div class="field"><label class="field-label">Time Row Y <span class="nudge-readout" id="timeRowDyR">0px</span></label><input id="timeRowDy" type="range" min="-100" max="100" step="1" value="0"></div>
       </div>
-      <div class="field"><label class="field-label">Headline Y <span class="nudge-readout" id="headlineDyR">0px</span></label><input id="headlineDy" type="range" min="-100" max="100" step="1" value="0"></div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Headline X <span class="nudge-readout" id="headlineDxR">0px</span></label><input id="headlineDx" type="range" min="-300" max="300" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Headline Y <span class="nudge-readout" id="headlineDyR">0px</span></label><input id="headlineDy" type="range" min="-100" max="100" step="1" value="0"></div>
+      </div>
     </div>
     <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
 
@@ -235,8 +238,11 @@ const NETWORKS = {
   espn:  { src: ASSET_DIR + '26 SB Gameday Post - ESPN+.png',   sourceBox: { x: 644, y: 1292, w:  165, h:  32 } },
 };
 
-// Geometry — measured from the reference PNGs.
-const PHOTO     = { y: 420, h: 620, leftX: 0, midX: 540, rightX: 540, fullW: 540 };
+// Geometry — measured from the reference PNGs. Photos extend all the way
+// down to where the bottom navy band starts (y=1280) so the school logos
+// and seed-box overlays sit on top of the photos rather than the photos
+// cropping short above them.
+const PHOTO     = { y: 420, h: 860, leftX: 0, midX: 540, rightX: 540, fullW: 540 };
 const SCHOOL_LOGO = { w: 425, h: 221, leftX: 0, rightX: 655, y: 1075 };
 const HEADLINE_CY = 399;        // red banner center y
 const HEADLINE_FS = 31.07;
@@ -266,6 +272,7 @@ const state = {
     rightSeedDy: 0,
     timeRowDx: 0,
     timeRowDy: 0,
+    headlineDx: 0,
     headlineDy: 0,
   },
 };
@@ -456,7 +463,7 @@ async function draw(){
   // Headline (red banner) — Proxima Nova ExtraBold 31.07pt white
   ctx.fillStyle = WHITE;
   ctx.font = `800 ${HEADLINE_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  ctx.fillText((state.headline || '').toUpperCase(), 540, HEADLINE_CY + state.adj.headlineDy);
+  ctx.fillText((state.headline || '').toUpperCase(), 540 + state.adj.headlineDx, HEADLINE_CY + state.adj.headlineDy);
 
   // Seeds — Proxima Nova ExtraBold 50pt navy (in seed boxes)
   ctx.fillStyle = NAVY;
@@ -497,7 +504,7 @@ function restorePositions(){
     ['leftPhoto','rightPhoto','leftLogo','rightLogo'].forEach(k => {
       if (saved[k] && typeof saved[k] === 'object') Object.assign(state.adj[k], saved[k]);
     });
-    ['leftSeedDy','rightSeedDy','timeRowDx','timeRowDy','headlineDy'].forEach(k => {
+    ['leftSeedDy','rightSeedDy','timeRowDx','timeRowDy','headlineDx','headlineDy'].forEach(k => {
       if (typeof saved[k] === 'number') state.adj[k] = saved[k];
     });
   } catch(_){}
@@ -516,6 +523,7 @@ const ADJ_BINDINGS = [
   ['rightSeedDy',  v => state.adj.rightSeedDy   = v],
   ['timeRowDx',    v => state.adj.timeRowDx     = v],
   ['timeRowDy',    v => state.adj.timeRowDy     = v],
+  ['headlineDx',   v => state.adj.headlineDx    = v],
   ['headlineDy',   v => state.adj.headlineDy    = v],
 ];
 
@@ -533,6 +541,7 @@ function syncSlidersFromState(){
     rightSeedDy:  state.adj.rightSeedDy,
     timeRowDx:    state.adj.timeRowDx,
     timeRowDy:    state.adj.timeRowDy,
+    headlineDx:   state.adj.headlineDx,
     headlineDy:   state.adj.headlineDy,
   };
   for (const [id, val] of Object.entries(m)) {
@@ -559,7 +568,7 @@ document.getElementById('resetPositions').addEventListener('click', () => {
   state.adj = {
     leftPhoto: { dx: 0, dy: 0 }, rightPhoto: { dx: 0, dy: 0 },
     leftLogo:  { dx: 0, dy: 0 }, rightLogo:  { dx: 0, dy: 0 },
-    leftSeedDy: 0, rightSeedDy: 0, timeRowDx: 0, timeRowDy: 0, headlineDy: 0,
+    leftSeedDy: 0, rightSeedDy: 0, timeRowDx: 0, timeRowDy: 0, headlineDx: 0, headlineDy: 0,
   };
   syncSlidersFromState();
   persistPositions();
