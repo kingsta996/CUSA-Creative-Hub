@@ -677,8 +677,8 @@ const GB_LEFT_X    = 775;  // source x — start of gray-bar text layout
 //   • White value strip:           y=926..964 (full height, big values)
 const COLOR_BAR_TOP    = 907;
 const COLOR_BAR_BOTTOM = 926;
-const COLOR_BAR_LEFT_BASE  = 745;   // source x → keeps left edge at canvas 720 (just past logo)
-const COLOR_BAR_RIGHT_BASE = 1370;  // source x → tracks plate right edge as it extends
+const COLOR_BAR_LEFT_BASE  = 745;   // source x → canvas 720 (just past logo)
+const COLOR_BAR_RIGHT_BASE = 1330;  // source x → canvas 1305 (just before red swoosh)
 const CAT_LABEL_FS  = 16;
 const CAT_LABEL_CY  = 917;
 const WB_VALUE_FS    = 32;
@@ -724,16 +724,16 @@ function measureGrayBarPrefix(name, position, jersey){
   return w;
 }
 
-// Player + Stats plate has its own extension formula. Layout is left-aligned
-// starting at canvas x=750 (just past every school's logo); plate's safe
-// right edge before the decorative swoosh starts is canvas x=1320. So the
-// budget = 570px, minus 15px margin = 555. When grayW exceeds the budget,
-// we add 2× the shortfall to the plate (split symmetrically) so the right
-// edge widens far enough to keep the text inside the gray bar.
+// Player + Stats uses ASYMMETRIC (right-only) extension: when the gray-bar
+// layout exceeds its budget, all the extra width is added to the right side
+// of the plate. The logo and every left-aligned element (name, color bar,
+// stats) stay pinned at their original canvas positions; only the plate's
+// red-swoosh right cap moves rightward to make room. No 2× multiplier
+// needed because the extension goes entirely where the text needs it.
 function calcPlayerStatsExtension(grayW){
-  const BUDGET = 555;
+  const BUDGET = 575;  // canvas x=750..1325 = 575 source units before red swoosh
   if (grayW <= BUDGET) return 0;
-  return Math.min(2 * Math.ceil(grayW - BUDGET), PLATE_MAX_EXTENSION);
+  return Math.min(Math.ceil(grayW - BUDGET + 20), PLATE_MAX_EXTENSION);
 }
 
 function drawPlayerStatsPlate(frame){
@@ -750,10 +750,13 @@ function drawPlayerStatsPlate(frame){
 
   const grayW = measureGrayBarPrefix(name, pos, jersey);
   const extraWidth = calcPlayerStatsExtension(grayW);
-  const halfL = Math.floor(extraWidth / 2);
+  // Asymmetric: extra room goes entirely on the right. halfL=0 keeps the
+  // logo and every left-aligned element pinned at original canvas positions.
+  const halfL = 0;
+  const halfR = extraWidth;
 
   const plateImg = (frame.bgImg && extraWidth > 0)
-    ? buildExtendedPlate(frame.bgImg, extraWidth)
+    ? buildExtendedPlate(frame.bgImg, extraWidth, { halfL, halfR })
     : frame.bgImg;
 
   ctx.save();
@@ -788,12 +791,12 @@ function drawPlayerStatsPlate(frame){
   ctx.fillText(name, curX, PS_HEADER_CY);
 
   // ── Color bar (school primary) ────────────────────────────────────────
-  // Sits between the gray bar and the white-value strip. Left edge stays at
-  // canvas x=720 (just past every school's logo) regardless of any plate
-  // extension; right edge tracks the plate's right edge as it widens.
+  // Both edges canvas-fixed at x=720 and x=1305. With asymmetric extension
+  // the plate widens rightward beyond the bar — the empty gray strip there
+  // is intentional ("left-aligned" layout per Keith's request).
   const colors = SCHOOL_PRIMARY_COLORS[frame.school] || { bg: '#00263A', fg: '#FFFFFF' };
   const barLeftX  = COLOR_BAR_LEFT_BASE  + halfL;
-  const barRightX = COLOR_BAR_RIGHT_BASE + halfL + (extraWidth - halfL);
+  const barRightX = COLOR_BAR_RIGHT_BASE + halfL;
   ctx.fillStyle = colors.bg;
   ctx.fillRect(barLeftX, COLOR_BAR_TOP, barRightX - barLeftX, COLOR_BAR_BOTTOM - COLOR_BAR_TOP);
 
@@ -907,11 +910,12 @@ function calcPlateExtension(header, sub){
   return calcPlateExtensionFromWidth(Math.max(hw, sw));
 }
 
-function buildExtendedPlate(bgImg, extraWidth){
-  const cacheKey = (bgImg.src || '') + '|' + extraWidth;
+function buildExtendedPlate(bgImg, extraWidth, opts){
+  opts = opts || {};
+  const halfL = opts.halfL != null ? opts.halfL : Math.floor(extraWidth / 2);
+  const halfR = opts.halfR != null ? opts.halfR : (extraWidth - halfL);
+  const cacheKey = (bgImg.src || '') + '|' + extraWidth + '|' + halfL + '|' + halfR;
   if (_extendedPlateCache.has(cacheKey)) return _extendedPlateCache.get(cacheKey);
-  const halfL = Math.floor(extraWidth / 2);
-  const halfR = extraWidth - halfL;
   const W = bgImg.naturalWidth  || bgImg.width  || CANVAS_W;
   const H = bgImg.naturalHeight || bgImg.height || CANVAS_H;
   const out = document.createElement('canvas');
