@@ -678,12 +678,13 @@ const GB_LEFT_X    = 775;  // source x — start of gray-bar text layout
 const COLOR_BAR_TOP    = 907;
 const COLOR_BAR_BOTTOM = 926;
 const COLOR_BAR_LEFT_BASE  = 745;   // source x → canvas 720 (just past logo)
-const COLOR_BAR_RIGHT_BASE = 1330;  // source x → canvas 1305 (just before red swoosh)
+const COLOR_BAR_RIGHT_BASE = 1355;  // source x → canvas 1330 (plate's gray fill ends at 1360 in this y range)
 const CAT_LABEL_FS  = 16;
 const CAT_LABEL_CY  = 917;
-const WB_VALUE_FS    = 32;
-const WB_VALUE_CY    = 946;          // centered in the full white bar
-const WB_BLOCK_BASES = [820, 985, 1150];  // source x of each stat block center
+const WB_VALUE_FS = 32;
+const WB_VALUE_CY = 946;          // centered in the full white bar
+// Stat block centers are computed at draw time so the 3 blocks stay evenly
+// spaced across the (possibly-extended) color bar at 1/6, 1/2, 5/6 of width.
 
 // Player + Stats has its own gray-bar center because the color bar takes a
 // strip from the bottom of the gray area; recenter name/pos/jersey in the
@@ -791,34 +792,41 @@ function drawPlayerStatsPlate(frame){
   ctx.fillText(name, curX, PS_HEADER_CY);
 
   // ── Color bar (school primary) ────────────────────────────────────────
-  // Both edges canvas-fixed at x=720 and x=1305. With asymmetric extension
-  // the plate widens rightward beyond the bar — the empty gray strip there
-  // is intentional ("left-aligned" layout per Keith's request).
+  // Left edge canvas-fixed at x=720 (just past every school's logo). Right
+  // edge tracks the plate's right gray edge so the bar grows with any
+  // extension (per Keith's request — "extend the school color bar when the
+  // name is extended").
   const colors = SCHOOL_PRIMARY_COLORS[frame.school] || { bg: '#00263A', fg: '#FFFFFF' };
   const barLeftX  = COLOR_BAR_LEFT_BASE  + halfL;
-  const barRightX = COLOR_BAR_RIGHT_BASE + halfL;
+  const barRightX = COLOR_BAR_RIGHT_BASE + halfL + halfR;
   ctx.fillStyle = colors.bg;
   ctx.fillRect(barLeftX, COLOR_BAR_TOP, barRightX - barLeftX, COLOR_BAR_BOTTOM - COLOR_BAR_TOP);
+
+  // 3 stat blocks at 1/6, 3/6, 5/6 across the (possibly-extended) bar.
+  const barWidth = barRightX - barLeftX;
+  const blockXs = [
+    barLeftX + barWidth / 6,
+    barLeftX + barWidth / 2,
+    barLeftX + 5 * barWidth / 6,
+  ];
 
   // ── Color-bar category labels (school FG) ─────────────────────────────
   ctx.textAlign = 'center';
   ctx.fillStyle = colors.fg;
   ctx.font = `800 ${CAT_LABEL_FS}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
   ps.stats.forEach((s, i) => {
-    const base = WB_BLOCK_BASES[i];
-    if (base === undefined) return;
-    const bx = base + halfL;
+    const bx = blockXs[i];
+    if (bx === undefined) return;
     const label = String(s.label || '').toUpperCase();
     ctx.fillText(label.split('').join(' '), bx, CAT_LABEL_CY);
   });
 
-  // ── White value strip (navy values) ────────────────────────────────────
+  // ── White value strip (navy values, centered same x as labels) ────────
   ctx.fillStyle = TEXT_COLOR;
   ctx.font = `900 ${WB_VALUE_FS}px ${FONT_FAMILY}`;
   ps.stats.forEach((s, i) => {
-    const base = WB_BLOCK_BASES[i];
-    if (base === undefined) return;
-    const bx = base + halfL;
+    const bx = blockXs[i];
+    if (bx === undefined) return;
     const value = String(s.value || '');
     ctx.fillText(value || '—', bx, WB_VALUE_CY);
   });
