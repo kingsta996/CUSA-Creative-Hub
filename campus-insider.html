@@ -670,18 +670,25 @@ const GB_GAP_PJ    = 16;   // Gap between position and jersey
 const GB_GAP_JN    = 24;   // Gap between jersey and name
 const GB_LEFT_X    = 775;  // source x — start of gray-bar text layout
 
-// Stats layout splits the original white bar into:
-//   • Color bar (school primary) at y=926..944 — category labels in school FG
-//   • White value strip at y=944..964 — values in navy
-const COLOR_BAR_TOP    = 926;
-const COLOR_BAR_BOTTOM = 944;
+// Stats layout — color bar sits ABOVE the white bar (in the bottom strip of
+// the gray-bar area), and the full white bar is reserved for values.
+//   • Gray bar visible area: y=804..906 (name/pos/jersey, recentered)
+//   • Color bar (school primary): y=907..926 (height 19 ≈ half the white bar)
+//   • White value strip:           y=926..964 (full height, big values)
+const COLOR_BAR_TOP    = 907;
+const COLOR_BAR_BOTTOM = 926;
 const COLOR_BAR_LEFT_BASE  = 745;   // source x → keeps left edge at canvas 720 (just past logo)
 const COLOR_BAR_RIGHT_BASE = 1370;  // source x → tracks plate right edge as it extends
 const CAT_LABEL_FS  = 16;
-const CAT_LABEL_CY  = 935;
-const WB_VALUE_FS    = 24;
-const WB_VALUE_CY    = 954;          // centered in the remaining white area
+const CAT_LABEL_CY  = 917;
+const WB_VALUE_FS    = 32;
+const WB_VALUE_CY    = 946;          // centered in the full white bar
 const WB_BLOCK_BASES = [820, 985, 1150];  // source x of each stat block center
+
+// Player + Stats has its own gray-bar center because the color bar takes a
+// strip from the bottom of the gray area; recenter name/pos/jersey in the
+// remaining gray (y=804..906 → midpoint 855) so the layout reads balanced.
+const PS_HEADER_CY = 855;
 
 // School primary colors for the category bar. Hex values pulled from
 // IMS_Color_Mapping.xlsx (Swatch column, ESPN Primary fallback). `fg` is the
@@ -768,17 +775,17 @@ function drawPlayerStatsPlate(frame){
   if (pos) {
     ctx.font = `800 ${GB_POS_FS}px 'Barlow Condensed','Barlow',${FONT_FAMILY}`;
     const w = ctx.measureText(pos).width;
-    ctx.fillText(pos, curX, HEADER_CY);
+    ctx.fillText(pos, curX, PS_HEADER_CY);
     curX += w + GB_GAP_PJ;
   }
   if (jersey) {
     ctx.font = `900 ${GB_JERSEY_FS}px ${FONT_FAMILY}`;
     const w = ctx.measureText(jersey).width;
-    ctx.fillText(jersey, curX, HEADER_CY);
+    ctx.fillText(jersey, curX, PS_HEADER_CY);
     curX += w + GB_GAP_JN;
   }
   ctx.font = `700 ${HEADER_EM}px ${FONT_FAMILY}`;
-  ctx.fillText(name, curX, HEADER_CY);
+  ctx.fillText(name, curX, PS_HEADER_CY);
 
   // ── Color bar (school primary) ────────────────────────────────────────
   // Sits between the gray bar and the white-value strip. Left edge stays at
