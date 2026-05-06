@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CUSA Championship · Game Day Builder</title>
+<title>CUSA Championship · Game Day Builder (Universal)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;700&display=swap">
 <style>
@@ -82,7 +82,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 
 <div class="tabs">
   <a class="tab" href="championship.html">Softball · Final Score</a>
-  <a class="tab active" href="championship-game-day.html">Softball · Game Day</a>
+  <a class="tab active" href="championship-game-day.html">Game Day · Universal</a>
 </div>
 
 <div class="main">
@@ -90,7 +90,16 @@ body{display:flex;flex-direction:column;overflow:hidden}
   <!-- Left controls -->
   <div class="panel" id="panel">
 
-    <div class="panel-head">Headline</div>
+    <div class="panel-head">Sport</div>
+    <div class="field">
+      <label class="field-label" for="sportSel">Sport (drives medallion + default headline)</label>
+      <select id="sportSel">
+        <option value="softball">Softball</option>
+        <option value="baseball">Baseball</option>
+      </select>
+    </div>
+
+    <div class="panel-head" style="margin-top:6px">Headline</div>
     <div class="field">
       <label class="field-label" for="headline">Headline (red banner)</label>
       <input id="headline" type="text" maxlength="60" value="SOFTBALL CHAMPIONSHIP FIRST ROUND">
@@ -227,8 +236,25 @@ const SCHOOLS = [
 const LAYERS = {
   bg:             ASSET_DIR + '26 SB Gameday Post - BG.png',
   redBar:         ASSET_DIR + '26 SB Gameday Post - Red Bar.png',
-  champLogoSplit: ASSET_DIR + '26 SB Gameday Post - Champ Logo and Split.png',
   seedingOverlay: ASSET_DIR + '26 SB Gameday Post - Seeding Overlay.png',
+  // champLogoSplit is sport-specific; SPORT_CONFIG drives which file is used.
+};
+
+// Sport config — switching sports swaps the championship medallion artwork
+// AND the default headline copy. The default headline is only auto-applied
+// if the operator hasn't customized it (we treat the default of any other
+// sport as "unchanged" so flipping sports doesn't lose typed text).
+const SPORT_CONFIG = {
+  softball: {
+    label: 'Softball',
+    champLogoSplit: ASSET_DIR + '26 SB Gameday Post - Champ Logo and Split.png',
+    defaultHeadline: 'SOFTBALL CHAMPIONSHIP FIRST ROUND',
+  },
+  baseball: {
+    label: 'Baseball',
+    champLogoSplit: ASSET_DIR + '26 SB Gameday Post - Baseball Champ Logo and Split.png',
+    defaultHeadline: 'BASEBALL CHAMPIONSHIP FIRST ROUND',
+  },
 };
 
 // Network logos. Each has a sourceBox = the bbox of opaque content within
@@ -264,6 +290,7 @@ const WHITE = '#FFFFFF';
 
 // ─── State ────────────────────────────────────────────────────────────────
 const state = {
+  sport: 'softball',
   top:  { school: 'Liberty',    seed: '1', photo: null, logoImg: null },
   bot:  { school: 'Western Kentucky', seed: '2', photo: null, logoImg: null },
   headline: 'SOFTBALL CHAMPIONSHIP FIRST ROUND',
@@ -311,6 +338,15 @@ async function ensureLayer(key){
   if (state.layerImgs[key]) return state.layerImgs[key];
   state.layerImgs[key] = await loadImage(encodeURI(LAYERS[key]));
   return state.layerImgs[key];
+}
+// Sport-aware Champ Logo + Split lookup. Cached per-sport so swapping is
+// instant after the first load.
+async function ensureChampLogoSplit(){
+  const cfg = SPORT_CONFIG[state.sport];
+  const cacheKey = '_champLogoSplit_' + state.sport;
+  if (state.layerImgs[cacheKey]) return state.layerImgs[cacheKey];
+  state.layerImgs[cacheKey] = await loadImage(encodeURI(cfg.champLogoSplit));
+  return state.layerImgs[cacheKey];
 }
 async function ensureNetwork(key){
   if (state.networkImgs[key]) return state.networkImgs[key];
@@ -459,11 +495,11 @@ async function draw(){
       SCHOOL_LOGO.w, SCHOOL_LOGO.h);
   }
 
-  // 5. Champ Logo and Split (vertical divider line + championship logo at bottom center).
+  // 5. Champ Logo and Split (sport-specific medallion + divider).
   //    Shifted down so the medallion's top + bottom align with the school-logo row.
   try {
     const dy = CHAMP_LAYER_DY_BASE + state.adj.champLayerDy;
-    ctx.drawImage(await ensureLayer('champLogoSplit'), 0, dy, 1080, 1350);
+    ctx.drawImage(await ensureChampLogoSplit(), 0, dy, 1080, 1350);
   } catch (_) {}
 
   // 6. Seeding Overlay (small light-gray seed boxes at far edges)
@@ -501,6 +537,21 @@ document.getElementById('topSchool').addEventListener('change', async e => { sta
 document.getElementById('botSchool').addEventListener('change', async e => { state.bot.school = e.target.value; await ensureSchoolLogo('bot'); draw(); });
 document.getElementById('topSeed').addEventListener('input', e => { state.top.seed = e.target.value; draw(); });
 document.getElementById('botSeed').addEventListener('input', e => { state.bot.seed = e.target.value; draw(); });
+document.getElementById('sportSel').addEventListener('change', async e => {
+  const newSport = e.target.value;
+  if (!SPORT_CONFIG[newSport]) return;
+  // Auto-update headline ONLY if it currently matches some sport's default
+  // (i.e., the operator hasn't typed a custom headline). Otherwise leave
+  // their custom text alone.
+  const isDefaultForAnySport = Object.values(SPORT_CONFIG).some(c => c.defaultHeadline === state.headline);
+  state.sport = newSport;
+  if (isDefaultForAnySport) {
+    state.headline = SPORT_CONFIG[newSport].defaultHeadline;
+    document.getElementById('headline').value = state.headline;
+  }
+  await ensureChampLogoSplit().catch(()=>null);
+  draw();
+});
 document.getElementById('headline').addEventListener('input', e => { state.headline = e.target.value; draw(); });
 document.getElementById('timeText').addEventListener('input', e => { state.timeText = e.target.value; draw(); });
 document.getElementById('networkSel').addEventListener('change', async e => { state.network = e.target.value; if (state.network) await ensureNetwork(state.network); draw(); });
@@ -609,10 +660,12 @@ document.getElementById('download').addEventListener('click', () => {
     try { await document.fonts.load(`800 ${SEED_FONT_SIZE}px "Proxima Nova"`); } catch(_) {}
     try { await document.fonts.load(`900 ${TIME_FONT_SIZE}px "Proxima Nova"`); } catch(_) {}
   }
+  document.getElementById('sportSel').value = state.sport;
+  document.getElementById('headline').value = state.headline;
   await Promise.all([
     ensureLayer('bg').catch(()=>null),
     ensureLayer('redBar').catch(()=>null),
-    ensureLayer('champLogoSplit').catch(()=>null),
+    ensureChampLogoSplit().catch(()=>null),
     ensureLayer('seedingOverlay').catch(()=>null),
     ensureNetwork(state.network).catch(()=>null),
     ensureSchoolLogo('top'),
