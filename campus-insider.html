@@ -170,9 +170,13 @@ select:disabled{opacity:0.45;cursor:not-allowed}
       <button class="btn secondary" id="psLoadRoster" style="font-size:10px;padding:8px 10px">📥 Load Roster for School + Sport</button>
 
       <div class="panel-head" style="margin-top:6px">Stats</div>
-      <div id="psStats" style="display:flex;flex-direction:column;gap:10px"></div>
-      <button class="btn secondary" id="psPullStats" style="font-size:10px;padding:8px 10px">📊 Pull Live Stats (basketball v1)</button>
+      <button class="btn secondary" id="psPullStats" style="font-size:10px;padding:8px 10px">📊 Pull Live Stats (basketball)</button>
       <span id="psStatsStatus" style="font-size:10px;color:rgba(255,255,255,0.55);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-top:-4px;display:none"></span>
+      <div class="field" id="psGameSelectField" style="display:none">
+        <label class="field-label" for="psGameSel">Game</label>
+        <select id="psGameSel"><option value="">— Season Average —</option></select>
+      </div>
+      <div id="psStats" style="display:flex;flex-direction:column;gap:10px"></div>
       <button class="btn secondary" id="psResetDefaults" style="font-size:10px;padding:8px 10px">Reset Stat Labels for Sport</button>
     </div>
 
@@ -861,11 +865,23 @@ function renderPlayerStatsControls(){
   document.getElementById('psPosition').value = ps.position || '';
   document.getElementById('psJersey').value   = ps.jersey   || '';
 
-  // Three stat blocks (label + value)
+  // Three stat blocks (Quick Fill dropdown + label + value)
   const wrap = document.getElementById('psStats');
-  wrap.innerHTML = ps.stats.map((s, i) => `
+  const avail = ps._availableStats;  // populated after Pull Live Stats
+  wrap.innerHTML = ps.stats.map((s, i) => {
+    const quickFillOpts = avail
+      ? `<option value="">— Quick Fill —</option>` +
+        avail.map(({ label, value }) =>
+          `<option value="${escapeAttr(label)}">${escapeAttr(label)} · ${escapeAttr(value)}</option>`
+        ).join('')
+      : `<option value="">(Pull Live Stats first)</option>`;
+    return `
     <div class="frame-card">
       <div class="frame-card-title">Stat ${i+1}</div>
+      <div class="field">
+        <label class="field-label">Quick Fill</label>
+        <select data-ps-i="${i}" data-ps-k="quickfill"${avail ? '' : ' disabled'}>${quickFillOpts}</select>
+      </div>
       <div class="row-2">
         <div class="field">
           <label class="field-label">Label</label>
@@ -876,15 +892,28 @@ function renderPlayerStatsControls(){
           <input data-ps-i="${i}" data-ps-k="value" type="text" maxlength="10" value="${escapeAttr(s.value)}">
         </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
-  // Wire input listeners for the dynamic stat inputs.
+  // Wire text-input listeners.
   wrap.querySelectorAll('input').forEach(inp => {
     inp.addEventListener('input', e => {
       const i = +e.target.dataset.psI;
       const k = e.target.dataset.psK;
       ps.stats[i][k] = e.target.value;
+      draw();
+    });
+  });
+  // Wire Quick Fill select listeners.
+  wrap.querySelectorAll('select[data-ps-k="quickfill"]').forEach(sel => {
+    sel.addEventListener('change', e => {
+      const i = +e.target.dataset.psI;
+      const pickedLabel = e.target.value;
+      if (!pickedLabel || !ps._availableStats) return;
+      const stat = ps._availableStats.find(s => s.label === pickedLabel);
+      if (!stat) return;
+      ps.stats[i] = { label: stat.label, value: String(stat.value) };
+      renderPlayerStatsControls();  // refresh inputs to show new label/value
       draw();
     });
   });
@@ -1177,171 +1206,50 @@ function resetPlayerPicker(){
 }
 document.getElementById('psSport').addEventListener('change', resetPlayerPicker);
 document.getElementById('psSchool').addEventListener('change', resetPlayerPicker);
+document.getElementById('psSport').addEventListener('change', resetStatsPullState);
+document.getElementById('psSchool').addEventListener('change', resetStatsPullState);
 
-// ─── Live stat scrape (Phase 2B v1: basketball) ───────────────────────────
-// Slim port of the Production Hub's stats-master cume.pdf pipeline. Discovers
-// each school's Sidearm site key from its stats page HTML, builds the AWS
-// cume.pdf URL, fetches via public CORS proxies, extracts text via pdf.js
-// (lazy-loaded from CDN), and parses the basketball player table.
-const SIDEARM_HOST_BY_SCHOOL = {
-  'Delaware':         'bluehens.com',
-  'FIU':              'fiusports.com',
-  'Jax State':        'jaxstatesports.com',
-  'Kennesaw State':   'ksuowls.com',
-  'Liberty':          'libertyflames.com',
-  'Middle Tennessee': 'goblueraiders.com',
-  'MO State':         'missouristatebears.com',
-  'Sam Houston':      'gobearkats.com',
-  'Western Kentucky': 'wkusports.com',
+// ─── Live stat scrape (Phase 2B v2: ESPN-based) ───────────────────────────
+// ESPN exposes per-game box scores AND per-athlete season averages over JSON
+// with CORS allowed — no PDF parsing, no proxy chain. Each school maps to
+// one ESPN team_id (verified via /sports/.../teams?limit=600); within a sport
+// the schedule lists every event_id, /summary?event=… returns the box score,
+// and /athletes/{id}/stats?season=… returns season averages.
+const ESPN_TEAM_IDS = {
+  'Delaware':         48,
+  'FIU':              2229,
+  'Jax State':        55,
+  'Kennesaw State':   338,
+  'Liberty':          2335,
+  'Middle Tennessee': 2393,
+  'MO State':         2623,
+  'Sam Houston':      2534,
+  'Western Kentucky': 98,
 };
-const STATS_CORS_PROXIES = [
-  { name: 'corsproxy.io',   build: u => 'https://corsproxy.io/?'                + encodeURIComponent(u) },
-  { name: 'codetabs.com',   build: u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u) },
-  { name: 'allorigins.win', build: u => 'https://api.allorigins.win/raw?url='   + encodeURIComponent(u) },
-];
-const SPORT_PATH_ALIASES = {
-  'mens-basketball':   ['mbball', 'mens-basketball', 'mbb'],
-  'womens-basketball': ['wbball', 'womens-basketball', 'wbb'],
+const ESPN_SPORT_PATH = {
+  "Men's Basketball":   'basketball/mens-college-basketball',
+  "Women's Basketball": 'basketball/womens-college-basketball',
 };
-const PDFJS_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-const PDFJS_WORKER_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const ESPN_BASE  = 'https://site.api.espn.com/apis/site/v2/sports';
+const ESPN_BASE2 = 'https://site.web.api.espn.com/apis/common/v3/sports';
 
-let _pdfjsPromise = null;
-function loadPdfJs(){
-  if (_pdfjsPromise) return _pdfjsPromise;
-  _pdfjsPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = PDFJS_CDN;
-    s.onload = () => {
-      if (window.pdfjsLib) {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
-        resolve(window.pdfjsLib);
-      } else {
-        reject(new Error('pdfjsLib failed to load'));
-      }
-    };
-    s.onerror = () => reject(new Error('Failed to load PDF.js from CDN'));
-    document.head.appendChild(s);
-  });
-  return _pdfjsPromise;
-}
+state.playerStats._gamesList      = null;   // [{ id, date, label }]
+state.playerStats._espnAthleteId  = null;
+state.playerStats._gameStatsCache = {};     // eventId → label_to_value
+state.playerStats._seasonStats    = null;   // label_to_value
 
-async function fetchTextViaProxies(url){
-  const failures = [];
-  for (const p of STATS_CORS_PROXIES) {
-    try {
-      const res = await fetch(p.build(url));
-      if (!res.ok) { failures.push(`${p.name}: HTTP ${res.status}`); continue; }
-      const text = await res.text();
-      if (!text || text.length < 200) { failures.push(`${p.name}: empty`); continue; }
-      return text;
-    } catch (e) { failures.push(`${p.name}: ${e.message || 'fetch failed'}`); }
-  }
-  throw new Error('All proxies failed: ' + failures.join('; '));
-}
-async function fetchPdfBufferViaProxies(url){
-  const failures = [];
-  for (const p of STATS_CORS_PROXIES) {
-    try {
-      const res = await fetch(p.build(url));
-      if (!res.ok) { failures.push(`${p.name}: HTTP ${res.status}`); continue; }
-      const buf = await res.arrayBuffer();
-      // Verify it's actually a PDF (starts with %PDF)
-      const sig = new TextDecoder().decode(new Uint8Array(buf.slice(0, 4)));
-      if (sig !== '%PDF') { failures.push(`${p.name}: not a PDF (got "${sig}")`); continue; }
-      if (buf.byteLength < 1000) { failures.push(`${p.name}: too small (${buf.byteLength}b)`); continue; }
-      return buf;
-    } catch (e) { failures.push(`${p.name}: ${e.message || 'fetch failed'}`); }
-  }
-  throw new Error('All proxies failed: ' + failures.join('; '));
-}
-
-// Cache the discovered Sidearm site key per host to skip re-discovery.
-const SITE_KEY_CACHE = 'cusa_creative_stats_site_keys_v1';
-function _readSiteKeyCache(){ try { return JSON.parse(localStorage.getItem(SITE_KEY_CACHE) || '{}'); } catch(_) { return {}; } }
-function _writeSiteKeyCache(host, key){
-  const m = _readSiteKeyCache(); m[host] = key;
-  try { localStorage.setItem(SITE_KEY_CACHE, JSON.stringify(m)); } catch(_) {}
-}
-
-async function discoverSidearmSiteKey(host, statsPageUrl){
-  const cached = _readSiteKeyCache()[host];
-  if (cached) return cached;
-  const html = await fetchTextViaProxies(statsPageUrl);
-  const matches = Array.from(html.matchAll(/sidearm\.nextgen\.sites\/([a-z0-9][a-z0-9.\-]+\.(?:com|org|net|edu|us))/gi));
-  if (!matches.length) throw new Error('Sidearm site key not found in stats page HTML.');
-  const counts = {};
-  for (const mm of matches) counts[mm[1]] = (counts[mm[1]] || 0) + 1;
-  const key = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-  _writeSiteKeyCache(host, key);
-  return key;
-}
-
-function buildCumePdfCandidates(siteKey, sport, year){
-  const aliases = SPORT_PATH_ALIASES[sport] || [sport];
-  return aliases.map(slug =>
-    `https://s3.us-east-2.amazonaws.com/sidearm.nextgen.sites/${siteKey}/stats/${slug}/${year}/pdf/cume.pdf`
-  );
-}
-
-async function extractPdfText(buf){
-  const pdfjs = await loadPdfJs();
-  const pdf = await pdfjs.getDocument({ data: buf }).promise;
-  let out = '';
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const tc = await page.getTextContent();
-    out += tc.items.map(it => it.str).join(' ') + '\n';
-  }
-  return out;
-}
-
-// Slim port of parseBasketballPdf from stats-master.html. Looks for the
-// "# Player ... GP-GS ... FG-FGA ..." header line, then parses each row.
-function parseBasketballCumeText(text){
-  const lines = text.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
-  let headerIdx = -1, headers = [];
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i];
-    if (/^#\s+Player\b/i.test(l) && /\bGP-GS\b/.test(l) && /\bFG-FGA\b/.test(l)) {
-      headerIdx = i;
-      headers = l.replace(/^#\s+Player\s+/i, '').split(/\s+/);
-      break;
-    }
-  }
-  if (headerIdx < 0) return [];
-  const findIdx    = (n) => headers.indexOf(n);
-  const findAllIdx = (n) => headers.reduce((acc, h, i) => (h === n && acc.push(i), acc), []);
-  const avgs = findAllIdx('AVG');
-  const idx = {
-    gpGs: findIdx('GP-GS'),
-    mpg:  avgs[0],     // MPG (first AVG col)
-    rpg:  avgs[1],     // RPG (second AVG col)
-    a:    findIdx('A'),
-    ppg:  avgs[2],     // PPG (third AVG col)
-  };
-  const rows = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const l = lines[i];
-    if (/^(Total|Opponents?|Team)\b/i.test(l)) break;
-    const m = l.match(/^(\d{1,3})\s+(.+)$/);
-    if (!m) continue;
-    const jersey = parseInt(m[1], 10);
-    if (jersey < 0 || jersey > 99) continue;
-    const rest = m[2].split(/\s+/);
-    if (rest.length < headers.length + 1) continue;
-    const values = rest.slice(-headers.length);
-    const name   = rest.slice(0, rest.length - headers.length).join(' ');
-    const gp     = parseInt((values[idx.gpGs] || '0').split('-')[0], 10) || 0;
-    const aTotal = parseInt(values[idx.a], 10);
-    rows.push({
-      jersey, name, gp,
-      ppg: values[idx.ppg],
-      rpg: values[idx.rpg],
-      apg: gp > 0 && Number.isFinite(aTotal) ? (aTotal / gp).toFixed(1) : '',
-    });
-  }
-  return rows;
+function resetStatsPullState(){
+  const ps = state.playerStats;
+  ps._gamesList = null;
+  ps._espnAthleteId = null;
+  ps._gameStatsCache = {};
+  ps._seasonStats = null;
+  ps._availableStats = null;
+  const fld = document.getElementById('psGameSelectField');
+  if (fld) fld.style.display = 'none';
+  const sel = document.getElementById('psGameSel');
+  if (sel) sel.innerHTML = '<option value="">— Season Average —</option>';
+  setStatsStatus('');
 }
 
 function setStatsStatus(msg, kind){
@@ -1352,82 +1260,129 @@ function setStatsStatus(msg, kind){
   el.style.color = kind === 'err' ? '#ff6f8b' : (kind === 'ok' ? '#9bd56b' : 'rgba(255,255,255,0.55)');
 }
 
-async function pullLiveStatsForCurrentPlayer(){
-  const ps = state.playerStats;
-  const f = state.frames[0];
-  const sport = ps.sport;
-  const school = f?.school;
-
-  // Phase 2B v1: only basketball is supported. Other sports need cume.pdf
-  // section-specific parsers — coming in follow-up commits.
-  const SPORT_TO_SIDEARM = {
-    "Men's Basketball":   'mens-basketball',
-    "Women's Basketball": 'womens-basketball',
-  };
-  const sidearmSport = SPORT_TO_SIDEARM[sport];
-  if (!sidearmSport) {
-    setStatsStatus(`Live scrape not yet supported for ${sport} — enter manually.`, 'err');
-    return;
-  }
-  const host = SIDEARM_HOST_BY_SCHOOL[school];
-  if (!host) {
-    setStatsStatus(`No Sidearm host mapped for ${school}.`, 'err');
-    return;
-  }
-
-  // Default to the most recently completed season (CB seasons start in fall;
-  // before August we want the previous calendar year's start year).
+function currentSeason(){
+  // Basketball season starts in fall. ESPN's API uses the END year (2024-25 → 2025).
   const now = new Date();
-  const year = now.getFullYear() - (now.getMonth() < 8 ? 1 : 0);
-  const statsPageUrl = `https://${host}/sports/${sidearmSport}/stats/${year}`;
+  return now.getFullYear() + (now.getMonth() >= 7 ? 1 : 0);
+}
+
+// Build a Quick-Fill list from a game box score's labels + stats arrays.
+// FG / 3PT / FT come back as "made-attempted"; expose both raw and a
+// derived percent so operators can pick either.
+function gameStatsToLabelMap(labels, stats){
+  const map = [];
+  labels.forEach((lbl, i) => {
+    const v = stats[i];
+    if (v == null || v === '') return;
+    map.push({ label: lbl, value: v });
+    if ((lbl === 'FG' || lbl === '3PT' || lbl === 'FT') && /^\d+-\d+$/.test(v)) {
+      const [m, a] = v.split('-').map(Number);
+      const pct = a > 0 ? (m / a).toFixed(3).replace(/^0/, '') : '';
+      if (pct) map.push({ label: lbl + '%', value: pct });
+    }
+  });
+  return map;
+}
+
+// Convert ESPN's season-averages category into the Quick Fill list with
+// broadcast-friendly per-game shorthand (PPG/RPG/APG/MPG/BPG/SPG/TOPG).
+function seasonStatsToLabelMap(category){
+  const labels = category.labels || [];
+  const stats0 = category.statistics?.[0]?.stats || category.statistics?.[0]?.values || [];
+  const REMAP = { 'PTS':'PPG', 'REB':'RPG', 'AST':'APG', 'MIN':'MPG', 'BLK':'BPG', 'STL':'SPG', 'TO':'TOPG' };
+  const out = [];
+  labels.forEach((lbl, i) => {
+    const v = stats0[i];
+    if (v == null || v === '') return;
+    out.push({ label: REMAP[lbl] || lbl, value: v });
+  });
+  return out;
+}
+
+async function pullLiveStatsForCurrentPlayer(){
+  const ps     = state.playerStats;
+  const f      = state.frames[0];
+  const sport  = ps.sport;
+  const school = f?.school;
+  const path   = ESPN_SPORT_PATH[sport];
+  const teamId = ESPN_TEAM_IDS[school];
+
+  if (!path)   { setStatsStatus(`Live stats only support basketball today — ${sport} coming later.`, 'err'); return; }
+  if (!teamId) { setStatsStatus(`No ESPN team mapping for ${school}.`, 'err'); return; }
+  if (!f?.header) { setStatsStatus('Pick a player first (Load Roster + select).', 'err'); return; }
 
   const btn = document.getElementById('psPullStats');
-  btn.disabled = true;
   const origLabel = btn.textContent;
-  btn.textContent = '⏳ Discovering site key…';
-  setStatsStatus('Locating cume.pdf for ' + school + '…');
+  btn.disabled = true;
+  btn.textContent = '⏳ Loading…';
+  setStatsStatus(`Fetching ESPN data for ${school}…`);
 
   try {
-    const siteKey = await discoverSidearmSiteKey(host, statsPageUrl);
-    btn.textContent = '⏳ Fetching PDF…';
-    const candidates = buildCumePdfCandidates(siteKey, sidearmSport, year);
-    let buf = null, lastErr = null;
-    for (const candidate of candidates) {
-      try { buf = await fetchPdfBufferViaProxies(candidate); break; }
-      catch (e) { lastErr = e; }
-    }
-    if (!buf) throw new Error('cume.pdf fetch failed: ' + (lastErr?.message || 'no candidates worked'));
-    btn.textContent = '⏳ Extracting text…';
-    const text = await extractPdfText(buf);
-    btn.textContent = '⏳ Parsing…';
-    const rows = parseBasketballCumeText(text);
-    if (!rows.length) throw new Error('No player rows found in PDF (column layout may have changed).');
+    const season = currentSeason();
+    const [rosterRes, schedRes] = await Promise.all([
+      fetch(`${ESPN_BASE}/${path}/teams/${teamId}/roster?enable=stats`),
+      fetch(`${ESPN_BASE}/${path}/teams/${teamId}/schedule?season=${season}`),
+    ]);
+    if (!rosterRes.ok) throw new Error(`ESPN roster ${rosterRes.status}`);
+    if (!schedRes.ok)  throw new Error(`ESPN schedule ${schedRes.status}`);
+    const rosterJson = await rosterRes.json();
+    const schedJson  = await schedRes.json();
 
-    // Match the picked player. Try jersey first (most reliable), then name.
-    const wantJersey = parseInt(String(ps.jersey || '').replace(/\D/g, ''), 10);
-    const wantName = String(f?.header || '').toLowerCase().trim();
-    let row = null;
-    if (Number.isFinite(wantJersey)) row = rows.find(r => r.jersey === wantJersey);
-    if (!row && wantName) {
-      row = rows.find(r => r.name.toLowerCase() === wantName)
-         || rows.find(r => r.name.toLowerCase().includes(wantName.split(' ')[0]) && r.name.toLowerCase().includes(wantName.split(' ').pop()));
+    // Match the picked player against ESPN's roster.
+    const wantJersey = String(ps.jersey || '').replace(/\D/g, '');
+    const wantNameLc = String(f.header || '').toLowerCase().trim();
+    const athletes   = rosterJson.athletes || [];
+    let athlete = null;
+    if (wantJersey) athlete = athletes.find(a => String(a.jersey || '') === wantJersey);
+    if (!athlete && wantNameLc) {
+      athlete = athletes.find(a => (a.fullName || a.displayName || '').toLowerCase() === wantNameLc);
+      if (!athlete) {
+        const tokens = wantNameLc.split(/\s+/).filter(t => t.length >= 3);
+        athlete = athletes.find(a => {
+          const ln = (a.fullName || a.displayName || '').toLowerCase();
+          return tokens.every(t => ln.includes(t));
+        });
+      }
     }
-    if (!row) {
-      throw new Error(`Player "${f?.header || '?'}" not found in PDF (${rows.length} rows scanned).`);
-    }
+    if (!athlete) throw new Error(`Player "${f.header}" not found on ESPN's ${school} roster (${athletes.length} athletes).`);
+    ps._espnAthleteId = athlete.id;
 
-    // Fill the 3 stat slots (PPG / RPG / APG) — match by current label.
-    const map = { 'PPG': row.ppg, 'RPG': row.rpg, 'APG': row.apg };
-    let filled = 0;
-    ps.stats.forEach((s, i) => {
-      const k = String(s.label || '').toUpperCase();
-      if (map[k] != null && map[k] !== '') { ps.stats[i] = { label: s.label, value: String(map[k]) }; filled++; }
+    // Build the games list, most-recent-first.
+    const events = (schedJson.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed === true);
+    events.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    ps._gamesList = events.map(e => {
+      const c = e.competitions?.[0];
+      const home = c?.competitors?.find(x => x.homeAway === 'home');
+      const away = c?.competitors?.find(x => x.homeAway === 'away');
+      const isHome = String(home?.id || '') === String(teamId);
+      const opp    = isHome ? (away?.team?.shortDisplayName || 'OPP') : (home?.team?.shortDisplayName || 'OPP');
+      const d      = (e.date || '').slice(0, 10);
+      return { id: e.id, date: d, label: `${isHome ? 'vs' : 'at'} ${opp.toUpperCase()} · ${d}` };
     });
+
+    // Season averages (best effort).
+    setStatsStatus('Fetching season averages…');
+    try {
+      const r = await fetch(`${ESPN_BASE2}/${path}/athletes/${athlete.id}/stats?season=${season}`);
+      if (r.ok) {
+        const j = await r.json();
+        const avg = (j.categories || []).find(c => c.name === 'averages');
+        if (avg) ps._seasonStats = seasonStatsToLabelMap(avg);
+      }
+    } catch (_) { /* best effort */ }
+
+    // Populate Game picker.
+    const gameSel = document.getElementById('psGameSel');
+    gameSel.innerHTML =
+      '<option value="">— Season Average —</option>' +
+      ps._gamesList.map(g => `<option value="${escapeAttr(g.id)}">${escapeAttr(g.label)}</option>`).join('');
+    document.getElementById('psGameSelectField').style.display = '';
+
+    // Default view: season averages.
+    ps._availableStats = ps._seasonStats || [];
     renderPlayerStatsControls();
-    syncFrameFromPlayerStats();
-    draw();
-    setStatsStatus(`✓ Pulled ${filled}/3 stats for ${row.name} (#${row.jersey}, ${row.gp} GP).`, 'ok');
-    btn.textContent = '✓ Pulled — Refresh';
+    setStatsStatus(`✓ ${athletes.length} athletes · ${ps._gamesList.length} games · pick from Quick Fill or change Game above.`, 'ok');
+    btn.textContent = '✓ Loaded — Refresh';
   } catch (err) {
     console.error(err);
     setStatsStatus('Pull failed: ' + (err.message || err), 'err');
@@ -1437,7 +1392,47 @@ async function pullLiveStatsForCurrentPlayer(){
   }
 }
 
+async function onGameSelect(){
+  const ps = state.playerStats;
+  const eventId = document.getElementById('psGameSel').value;
+  if (!eventId) {
+    ps._availableStats = ps._seasonStats || [];
+    renderPlayerStatsControls();
+    setStatsStatus('Showing season averages.', 'ok');
+    return;
+  }
+  if (ps._gameStatsCache[eventId]) {
+    ps._availableStats = ps._gameStatsCache[eventId];
+    renderPlayerStatsControls();
+    return;
+  }
+  const path = ESPN_SPORT_PATH[ps.sport];
+  setStatsStatus('Fetching box score…');
+  try {
+    const r = await fetch(`${ESPN_BASE}/${path}/summary?event=${eventId}`);
+    if (!r.ok) throw new Error(`ESPN box score ${r.status}`);
+    const j = await r.json();
+    let myStats = null, myLabels = null;
+    for (const tm of (j.boxscore?.players || [])) {
+      const grp = (tm.statistics || [])[0];
+      if (!grp) continue;
+      const ath = (grp.athletes || []).find(a => String(a.athlete?.id || '') === String(ps._espnAthleteId));
+      if (ath) { myStats = ath.stats || []; myLabels = grp.labels || []; break; }
+    }
+    if (!myStats) throw new Error('Player did not appear in this game (DNP?).');
+    const map = gameStatsToLabelMap(myLabels, myStats);
+    ps._gameStatsCache[eventId] = map;
+    ps._availableStats = map;
+    renderPlayerStatsControls();
+    setStatsStatus('Single-game stats loaded — Quick Fill any slot.', 'ok');
+  } catch (err) {
+    console.error(err);
+    setStatsStatus('Game fetch failed: ' + (err.message || err), 'err');
+  }
+}
+
 document.getElementById('psPullStats').addEventListener('click', pullLiveStatsForCurrentPlayer);
+document.getElementById('psGameSel').addEventListener('change', onGameSelect);
 
 // ─── Download ─────────────────────────────────────────────────────────────
 document.getElementById('download').addEventListener('click', () => {
