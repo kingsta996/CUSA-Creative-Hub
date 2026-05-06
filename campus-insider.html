@@ -162,6 +162,13 @@ select:disabled{opacity:0.45;cursor:not-allowed}
         </div>
       </div>
 
+      <div class="panel-head" style="margin-top:6px">Pull from Master Roster</div>
+      <div class="field">
+        <label class="field-label" for="psPlayerPick">Player</label>
+        <select id="psPlayerPick"><option value="">— Click Load below —</option></select>
+      </div>
+      <button class="btn secondary" id="psLoadRoster" style="font-size:10px;padding:8px 10px">📥 Load Roster for School + Sport</button>
+
       <div class="panel-head" style="margin-top:6px">Stats</div>
       <div id="psStats" style="display:flex;flex-direction:column;gap:10px"></div>
       <button class="btn secondary" id="psResetDefaults" style="font-size:10px;padding:8px 10px">Reset Stat Labels for Sport</button>
@@ -255,6 +262,110 @@ const SPORT_STATS = {
 };
 
 const PS_DEFAULT_SPORT = "Men's Basketball";
+
+// ─── Master Roster (Phase 2A: identity pre-fill) ──────────────────────────
+// Reads the same Google Sheet that the Production Hub's roster.html uses, via
+// the gviz JSON endpoint (no XLSX dependency needed). Cached after first fetch.
+const MASTER_ROSTER_SHEET_ID = '1NpjMZH0p70pYAnZ_BkqxevJ5XoZDoeucZq4nF1cAw50';
+const MASTER_ROSTER_TAB      = 'Master Roster';
+
+// Map Creative Hub school IDs (used in the SCHOOLS array + nameplate filenames)
+// to the exact "School" column value in the Master Roster sheet.
+const MASTER_ROSTER_SCHOOL_MAP = {
+  'CUSA':              null,                  // conference, no roster to pull
+  'Delaware':          'Delaware',
+  'FIU':               'FIU',
+  'Jax State':         'Jacksonville State',
+  'Kennesaw State':    'Kennesaw State',
+  'Liberty':           'Liberty',
+  'Middle Tennessee':  'Middle Tennessee',
+  'MO State':          'Missouri State',
+  'Sam Houston':       'Sam Houston',
+  'Western Kentucky':  'WKU',
+};
+
+// Map Creative Hub sport IDs (SPORT_STATS keys) to the sheet's "Sport" column.
+const MASTER_ROSTER_SPORT_MAP = {
+  "Men's Basketball":   'MBB',
+  "Women's Basketball": 'WBB',
+  'Football · QB':      'Football',
+  'Football · Skill':   'Football',
+  'Baseball':           'Baseball',
+  'Softball':           'Softball',
+  'Volleyball':         'Volleyball',
+  "Women's Soccer":     'Soccer',
+};
+
+let _masterRosterCache = null;  // { rows: [...], fetchedAt: ms }
+
+// Position normalization for the picker pre-fill. The sheet stores positions
+// as full names ("Outfield", "Right Handed Pitcher") but broadcast graphics
+// want abbreviations. Combos like "Infield/ Outfield" take the first segment.
+const MASTER_ROSTER_POS_MAP = {
+  'Football': {
+    'quarterback': 'QB', 'wide receiver': 'WR', 'tight end': 'TE',
+    'running back': 'RB', 'fullback': 'FB', 'halfback': 'HB',
+    'offensive line': 'OL', 'offensive lineman': 'OL', 'center': 'C',
+    'offensive guard': 'OG', 'offensive tackle': 'OT',
+    'left guard': 'LG', 'left tackle': 'LT', 'right guard': 'RG', 'right tackle': 'RT',
+    'defensive line': 'DL', 'defensive lineman': 'DL', 'nose tackle': 'NT',
+    'defensive tackle': 'DT', 'defensive end': 'DE',
+    'linebacker': 'LB', 'middle linebacker': 'MLB',
+    'outside linebacker': 'OLB', 'inside linebacker': 'ILB',
+    'defensive back': 'DB', 'cornerback': 'CB', 'safety': 'S',
+    'free safety': 'FS', 'strong safety': 'SS',
+    'kicker': 'K', 'punter': 'P', 'long snapper': 'LS',
+    'place kicker': 'K', 'placekicker': 'K',
+    'kick returner': 'KR', 'punt returner': 'PR',
+  },
+  'MBB': { 'guard': 'G', 'forward': 'F', 'center': 'C' },
+  'WBB': { 'guard': 'G', 'forward': 'F', 'center': 'C' },
+  'Baseball': {
+    'pitcher': 'P',
+    'right handed pitcher': 'RHP', 'right-handed pitcher': 'RHP',
+    'left handed pitcher': 'LHP',  'left-handed pitcher': 'LHP',
+    'catcher': 'C',
+    'infield': 'INF', 'infielder': 'INF',
+    'outfield': 'OF', 'outfielder': 'OF',
+    'utility': 'UTL', 'util': 'UTL',
+    'designated hitter': 'DH',
+    'first base': '1B', 'second base': '2B', 'third base': '3B', 'shortstop': 'SS',
+  },
+  'Softball': {
+    'pitcher': 'P',
+    'right handed pitcher': 'RHP', 'right-handed pitcher': 'RHP',
+    'left handed pitcher': 'LHP',  'left-handed pitcher': 'LHP',
+    'catcher': 'C',
+    'infield': 'INF', 'infielder': 'INF',
+    'outfield': 'OF', 'outfielder': 'OF',
+    'utility': 'UTL',
+    'designated player': 'DP',
+    'first base': '1B', 'second base': '2B', 'third base': '3B', 'shortstop': 'SS',
+  },
+  'Volleyball': {
+    'outside hitter': 'OH', 'outside': 'OH',
+    'middle blocker': 'MB', 'middle hitter': 'MB', 'middle': 'MB',
+    'setter': 'S', 'libero': 'L', 'defensive specialist': 'L',
+    'opposite': 'OPP', 'opposite hitter': 'OPP',
+    'right side': 'OPP', 'right side hitter': 'OPP',
+  },
+  'Soccer': {
+    'goalkeeper': 'GK', 'goal keeper': 'GK', 'keeper': 'GK',
+    'defender': 'D', 'defense': 'D', 'back': 'D',
+    'midfielder': 'M', 'midfield': 'M',
+    'forward': 'F', 'striker': 'F', 'attacker': 'F',
+  },
+};
+
+function normalizeMasterPosition(raw, masterSport){
+  if (!raw) return '';
+  const map = MASTER_ROSTER_POS_MAP[masterSport];
+  if (!map) return raw.trim();
+  // Combos like "Infield/ Outfield" or "RB/WR" — take the first segment.
+  const first = String(raw).split(/[\/,]| or /i)[0].trim().toLowerCase();
+  if (!first) return raw.trim();
+  return map[first] || raw.trim().toUpperCase();
+}
 
 // ─── State ────────────────────────────────────────────────────────────────
 const state = {
@@ -885,6 +996,126 @@ document.getElementById('psResetDefaults').addEventListener('click', () => {
   renderPlayerStatsControls();
   draw();
 });
+
+// ─── Master Roster fetch + player picker ──────────────────────────────────
+async function fetchMasterRoster(){
+  if (_masterRosterCache) return _masterRosterCache;
+  const url = `https://docs.google.com/spreadsheets/d/${MASTER_ROSTER_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(MASTER_ROSTER_TAB)}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Sheet fetch failed (HTTP ${res.status}). The sheet must be "Anyone with the link → Viewer".`);
+  const text = await res.text();
+  // gviz wraps JSON in `google.visualization.Query.setResponse({...});`
+  const m = text.match(/setResponse\(([\s\S]+)\);?\s*$/);
+  if (!m) throw new Error('Unexpected gviz response shape');
+  const data = JSON.parse(m[1]);
+  const cols = (data.table?.cols || []).map(c => String(c.label || c.id || '').trim().toLowerCase());
+  const rows = (data.table?.rows || []).map(r => {
+    const obj = {};
+    (r.c || []).forEach((cell, i) => {
+      if (!cols[i]) return;
+      obj[cols[i]] = cell == null ? '' : (cell.f != null ? cell.f : cell.v);
+    });
+    return obj;
+  });
+  _masterRosterCache = { rows };
+  return _masterRosterCache;
+}
+
+function cleanJersey(v){
+  if (v == null || v === '') return '';
+  const s = String(v).trim();
+  if (/^-?\d+\.0+$/.test(s)) return s.replace(/\.0+$/, '');
+  return s;
+}
+function jerseyNumeric(v){
+  const m = String(v ?? '').match(/-?\d+/);
+  return m ? parseInt(m[0], 10) : Number.POSITIVE_INFINITY;
+}
+
+async function loadPlayersForCurrentSchoolSport(){
+  const ps = state.playerStats;
+  const sportKey = ps.sport;
+  const schoolKey = state.frames[0]?.school;
+  const masterSchool = MASTER_ROSTER_SCHOOL_MAP[schoolKey];
+  const masterSport  = MASTER_ROSTER_SPORT_MAP[sportKey];
+  if (!masterSchool) throw new Error(`No Master Roster mapping for school "${schoolKey}".`);
+  if (!masterSport)  throw new Error(`No Master Roster mapping for sport "${sportKey}".`);
+  const { rows } = await fetchMasterRoster();
+  const filtered = rows.filter(r =>
+    String(r['school'] || '').trim() === masterSchool &&
+    String(r['sport']  || '').trim() === masterSport
+  );
+  const players = filtered.map(r => ({
+    name:     String(r['name'] || r['full name'] || r['player'] || r['player name'] || '').trim(),
+    jersey:   cleanJersey(r['#'] || r['number'] || r['jersey'] || r['no.'] || r['no'] || ''),
+    position: String(r['position'] || r['pos'] || '').trim(),
+  })).filter(p => p.name);
+  players.sort((a, b) => jerseyNumeric(a.jersey) - jerseyNumeric(b.jersey));
+  return players;
+}
+
+document.getElementById('psLoadRoster').addEventListener('click', async () => {
+  const btn = document.getElementById('psLoadRoster');
+  const sel = document.getElementById('psPlayerPick');
+  const origLabel = '📥 Load Roster for School + Sport';
+  btn.disabled = true;
+  btn.textContent = '⏳ Loading…';
+  sel.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const players = await loadPlayersForCurrentSchoolSport();
+    if (!players.length) {
+      sel.innerHTML = `<option value="">— No players found —</option>`;
+      btn.textContent = '⚠ No players found';
+    } else {
+      sel.innerHTML = '<option value="">— Pick a player —</option>' +
+        players.map((p, i) => {
+          const prefix = p.jersey ? '#' + p.jersey + '  ' : '';
+          return `<option value="${i}">${escapeAttr(prefix + p.name)}</option>`;
+        }).join('');
+      btn.textContent = `✓ Loaded ${players.length} — Refresh`;
+      sel._players = players;
+    }
+  } catch (err) {
+    console.error(err);
+    sel.innerHTML = `<option value="">— Load failed —</option>`;
+    btn.textContent = '✗ ' + (err.message || 'Failed').slice(0, 40);
+    setStatus(err.message || 'Master Roster fetch failed', true);
+  } finally {
+    setTimeout(() => { btn.disabled = false; if (btn.textContent.startsWith('✗')) btn.textContent = origLabel; }, 100);
+  }
+});
+
+document.getElementById('psPlayerPick').addEventListener('change', e => {
+  const sel = e.target;
+  const idx = parseInt(sel.value, 10);
+  if (isNaN(idx)) return;
+  const p = sel._players?.[idx];
+  if (!p) return;
+  // Pre-fill name, jersey, and a normalized position abbreviation. Operator
+  // can still edit any field afterward.
+  const masterSport = MASTER_ROSTER_SPORT_MAP[state.playerStats.sport];
+  const normalized  = normalizeMasterPosition(p.position, masterSport);
+  state.playerStats.position = normalized || state.playerStats.position;
+  state.playerStats.jersey   = p.jersey   || '';
+  document.getElementById('psName').value     = p.name.toUpperCase();
+  document.getElementById('psPosition').value = state.playerStats.position;
+  document.getElementById('psJersey').value   = state.playerStats.jersey;
+  syncFrameFromPlayerStats();
+  draw();
+});
+
+// Reset the picker when school or sport changes (the loaded roster no longer
+// matches the new selection).
+function resetPlayerPicker(){
+  const sel = document.getElementById('psPlayerPick');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Click Load below —</option>';
+  sel._players = null;
+  const btn = document.getElementById('psLoadRoster');
+  if (btn) btn.textContent = '📥 Load Roster for School + Sport';
+}
+document.getElementById('psSport').addEventListener('change', resetPlayerPicker);
+document.getElementById('psSchool').addEventListener('change', resetPlayerPicker);
 
 // ─── Download ─────────────────────────────────────────────────────────────
 document.getElementById('download').addEventListener('click', () => {
