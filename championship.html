@@ -137,6 +137,23 @@ body{display:flex;flex-direction:column;overflow:hidden}
 
     <div class="panel-head" style="margin-top:6px">Position Tuning <span style="font-weight:600;color:rgba(255,255,255,0.35);letter-spacing:1px">· auto-saved</span></div>
     <div class="team-card">
+      <div class="team-card-title">Photo</div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label">X Nudge <span class="nudge-readout" id="photoDxR">0px</span></label>
+          <input id="photoDx" type="range" min="-600" max="600" step="1" value="0">
+        </div>
+        <div class="field">
+          <label class="field-label">Y Nudge <span class="nudge-readout" id="photoDyR">0px</span></label>
+          <input id="photoDy" type="range" min="-400" max="400" step="1" value="0">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Zoom <span class="nudge-readout" id="photoScaleR">100%</span></label>
+        <input id="photoScale" type="range" min="50" max="250" step="1" value="100">
+      </div>
+    </div>
+    <div class="team-card">
       <div class="team-card-title">Top Logo</div>
       <div class="row-2">
         <div class="field">
@@ -257,6 +274,7 @@ const state = {
     rColDx: 0,
     hColDx: 0,
     eColDx: 0,
+    photo: { dx: 0, dy: 0, scale: 100 },
   },
 };
 
@@ -313,6 +331,7 @@ function onPhotoUpload(e){
       state.photo = img;
       document.getElementById('photoZone').classList.add('loaded');
       document.getElementById('photoZoneText').textContent = '✓ Photo loaded — click to replace';
+      persistState();
       draw();
     };
     img.src = ev.target.result;
@@ -324,26 +343,29 @@ document.getElementById('clearPhotoBtn').addEventListener('click', () => {
   document.getElementById('photoZone').classList.remove('loaded');
   document.getElementById('photoZoneText').textContent = '+ Upload action photo';
   document.querySelector('#photoZone input').value = '';
+  persistState();
   draw();
 });
 
 // ─── Render ───────────────────────────────────────────────────────────────
-function drawCoverFit(img, x, y, w, h){
+function drawCoverFit(img, x, y, w, h, nudgeDx, nudgeDy, scale){
+  const s = (scale ?? 100) / 100;
   const ar = img.naturalWidth / img.naturalHeight;
   const tar = w / h;
   let dx, dy, dw, dh;
   if (ar > tar) {
-    // Source wider than target — fit by height, crop sides.
-    dh = h;
-    dw = h * ar;
+    dh = h * s;
+    dw = h * s * ar;
     dx = x - (dw - w) / 2;
-    dy = y;
+    dy = y - (dh - h) / 2;
   } else {
-    dw = w;
-    dh = w / ar;
-    dx = x;
+    dw = w * s;
+    dh = w * s / ar;
+    dx = x - (dw - w) / 2;
     dy = y - (dh - h) / 2;
   }
+  dx += (nudgeDx || 0);
+  dy += (nudgeDy || 0);
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, w, h);
@@ -359,9 +381,11 @@ async function draw(){
   try { ctx.drawImage(await ensureLayer('bg'), 0, 0, 1080, 1350); }
   catch (e) { ctx.fillStyle = '#0a1628'; ctx.fillRect(0,0,1080,1350); console.error(e); }
 
-  // 2. Photo (clipped to photo area)
+  // 2. Photo (clipped to photo area, with operator-controlled nudge + zoom)
   if (state.photo) {
-    drawCoverFit(state.photo, PHOTO_AREA.x, PHOTO_AREA.y, PHOTO_AREA.w, PHOTO_AREA.h);
+    const p = state.adj.photo || {};
+    drawCoverFit(state.photo, PHOTO_AREA.x, PHOTO_AREA.y, PHOTO_AREA.w, PHOTO_AREA.h,
+      p.dx || 0, p.dy || 0, p.scale ?? 100);
   } else {
     // Placeholder: dim rectangle + hint
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -438,33 +462,77 @@ function populateSchools(){
 document.getElementById('topSchool').addEventListener('change', async e => {
   state.top.school = e.target.value;
   await ensureSchoolLogo('top');
+  persistState();
   draw();
 });
 document.getElementById('botSchool').addEventListener('change', async e => {
   state.bot.school = e.target.value;
   await ensureSchoolLogo('bot');
+  persistState();
   draw();
 });
-document.getElementById('topSeed').addEventListener('input', e => { state.top.seed = e.target.value; draw(); });
-document.getElementById('botSeed').addEventListener('input', e => { state.bot.seed = e.target.value; draw(); });
+document.getElementById('topSeed').addEventListener('input', e => { state.top.seed = e.target.value; persistState(); draw(); });
+document.getElementById('botSeed').addEventListener('input', e => { state.bot.seed = e.target.value; persistState(); draw(); });
 document.querySelectorAll('input[data-team][data-stat]').forEach(inp => {
   inp.addEventListener('input', e => {
     state[e.target.dataset.team][e.target.dataset.stat] = e.target.value;
+    persistState();
     draw();
   });
 });
 
-// Position adjustments persist to localStorage so the operator's tuning
-// sticks across reloads (per browser). Saved transparently on every slider
-// input — no Save button needed. Reset writes zeros back so the reset
-// state persists too.
+// Auto-save: persist the full operator state — schools, seeds, R/H/E,
+// uploaded photo (data URL), and position adjustments — to localStorage on
+// every change. Reload restores the workflow exactly. Older v1 data
+// (positions-only) is read once for migration, then v2 takes over.
 const POS_STORAGE_KEY = 'cusa_championship_softball_finalscore_positions_v1';
+const STATE_KEY       = 'cusa_championship_softball_finalscore_v2';
 
-function persistPositions(){
-  try { localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(state.adj)); } catch (_) {}
+function persistState(){
+  try {
+    const photoSrc = (state.photo && state.photo.src) ? state.photo.src : null;
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      top: { school: state.top.school, seed: state.top.seed, r: state.top.r, h: state.top.h, e: state.top.e },
+      bot: { school: state.bot.school, seed: state.bot.seed, r: state.bot.r, h: state.bot.h, e: state.bot.e },
+      photo: photoSrc,
+      adj: state.adj,
+    }));
+  } catch (_) {}
 }
+// Back-compat alias for the position-only legacy callers in this file.
+const persistPositions = persistState;
 
-function restorePositions(){
+function restoreState(){
+  // Prefer v2 full state; fall back to v1 positions-only.
+  let v2 = null;
+  try { const raw = localStorage.getItem(STATE_KEY); if (raw) v2 = JSON.parse(raw); } catch (_) {}
+  if (v2 && typeof v2 === 'object') {
+    if (v2.top && typeof v2.top === 'object') Object.assign(state.top, v2.top);
+    if (v2.bot && typeof v2.bot === 'object') Object.assign(state.bot, v2.bot);
+    if (v2.adj && typeof v2.adj === 'object') {
+      if (v2.adj.topLogo) Object.assign(state.adj.topLogo, v2.adj.topLogo);
+      if (v2.adj.botLogo) Object.assign(state.adj.botLogo, v2.adj.botLogo);
+      if (v2.adj.photo)   Object.assign(state.adj.photo,   v2.adj.photo);
+      ['topScoreDy','botScoreDy','rColDx','hColDx','eColDx'].forEach(k => {
+        if (typeof v2.adj[k] === 'number') state.adj[k] = v2.adj[k];
+      });
+    }
+    if (typeof v2.photo === 'string' && v2.photo) {
+      const img = new Image();
+      img.onload = () => {
+        state.photo = img;
+        const zone = document.getElementById('photoZone');
+        if (zone) {
+          zone.classList.add('loaded');
+          document.getElementById('photoZoneText').textContent = '✓ Photo loaded — click to replace';
+        }
+        draw();
+      };
+      img.src = v2.photo;
+    }
+    return;
+  }
+  // v1 fallback (positions only).
   try {
     const raw = localStorage.getItem(POS_STORAGE_KEY);
     if (!raw) return;
@@ -477,6 +545,7 @@ function restorePositions(){
     });
   } catch (_) {}
 }
+const restorePositions = restoreState;
 
 function syncSlidersFromState(){
   const m = {
@@ -489,36 +558,55 @@ function syncSlidersFromState(){
     rColDx:     state.adj.rColDx,
     hColDx:     state.adj.hColDx,
     eColDx:     state.adj.eColDx,
+    photoDx:    state.adj.photo?.dx ?? 0,
+    photoDy:    state.adj.photo?.dy ?? 0,
+    photoScale: state.adj.photo?.scale ?? 100,
   };
   for (const [id, val] of Object.entries(m)) {
     const inp = document.getElementById(id);
     const ro  = document.getElementById(id + 'R');
     if (inp) inp.value = String(val);
-    if (ro)  ro.textContent = (val >= 0 ? '+' : '') + val + 'px';
+    if (ro) {
+      const unit = id === 'photoScale' ? '%' : 'px';
+      ro.textContent = (val >= 0 && unit === 'px' ? '+' : '') + val + unit;
+    }
   }
+}
+function syncTextInputsFromState(){
+  document.getElementById('topSchool').value = state.top.school;
+  document.getElementById('botSchool').value = state.bot.school;
+  document.getElementById('topSeed').value   = state.top.seed;
+  document.getElementById('botSeed').value   = state.bot.seed;
+  document.querySelectorAll('input[data-team][data-stat]').forEach(inp => {
+    inp.value = state[inp.dataset.team][inp.dataset.stat];
+  });
 }
 
 // Position-tuning sliders. Each slider updates the corresponding state.adj
 // field and re-draws. Readouts show the current px value.
 const ADJ_BINDINGS = [
-  ['topLogoDx', v => state.adj.topLogo.dx = v],
-  ['topLogoDy', v => state.adj.topLogo.dy = v],
-  ['botLogoDx', v => state.adj.botLogo.dx = v],
-  ['botLogoDy', v => state.adj.botLogo.dy = v],
-  ['topScoreDy', v => state.adj.topScoreDy = v],
-  ['botScoreDy', v => state.adj.botScoreDy = v],
-  ['rColDx', v => state.adj.rColDx = v],
-  ['hColDx', v => state.adj.hColDx = v],
-  ['eColDx', v => state.adj.eColDx = v],
+  ['topLogoDx',  v => state.adj.topLogo.dx = v, 'px'],
+  ['topLogoDy',  v => state.adj.topLogo.dy = v, 'px'],
+  ['botLogoDx',  v => state.adj.botLogo.dx = v, 'px'],
+  ['botLogoDy',  v => state.adj.botLogo.dy = v, 'px'],
+  ['topScoreDy', v => state.adj.topScoreDy = v, 'px'],
+  ['botScoreDy', v => state.adj.botScoreDy = v, 'px'],
+  ['rColDx',     v => state.adj.rColDx = v, 'px'],
+  ['hColDx',     v => state.adj.hColDx = v, 'px'],
+  ['eColDx',     v => state.adj.eColDx = v, 'px'],
+  ['photoDx',    v => state.adj.photo.dx = v, 'px'],
+  ['photoDy',    v => state.adj.photo.dy = v, 'px'],
+  ['photoScale', v => state.adj.photo.scale = v, '%'],
 ];
-ADJ_BINDINGS.forEach(([id, setter]) => {
+ADJ_BINDINGS.forEach(([id, setter, unit]) => {
   const inp = document.getElementById(id);
+  if (!inp) return;
   const ro  = document.getElementById(id + 'R');
   inp.addEventListener('input', () => {
     const v = Number(inp.value || 0);
     setter(v);
-    if (ro) ro.textContent = (v >= 0 ? '+' : '') + v + 'px';
-    persistPositions();
+    if (ro) ro.textContent = (v >= 0 && unit === 'px' ? '+' : '') + v + unit;
+    persistState();
     draw();
   });
 });
@@ -528,9 +616,10 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     topLogo: { dx: 0, dy: 0 }, botLogo: { dx: 0, dy: 0 },
     topScoreDy: 0, botScoreDy: 0,
     rColDx: 0, hColDx: 0, eColDx: 0,
+    photo: { dx: 0, dy: 0, scale: 100 },
   };
   syncSlidersFromState();
-  persistPositions();
+  persistState();
   draw();
 });
 
@@ -545,9 +634,10 @@ document.getElementById('download').addEventListener('click', () => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 (async () => {
+  restoreState();
   populateSchools();
-  restorePositions();
   syncSlidersFromState();
+  syncTextInputsFromState();
   // Pre-warm fonts so the first paint already has the right glyphs.
   if (document.fonts && document.fonts.load) {
     try { await document.fonts.load('900 50px "Gazzetta Black"'); } catch(_) {}

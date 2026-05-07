@@ -377,6 +377,7 @@ function onPhotoUpload(e){
       const txt  = document.getElementById((which === 'top' ? 'topPhotoText' : 'botPhotoText'));
       zone.classList.add('loaded');
       txt.textContent = '✓ Photo loaded — click to replace';
+      persistState();
       draw();
     };
     img.src = ev.target.result;
@@ -533,16 +534,13 @@ function populateSchools(){
   document.getElementById('botSchool').value = state.bot.school;
 }
 
-document.getElementById('topSchool').addEventListener('change', async e => { state.top.school = e.target.value; await ensureSchoolLogo('top'); draw(); });
-document.getElementById('botSchool').addEventListener('change', async e => { state.bot.school = e.target.value; await ensureSchoolLogo('bot'); draw(); });
-document.getElementById('topSeed').addEventListener('input', e => { state.top.seed = e.target.value; draw(); });
-document.getElementById('botSeed').addEventListener('input', e => { state.bot.seed = e.target.value; draw(); });
+document.getElementById('topSchool').addEventListener('change', async e => { state.top.school = e.target.value; await ensureSchoolLogo('top'); persistState(); draw(); });
+document.getElementById('botSchool').addEventListener('change', async e => { state.bot.school = e.target.value; await ensureSchoolLogo('bot'); persistState(); draw(); });
+document.getElementById('topSeed').addEventListener('input', e => { state.top.seed = e.target.value; persistState(); draw(); });
+document.getElementById('botSeed').addEventListener('input', e => { state.bot.seed = e.target.value; persistState(); draw(); });
 document.getElementById('sportSel').addEventListener('change', async e => {
   const newSport = e.target.value;
   if (!SPORT_CONFIG[newSport]) return;
-  // Auto-update headline ONLY if it currently matches some sport's default
-  // (i.e., the operator hasn't typed a custom headline). Otherwise leave
-  // their custom text alone.
   const isDefaultForAnySport = Object.values(SPORT_CONFIG).some(c => c.defaultHeadline === state.headline);
   state.sport = newSport;
   if (isDefaultForAnySport) {
@@ -550,16 +548,78 @@ document.getElementById('sportSel').addEventListener('change', async e => {
     document.getElementById('headline').value = state.headline;
   }
   await ensureChampLogoSplit().catch(()=>null);
+  persistState();
   draw();
 });
-document.getElementById('headline').addEventListener('input', e => { state.headline = e.target.value; draw(); });
-document.getElementById('timeText').addEventListener('input', e => { state.timeText = e.target.value; draw(); });
-document.getElementById('networkSel').addEventListener('change', async e => { state.network = e.target.value; if (state.network) await ensureNetwork(state.network); draw(); });
+document.getElementById('headline').addEventListener('input', e => { state.headline = e.target.value; persistState(); draw(); });
+document.getElementById('timeText').addEventListener('input', e => { state.timeText = e.target.value; persistState(); draw(); });
+document.getElementById('networkSel').addEventListener('change', async e => { state.network = e.target.value; if (state.network) await ensureNetwork(state.network); persistState(); draw(); });
 
-// Position-tuning persistence
+// Auto-save: persist the FULL operator state — schools, seeds, sport,
+// headline, time, network, uploaded photos (data URLs), and position
+// adjustments. Reload restores the workflow exactly. v1 (positions only)
+// is read once for migration, then v2 takes over.
 const POS_STORAGE_KEY = 'cusa_championship_softball_gameday_positions_v1';
-function persistPositions(){ try { localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(state.adj)); } catch(_){} }
-function restorePositions(){
+const STATE_KEY       = 'cusa_championship_softball_gameday_v2';
+
+function persistState(){
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      top: { school: state.top.school, seed: state.top.seed, photo: state.top.photo ? state.top.photo.src : null },
+      bot: { school: state.bot.school, seed: state.bot.seed, photo: state.bot.photo ? state.bot.photo.src : null },
+      sport:    state.sport,
+      headline: state.headline,
+      timeText: state.timeText,
+      network:  state.network,
+      adj:      state.adj,
+    }));
+  } catch (_) {}
+}
+const persistPositions = persistState;
+
+function restoreState(){
+  // Try v2 full state first; fall back to v1 positions-only.
+  let v2 = null;
+  try { const raw = localStorage.getItem(STATE_KEY); if (raw) v2 = JSON.parse(raw); } catch (_) {}
+  if (v2 && typeof v2 === 'object') {
+    if (v2.top && typeof v2.top === 'object') {
+      if (v2.top.school) state.top.school = v2.top.school;
+      if (typeof v2.top.seed === 'string') state.top.seed = v2.top.seed;
+    }
+    if (v2.bot && typeof v2.bot === 'object') {
+      if (v2.bot.school) state.bot.school = v2.bot.school;
+      if (typeof v2.bot.seed === 'string') state.bot.seed = v2.bot.seed;
+    }
+    if (typeof v2.sport === 'string')    state.sport    = v2.sport;
+    if (typeof v2.headline === 'string') state.headline = v2.headline;
+    if (typeof v2.timeText === 'string') state.timeText = v2.timeText;
+    if (typeof v2.network === 'string')  state.network  = v2.network;
+    if (v2.adj && typeof v2.adj === 'object') {
+      ['leftPhoto','rightPhoto','leftLogo','rightLogo'].forEach(k => {
+        if (v2.adj[k] && typeof v2.adj[k] === 'object') Object.assign(state.adj[k], v2.adj[k]);
+      });
+      ['leftSeedDy','rightSeedDy','timeRowDx','timeRowDy','headlineDx','headlineDy','champLayerDy'].forEach(k => {
+        if (typeof v2.adj[k] === 'number') state.adj[k] = v2.adj[k];
+      });
+    }
+    // Photos restored async — UI markers update in onload.
+    ['top','bot'].forEach(which => {
+      const dataUrl = v2[which] && v2[which].photo;
+      if (typeof dataUrl !== 'string' || !dataUrl) return;
+      const img = new Image();
+      img.onload = () => {
+        state[which].photo = img;
+        const zone = document.getElementById(which === 'top' ? 'topPhotoZone' : 'botPhotoZone');
+        const txt  = document.getElementById(which === 'top' ? 'topPhotoText' : 'botPhotoText');
+        if (zone) zone.classList.add('loaded');
+        if (txt) txt.textContent = '✓ Photo loaded — click to replace';
+        draw();
+      };
+      img.src = dataUrl;
+    });
+    return;
+  }
+  // v1 fallback (positions only).
   try {
     const raw = localStorage.getItem(POS_STORAGE_KEY);
     if (!raw) return;
@@ -571,8 +631,9 @@ function restorePositions(){
     ['leftSeedDy','rightSeedDy','timeRowDx','timeRowDy','headlineDx','headlineDy','champLayerDy'].forEach(k => {
       if (typeof saved[k] === 'number') state.adj[k] = saved[k];
     });
-  } catch(_){}
+  } catch (_) {}
 }
+const restorePositions = restoreState;
 
 const ADJ_BINDINGS = [
   ['leftPhotoDx',  v => state.adj.leftPhoto.dx  = v],
@@ -652,16 +713,20 @@ document.getElementById('download').addEventListener('click', () => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 (async () => {
+  restoreState();
   populateSchools();
-  restorePositions();
   syncSlidersFromState();
   if (document.fonts && document.fonts.load) {
     try { await document.fonts.load(`800 ${HEADLINE_FS}px "Proxima Nova"`); } catch(_) {}
     try { await document.fonts.load(`800 ${SEED_FONT_SIZE}px "Proxima Nova"`); } catch(_) {}
     try { await document.fonts.load(`900 ${TIME_FONT_SIZE}px "Proxima Nova"`); } catch(_) {}
   }
-  document.getElementById('sportSel').value = state.sport;
-  document.getElementById('headline').value = state.headline;
+  document.getElementById('sportSel').value   = state.sport;
+  document.getElementById('headline').value   = state.headline;
+  document.getElementById('topSeed').value    = state.top.seed;
+  document.getElementById('botSeed').value    = state.bot.seed;
+  const tt = document.getElementById('timeText'); if (tt) tt.value = state.timeText || '';
+  const ns = document.getElementById('networkSel'); if (ns) ns.value = state.network || '';
   await Promise.all([
     ensureLayer('bg').catch(()=>null),
     ensureLayer('redBar').catch(()=>null),
