@@ -142,10 +142,28 @@ body{display:flex;flex-direction:column;overflow:hidden}
       </div>
     </div>
     <div class="team-card">
+      <div class="team-card-title">Template Blending</div>
+      <div class="field">
+        <label class="field-label" for="templateBlend">Blend Mode</label>
+        <select id="templateBlend"></select>
+      </div>
+      <div class="field">
+        <label class="field-label">Template Opacity <span class="nudge-readout" id="templateOpacityR">100%</span></label>
+        <input id="templateOpacity" type="range" min="0" max="100" step="1" value="100">
+      </div>
+    </div>
+    <div class="team-card">
       <div class="team-card-title">Knockout Texture</div>
       <div class="row-2">
         <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="koOpacityR">22%</span></label><input id="koOpacity" type="range" min="0" max="60" step="1" value="22"></div>
         <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="koScaleR">130%</span></label><input id="koScale" type="range" min="60" max="220" step="5" value="130"></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Logo Squares</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Size <span class="nudge-readout" id="logoSqSizeR">110px</span></label><input id="logoSqSize" type="range" min="80" max="135" step="1" value="110"></div>
+        <div class="field"><label class="field-label">Color</label><input id="logoSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
       </div>
     </div>
     <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
@@ -190,9 +208,34 @@ const SCHOOLS = [
 
 // Layer assets
 const LAYERS = {
-  template: ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Empty Matchup Template.png',
-  overlay:  ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Gradient Overlay - Small Logo Placeholders - At, Date, Network Placeholder - Element Only.png',
+  template:    ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Empty Matchup Template.png',
+  // "Element Only" is just the AT badge + the small Date/Time/Network pill
+  // strip — 178×101 with content from (0,0). Drawn ON TOP after the blendable
+  // template + logo squares so AT/Date/Time/Network always render crisp.
+  elementOnly: ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Gradient Overlay - Small Logo Placeholders - At, Date, Network Placeholder - Element Only.png',
 };
+
+// Canvas-supported blend modes. The empty matchup template can be rendered
+// with any of these so the operator can pick how the template's gradient +
+// logo-box edges interact with the team colors underneath.
+const BLEND_MODES = [
+  { value: 'source-over', label: 'Normal' },
+  { value: 'overlay',     label: 'Overlay' },
+  { value: 'soft-light',  label: 'Soft Light' },
+  { value: 'hard-light',  label: 'Hard Light' },
+  { value: 'multiply',    label: 'Multiply' },
+  { value: 'screen',      label: 'Screen' },
+  { value: 'darken',      label: 'Darken' },
+  { value: 'lighten',     label: 'Lighten' },
+  { value: 'color-dodge', label: 'Color Dodge' },
+  { value: 'color-burn',  label: 'Color Burn' },
+  { value: 'difference',  label: 'Difference' },
+  { value: 'exclusion',   label: 'Exclusion' },
+  { value: 'hue',         label: 'Hue' },
+  { value: 'saturation',  label: 'Saturation' },
+  { value: 'color',       label: 'Color' },
+  { value: 'luminosity',  label: 'Luminosity' },
+];
 
 // Geometry — measured from the empty template (1080×135).
 // Logo boxes appear at the far edges; the colored matchup bar runs across
@@ -226,6 +269,10 @@ const state = {
     rightNick: { dx: 0, dy: 0 },
     koOpacity: 22,
     koScale:   130,
+    templateBlend:   'overlay',  // how the template gradient blends over team colors
+    templateOpacity: 100,        // 0..100
+    logoSqSize:      110,        // logo backdrop square size (px)
+    logoSqColor:     '#FFFFFF',  // logo backdrop color
   },
 };
 
@@ -281,29 +328,39 @@ function drawContainFit(img, x, y, w, h, dx, dy){
 async function draw(){
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // 1. Empty Matchup Template (provides logo box outlines + AT badge + strip)
-  let tplImg;
-  try { tplImg = await ensureLayer('template'); ctx.drawImage(tplImg, 0, 0, CANVAS_W, CANVAS_H); }
-  catch (e) { ctx.fillStyle = '#0a1628'; ctx.fillRect(0,0,CANVAS_W,CANVAS_H); console.error(e); }
-
-  // 2. Color blocks per side — primary color, with knockout-logo texture on top.
-  //    Drawn UNDER the logo boxes + AT badge by re-drawing the template overlay
-  //    later (template has the AT/strip + logo boxes baked in opaque).
-  // Left bar: x=BAR.x..BAR.mid
-  // Right bar: x=BAR.mid..BAR.x+BAR.w
   const leftConf  = SCHOOLS.find(s => s.id === state.left.school);
   const rightConf = SCHOOLS.find(s => s.id === state.right.school);
+
+  // 1. Team-color blocks (BG fill — lives BEHIND the template).
   if (leftConf)  { ctx.fillStyle = leftConf.color;  ctx.fillRect(BAR.x, BAR.y, BAR.mid - BAR.x, BAR.h); }
   if (rightConf) { ctx.fillStyle = rightConf.color; ctx.fillRect(BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h); }
 
-  // 3. Knockout texture per side — clipped to its own half so it doesn't bleed.
+  // 2. Knockout texture per side — clipped to its own half.
   const koAlpha = state.adj.koOpacity / 100;
   const koScale = state.adj.koScale / 100;
-  if (state.left.koImg) drawKoTexture(state.left.koImg, BAR.x, BAR.y, BAR.mid - BAR.x, BAR.h, koAlpha, koScale, 'left');
-  if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h, koAlpha, koScale, 'right');
+  if (state.left.koImg)  drawKoTexture(state.left.koImg,  BAR.x,    BAR.y, BAR.mid - BAR.x, BAR.h, koAlpha, koScale, 'left');
+  if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid,  BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h, koAlpha, koScale, 'right');
 
-  // 4. Re-draw the template OVERLAY to put logo boxes + AT badge + strip on top.
-  if (tplImg) ctx.drawImage(tplImg, 0, 0, CANVAS_W, CANVAS_H);
+  // 3. Empty Matchup Template — drawn with operator-selected blend mode so
+  //    the template's gradient + logo-box edges interact with the team colors
+  //    below. Default 'overlay' mixes the template texture with the colors
+  //    rather than painting opaque white over them.
+  let tplImg;
+  try { tplImg = await ensureLayer('template'); }
+  catch (e) { console.error(e); }
+  if (tplImg) {
+    ctx.save();
+    ctx.globalCompositeOperation = state.adj.templateBlend || 'overlay';
+    ctx.globalAlpha = (state.adj.templateOpacity ?? 100) / 100;
+    ctx.drawImage(tplImg, 0, 0, CANVAS_W, CANVAS_H);
+    ctx.restore();
+  }
+
+  // 4. Small clean squares behind each school logo. The blended template's
+  //    logo-box outlines may pick up the team-color hue underneath; these
+  //    squares ensure a crisp, neutral backdrop for the logo PNGs.
+  drawLogoSquare(LOGO_BOX.leftX, LOGO_BOX.y);
+  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y);
 
   // 5. School primary logos in the left + right boxes
   if (state.left.primaryImg) {
@@ -315,7 +372,19 @@ async function draw(){
       LOGO_BOX.w, LOGO_BOX.h, state.adj.rightLogo.dx, state.adj.rightLogo.dy);
   }
 
-  // 6. Text — school name (small) + nickname (large) per side
+  // 6. "Element Only" — AT badge + Date/Time/Network pill strip. Drawn LAST
+  //    over everything so the AT/strip read crisp regardless of the template
+  //    blend mode chosen above.
+  let elemImg;
+  try { elemImg = await ensureLayer('elementOnly'); } catch (_) {}
+  if (elemImg) {
+    const eW = elemImg.naturalWidth, eH = elemImg.naturalHeight;
+    const eX = (CANVAS_W - eW) / 2;
+    const eY = 15;  // top of the AT badge area in the source template
+    ctx.drawImage(elemImg, eX, eY, eW, eH);
+  }
+
+  // 7. Text — school name (small) + nickname (large) per side
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -341,14 +410,30 @@ async function draw(){
       NICK_CY + state.adj.rightNick.dy);
   }
 
-  // 7. Date / Time / Network strip text (3 small cells under the AT badge).
-  //    Strip cells from the template are roughly at x=460..620, y=108..132.
-  //    Each cell ~53px wide.
+  // 8. Date / Time / Network text inside the Element Only's pill strip.
   ctx.fillStyle = '#0A254E';
   ctx.font = `900 11px "Proxima Nova","Barlow Condensed",sans-serif`;
   ctx.fillText(state.date,    487, 120);
   ctx.fillText(state.time,    540, 120);
   ctx.fillText(state.network, 593, 120);
+}
+
+function drawLogoSquare(boxX, boxY){
+  // Square sized to wrap the logo box with a small inset; centered on the
+  // existing logo-box position so logos line up with the template's design.
+  const size = state.adj.logoSqSize || 110;
+  const cx = boxX + LOGO_BOX.w / 2;
+  const cy = boxY + LOGO_BOX.h / 2;
+  const x = cx - size / 2;
+  const y = cy - size / 2;
+  ctx.save();
+  ctx.fillStyle = state.adj.logoSqColor || '#FFFFFF';
+  // Soft drop shadow so the square reads as a card on top of the colored bar.
+  ctx.shadowColor = 'rgba(0,0,0,0.18)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.fillRect(x, y, size, size);
+  ctx.restore();
 }
 
 function drawKoTexture(img, x, y, w, h, alpha, scale, side){
@@ -402,9 +487,11 @@ function restoreState(){
       ['leftLogo','rightLogo','leftName','leftNick','rightName','rightNick'].forEach(k => {
         if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]);
       });
-      ['koOpacity','koScale'].forEach(k => {
+      ['koOpacity','koScale','templateOpacity','logoSqSize'].forEach(k => {
         if (typeof s.adj[k] === 'number') state.adj[k] = s.adj[k];
       });
+      if (typeof s.adj.templateBlend === 'string') state.adj.templateBlend = s.adj.templateBlend;
+      if (typeof s.adj.logoSqColor   === 'string') state.adj.logoSqColor   = s.adj.logoSqColor;
     }
   } catch (_) {}
 }
@@ -417,6 +504,11 @@ function populateSchools(){
   lSel.innerHTML = opts; rSel.innerHTML = opts;
   lSel.value = state.left.school;
   rSel.value = state.right.school;
+}
+function populateBlendModes(){
+  const sel = document.getElementById('templateBlend');
+  sel.innerHTML = BLEND_MODES.map(b => `<option value="${b.value}">${b.label}</option>`).join('');
+  sel.value = state.adj.templateBlend;
 }
 
 document.getElementById('leftSchool').addEventListener('change', async e => {
@@ -440,31 +532,35 @@ document.getElementById('rightSchool').addEventListener('change', async e => {
 });
 
 const ADJ_BINDINGS = [
-  ['leftLogoDx',  v => state.adj.leftLogo.dx  = v, 'px'],
-  ['leftLogoDy',  v => state.adj.leftLogo.dy  = v, 'px'],
-  ['rightLogoDx', v => state.adj.rightLogo.dx = v, 'px'],
-  ['rightLogoDy', v => state.adj.rightLogo.dy = v, 'px'],
-  ['leftNameDx',  v => state.adj.leftName.dx  = v, 'px'],
-  ['leftNameDy',  v => state.adj.leftName.dy  = v, 'px'],
-  ['leftNickDx',  v => state.adj.leftNick.dx  = v, 'px'],
-  ['leftNickDy',  v => state.adj.leftNick.dy  = v, 'px'],
-  ['rightNameDx', v => state.adj.rightName.dx = v, 'px'],
-  ['rightNameDy', v => state.adj.rightName.dy = v, 'px'],
-  ['rightNickDx', v => state.adj.rightNick.dx = v, 'px'],
-  ['rightNickDy', v => state.adj.rightNick.dy = v, 'px'],
-  ['koOpacity',   v => state.adj.koOpacity    = v, '%'],
-  ['koScale',     v => state.adj.koScale      = v, '%'],
+  ['leftLogoDx',     v => state.adj.leftLogo.dx     = v, 'px'],
+  ['leftLogoDy',     v => state.adj.leftLogo.dy     = v, 'px'],
+  ['rightLogoDx',    v => state.adj.rightLogo.dx    = v, 'px'],
+  ['rightLogoDy',    v => state.adj.rightLogo.dy    = v, 'px'],
+  ['leftNameDx',     v => state.adj.leftName.dx     = v, 'px'],
+  ['leftNameDy',     v => state.adj.leftName.dy     = v, 'px'],
+  ['leftNickDx',     v => state.adj.leftNick.dx     = v, 'px'],
+  ['leftNickDy',     v => state.adj.leftNick.dy     = v, 'px'],
+  ['rightNameDx',    v => state.adj.rightName.dx    = v, 'px'],
+  ['rightNameDy',    v => state.adj.rightName.dy    = v, 'px'],
+  ['rightNickDx',    v => state.adj.rightNick.dx    = v, 'px'],
+  ['rightNickDy',    v => state.adj.rightNick.dy    = v, 'px'],
+  ['koOpacity',      v => state.adj.koOpacity       = v, '%'],
+  ['koScale',        v => state.adj.koScale         = v, '%'],
+  ['templateOpacity',v => state.adj.templateOpacity = v, '%'],
+  ['logoSqSize',     v => state.adj.logoSqSize      = v, 'px'],
 ];
 
 function syncSlidersFromState(){
   const m = {
-    leftLogoDx:  state.adj.leftLogo.dx,  leftLogoDy:  state.adj.leftLogo.dy,
-    rightLogoDx: state.adj.rightLogo.dx, rightLogoDy: state.adj.rightLogo.dy,
-    leftNameDx:  state.adj.leftName.dx,  leftNameDy:  state.adj.leftName.dy,
-    leftNickDx:  state.adj.leftNick.dx,  leftNickDy:  state.adj.leftNick.dy,
-    rightNameDx: state.adj.rightName.dx, rightNameDy: state.adj.rightName.dy,
-    rightNickDx: state.adj.rightNick.dx, rightNickDy: state.adj.rightNick.dy,
-    koOpacity:   state.adj.koOpacity,    koScale:     state.adj.koScale,
+    leftLogoDx:      state.adj.leftLogo.dx,  leftLogoDy:  state.adj.leftLogo.dy,
+    rightLogoDx:     state.adj.rightLogo.dx, rightLogoDy: state.adj.rightLogo.dy,
+    leftNameDx:      state.adj.leftName.dx,  leftNameDy:  state.adj.leftName.dy,
+    leftNickDx:      state.adj.leftNick.dx,  leftNickDy:  state.adj.leftNick.dy,
+    rightNameDx:     state.adj.rightName.dx, rightNameDy: state.adj.rightName.dy,
+    rightNickDx:     state.adj.rightNick.dx, rightNickDy: state.adj.rightNick.dy,
+    koOpacity:       state.adj.koOpacity,    koScale:     state.adj.koScale,
+    templateOpacity: state.adj.templateOpacity ?? 100,
+    logoSqSize:      state.adj.logoSqSize    ?? 110,
   };
   for (const [id, val] of Object.entries(m)) {
     const inp = document.getElementById(id);
@@ -475,6 +571,10 @@ function syncSlidersFromState(){
       ro.textContent = (val >= 0 && unit === 'px' ? '+' : '') + val + unit;
     }
   }
+  const tb = document.getElementById('templateBlend');
+  if (tb) tb.value = state.adj.templateBlend || 'overlay';
+  const lc = document.getElementById('logoSqColor');
+  if (lc) lc.value = state.adj.logoSqColor || '#FFFFFF';
 }
 
 ADJ_BINDINGS.forEach(([id, setter, unit]) => {
@@ -489,12 +589,25 @@ ADJ_BINDINGS.forEach(([id, setter, unit]) => {
   });
 });
 
+document.getElementById('templateBlend').addEventListener('change', e => {
+  state.adj.templateBlend = e.target.value;
+  persistState();
+  draw();
+});
+document.getElementById('logoSqColor').addEventListener('input', e => {
+  state.adj.logoSqColor = e.target.value;
+  persistState();
+  draw();
+});
+
 document.getElementById('resetPositions').addEventListener('click', () => {
   state.adj = {
     leftLogo:  { dx: 0, dy: 0 }, rightLogo: { dx: 0, dy: 0 },
     leftName:  { dx: 0, dy: 0 }, leftNick:  { dx: 0, dy: 0 },
     rightName: { dx: 0, dy: 0 }, rightNick: { dx: 0, dy: 0 },
     koOpacity: 22, koScale: 130,
+    templateBlend: 'overlay', templateOpacity: 100,
+    logoSqSize: 110, logoSqColor: '#FFFFFF',
   };
   syncSlidersFromState();
   persistState();
@@ -514,6 +627,7 @@ document.getElementById('download').addEventListener('click', () => {
 (async () => {
   restoreState();
   populateSchools();
+  populateBlendModes();
   syncSlidersFromState();
   document.getElementById('dateText').value    = state.date;
   document.getElementById('timeText').value    = state.time;
@@ -524,6 +638,7 @@ document.getElementById('download').addEventListener('click', () => {
   }
   await Promise.all([
     ensureLayer('template').catch(()=>null),
+    ensureLayer('elementOnly').catch(()=>null),
     ensureSchoolImages('left'),
     ensureSchoolImages('right'),
   ]);
