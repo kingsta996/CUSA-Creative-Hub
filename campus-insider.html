@@ -92,9 +92,15 @@ select:disabled{opacity:0.45;cursor:not-allowed}
   <button class="tab" data-mode="player-stats">Player + Stats</button>
 </div>
 
-<!-- iframe-embedded React app (lazy-loaded on first activation) -->
-<div class="matchup-frame" id="matchupFrame" style="display:none;flex:1;min-height:0;width:100%">
-  <iframe id="matchupIframe" src="about:blank" style="width:100%;height:100%;border:none;background:#060f1a;display:block"></iframe>
+<!-- iframe-embedded matchup builder (lazy-loaded on first activation).
+     Sub-toggle lets the operator switch between the schedule row
+     (matchup.html) and the final-score row (matchup-final.html). -->
+<div class="matchup-frame" id="matchupFrame" style="display:none;flex-direction:column;flex:1;min-height:0;width:100%">
+  <div id="matchupSubtabs" style="display:flex;gap:0;padding:6px 12px;background:rgba(10,22,36,0.65);border-bottom:1px solid rgba(255,255,255,0.06)">
+    <button class="tab matchup-subtab active" data-sub="schedule" style="font-size:10px;padding:7px 14px">Where to Watch</button>
+    <button class="tab matchup-subtab" data-sub="final" style="font-size:10px;padding:7px 14px">Final Score</button>
+  </div>
+  <iframe id="matchupIframe" src="about:blank" style="width:100%;flex:1;border:none;background:#060f1a;display:block"></iframe>
 </div>
 
 <div class="main" id="mainBuilder">
@@ -516,21 +522,35 @@ const matchupFrame  = document.getElementById('matchupFrame');
 const matchupIframe = document.getElementById('matchupIframe');
 const mainBuilder   = document.getElementById('mainBuilder');
 
+// Matchup sub-tab handling (Where to Watch / Final Score). Each sub uses a
+// dedicated page so localStorage state stays isolated.
+const SUB_PAGES = {
+  schedule: 'matchup.html?embedded=1',
+  final:    'matchup-final.html?embedded=1',
+};
+function loadMatchupSub(sub){
+  state.matchupSub = sub;
+  const want = SUB_PAGES[sub] || SUB_PAGES.schedule;
+  if (!matchupIframe.src.includes(want.split('?')[0])) {
+    matchupIframe.src = want;
+  }
+  document.querySelectorAll('.matchup-subtab').forEach(b => {
+    b.classList.toggle('active', b.dataset.sub === sub);
+  });
+}
+document.querySelectorAll('.matchup-subtab').forEach(btn => {
+  btn.addEventListener('click', () => loadMatchupSub(btn.dataset.sub));
+});
+
 async function applyMode(mode){
   state.mode = mode;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
 
-  // Matchup tab: swap the builder UI for an embedded React app via iframe.
+  // Matchup tab: swap the builder UI for an embedded matchup iframe. The
+  // sub-toggle inside the frame switches between the schedule row and the
+  // final-score row — both share the 1080×135 podcast-graphic format.
   if (mode === 'matchup') {
-    // New matchup builder (1080×135 schedule row with school colors + knockout
-    // textures). Replaces the old podcast-graphics iframe.
-    if (matchupIframe.src === 'about:blank' || !matchupIframe.src.includes('matchup.html')) {
-      // ?embedded=1 hides the matchup.html topbar + tabs + admin panel, so
-      // the iframe shows only the centered canvas. The admin can edit in a
-      // separate /matchup.html tab — those changes live-update here via the
-      // storage event listener.
-      matchupIframe.src = 'matchup.html?embedded=1';
-    }
+    loadMatchupSub(state.matchupSub || 'schedule');
     mainBuilder.style.display = 'none';
     matchupFrame.style.display = 'flex';
     return;
