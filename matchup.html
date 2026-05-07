@@ -263,6 +263,46 @@ body.embedded .tabs{display:none !important}
     </div>
 
     <div class="team-card">
+      <div class="team-card-title">Team Logo Shadow</div>
+      <div class="row-2">
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="leftLogoShadow" checked style="width:auto;margin:0">
+          <label class="field-label" for="leftLogoShadow" style="margin:0">Left on</label>
+        </div>
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="rightLogoShadow" checked style="width:auto;margin:0">
+          <label class="field-label" for="rightLogoShadow" style="margin:0">Right on</label>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="logoShadowDxR">2px</span></label><input id="logoShadowDx" type="range" min="-10" max="10" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="logoShadowDyR">2px</span></label><input id="logoShadowDy" type="range" min="-10" max="10" step="1" value="2"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="logoShadowBlurR">4px</span></label><input id="logoShadowBlur" type="range" min="0" max="20" step="1" value="4"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="logoShadowAlphaR">50%</span></label><input id="logoShadowAlpha" type="range" min="0" max="100" step="1" value="50"></div>
+      </div>
+      <div class="field"><label class="field-label">Color</label><input id="logoShadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Date / Time / Network Shadow</div>
+      <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="stripShadowOn" style="width:auto;margin:0">
+        <label class="field-label" for="stripShadowOn" style="margin:0">Strip shadow on</label>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="stripShadowDxR">1px</span></label><input id="stripShadowDx" type="range" min="-10" max="10" step="1" value="1"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="stripShadowDyR">1px</span></label><input id="stripShadowDy" type="range" min="-10" max="10" step="1" value="1"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="stripShadowBlurR">2px</span></label><input id="stripShadowBlur" type="range" min="0" max="20" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="stripShadowAlphaR">60%</span></label><input id="stripShadowAlpha" type="range" min="0" max="100" step="1" value="60"></div>
+      </div>
+      <div class="field"><label class="field-label">Color</label><input id="stripShadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
       <div class="team-card-title">Date / Time / Network · group</div>
       <div class="row-2">
         <div class="field"><label class="field-label">Group X <span class="nudge-readout" id="stripDxR">0px</span></label><input id="stripDx" type="range" min="-200" max="200" step="1" value="0"></div>
@@ -434,6 +474,16 @@ const state = {
     shadowBlur:   3,
     shadowColor: '#000000',
     shadowAlpha:  60,
+    // Drop shadow for the school primary logos in the corner boxes.
+    logoShadow: {
+      leftOn: true, rightOn: true,
+      dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 50,
+    },
+    // Drop shadow for the Date / Time / Network strip text.
+    stripShadow: {
+      on: false,
+      dx: 1, dy: 1, blur: 2, color: '#000000', alpha: 60,
+    },
     // Date / Time / Network strip text — group X/Y nudge applied to all 3,
     // PLUS per-element X/Y offsets so each can move independently.
     stripDx: 0,
@@ -560,14 +610,21 @@ async function draw(forExport = false){
   drawLogoSquare(LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftSquare,  schoolColor(leftConf));
   drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightSquare, schoolColor(rightConf));
 
-  // 6. School primary logos
+  // 6. School primary logos — with optional drop shadow per side.
+  const ls = state.adj.logoShadow || {};
   if (state.left.primaryImg) {
+    ctx.save();
+    if (ls.leftOn) applyShadowFrom(ls);
     drawContainFit(state.left.primaryImg, LOGO_BOX.leftX, LOGO_BOX.y,
       LOGO_BOX.w, LOGO_BOX.h, state.adj.leftLogo.dx, state.adj.leftLogo.dy);
+    ctx.restore();
   }
   if (state.right.primaryImg) {
+    ctx.save();
+    if (ls.rightOn) applyShadowFrom(ls);
     drawContainFit(state.right.primaryImg, LOGO_BOX.rightX, LOGO_BOX.y,
       LOGO_BOX.w, LOGO_BOX.h, state.adj.rightLogo.dx, state.adj.rightLogo.dy);
+    ctx.restore();
   }
 
   // 7. Text — school name + nickname per side, with optional drop shadow.
@@ -587,11 +644,15 @@ async function draw(forExport = false){
   const dN = state.adj.dateNudge    || { dx: 0, dy: 0 };
   const tN = state.adj.timeNudge    || { dx: 0, dy: 0 };
   const nN = state.adj.networkNudge || { dx: 0, dy: 0 };
+  const ss = state.adj.stripShadow || {};
+  ctx.save();
+  if (ss.on) applyShadowFrom(ss);
   ctx.fillStyle = '#0A254E';
   ctx.font = `900 11px "Proxima Nova","Barlow Condensed",sans-serif`;
   ctx.fillText(state.date,    487 + sx + dN.dx, 120 + sy + dN.dy);
   ctx.fillText(state.time,    540 + sx + tN.dx, 120 + sy + tN.dy);
   ctx.fillText(state.network, 593 + sx + nN.dx, 120 + sy + nN.dy);
+  ctx.restore();
 }
 
 function applyShadow(){
@@ -599,6 +660,14 @@ function applyShadow(){
   ctx.shadowBlur    = state.adj.shadowBlur ?? 3;
   ctx.shadowOffsetX = state.adj.shadowDx   ?? 2;
   ctx.shadowOffsetY = state.adj.shadowDy   ?? 2;
+}
+// Generic version that takes any { dx, dy, blur, color, alpha } config — used
+// for the team-logo and strip-text shadows so each can have independent values.
+function applyShadowFrom(cfg){
+  ctx.shadowColor   = hexToRgba(cfg.color || '#000000', (cfg.alpha ?? 60) / 100);
+  ctx.shadowBlur    = cfg.blur ?? 3;
+  ctx.shadowOffsetX = cfg.dx   ?? 2;
+  ctx.shadowOffsetY = cfg.dy   ?? 2;
 }
 function clearShadow(){
   ctx.shadowColor = 'rgba(0,0,0,0)';
@@ -691,7 +760,8 @@ function restoreState(){
     if (s.adj && typeof s.adj === 'object') {
       ['leftLogo','rightLogo','leftName','leftNick','rightName','rightNick',
        'leftBlock','rightBlock','leftKo','rightKo','leftSquare','rightSquare',
-       'dateNudge','timeNudge','networkNudge'].forEach(k => {
+       'dateNudge','timeNudge','networkNudge',
+       'logoShadow','stripShadow'].forEach(k => {
         if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]);
       });
       ['koOpacity','koScale','textureOpacity','shadowDx','shadowDy','shadowBlur','shadowAlpha','stripDx','stripDy'].forEach(k => {
@@ -814,6 +884,14 @@ const ADJ_BINDINGS = [
   ['shadowDy',       v => state.adj.shadowDy        = v, 'px'],
   ['shadowBlur',     v => state.adj.shadowBlur      = v, 'px'],
   ['shadowAlpha',    v => state.adj.shadowAlpha     = v, '%'],
+  ['logoShadowDx',    v => state.adj.logoShadow.dx    = v, 'px'],
+  ['logoShadowDy',    v => state.adj.logoShadow.dy    = v, 'px'],
+  ['logoShadowBlur',  v => state.adj.logoShadow.blur  = v, 'px'],
+  ['logoShadowAlpha', v => state.adj.logoShadow.alpha = v, '%'],
+  ['stripShadowDx',    v => state.adj.stripShadow.dx    = v, 'px'],
+  ['stripShadowDy',    v => state.adj.stripShadow.dy    = v, 'px'],
+  ['stripShadowBlur',  v => state.adj.stripShadow.blur  = v, 'px'],
+  ['stripShadowAlpha', v => state.adj.stripShadow.alpha = v, '%'],
   ['stripDx',        v => state.adj.stripDx         = v, 'px'],
   ['stripDy',        v => state.adj.stripDy         = v, 'px'],
   ['dateDx',         v => state.adj.dateNudge.dx    = v, 'px'],
@@ -846,6 +924,10 @@ function syncSlidersFromState(){
     rightSqW:        state.adj.rightSquare.w, rightSqH: state.adj.rightSquare.h,
     shadowDx:        state.adj.shadowDx,      shadowDy: state.adj.shadowDy,
     shadowBlur:      state.adj.shadowBlur,    shadowAlpha: state.adj.shadowAlpha,
+    logoShadowDx:     state.adj.logoShadow.dx,    logoShadowDy:    state.adj.logoShadow.dy,
+    logoShadowBlur:   state.adj.logoShadow.blur,  logoShadowAlpha: state.adj.logoShadow.alpha,
+    stripShadowDx:    state.adj.stripShadow.dx,   stripShadowDy:   state.adj.stripShadow.dy,
+    stripShadowBlur:  state.adj.stripShadow.blur, stripShadowAlpha:state.adj.stripShadow.alpha,
     stripDx:         state.adj.stripDx,       stripDy:  state.adj.stripDy,
     dateDx:          state.adj.dateNudge.dx,  dateDy:   state.adj.dateNudge.dy,
     timeDx:          state.adj.timeNudge.dx,  timeDy:   state.adj.timeNudge.dy,
@@ -875,6 +957,18 @@ function syncSlidersFromState(){
   if (sc) sc.value = state.adj.shadowColor || '#000000';
   document.getElementById('leftShadow').checked  = !!state.adj.leftShadow;
   document.getElementById('rightShadow').checked = !!state.adj.rightShadow;
+  // Logo shadow
+  const lsc = document.getElementById('logoShadowColor');
+  if (lsc) lsc.value = state.adj.logoShadow?.color || '#000000';
+  const lLogoChk = document.getElementById('leftLogoShadow');
+  if (lLogoChk)  lLogoChk.checked  = !!state.adj.logoShadow?.leftOn;
+  const rLogoChk = document.getElementById('rightLogoShadow');
+  if (rLogoChk)  rLogoChk.checked  = !!state.adj.logoShadow?.rightOn;
+  // Strip shadow
+  const ssc = document.getElementById('stripShadowColor');
+  if (ssc) ssc.value = state.adj.stripShadow?.color || '#000000';
+  const ssChk = document.getElementById('stripShadowOn');
+  if (ssChk)  ssChk.checked  = !!state.adj.stripShadow?.on;
   const pb = document.getElementById('previewBg');
   if (pb) pb.value = state.previewBg || '#000000';
   applyPreviewBgCss();
@@ -981,6 +1075,13 @@ document.getElementById('rightSqColor').addEventListener('input', e => { state.a
 document.getElementById('leftShadow').addEventListener('change', e => { state.adj.leftShadow = e.target.checked; persistState(); draw(); });
 document.getElementById('rightShadow').addEventListener('change', e => { state.adj.rightShadow = e.target.checked; persistState(); draw(); });
 document.getElementById('shadowColor').addEventListener('input', e => { state.adj.shadowColor = e.target.value; persistState(); draw(); });
+// Team-logo shadow
+document.getElementById('leftLogoShadow').addEventListener('change',  e => { state.adj.logoShadow.leftOn  = e.target.checked; persistState(); draw(); });
+document.getElementById('rightLogoShadow').addEventListener('change', e => { state.adj.logoShadow.rightOn = e.target.checked; persistState(); draw(); });
+document.getElementById('logoShadowColor').addEventListener('input',  e => { state.adj.logoShadow.color   = e.target.value;   persistState(); draw(); });
+// Strip (Date / Time / Network) shadow
+document.getElementById('stripShadowOn').addEventListener('change',    e => { state.adj.stripShadow.on    = e.target.checked; persistState(); draw(); });
+document.getElementById('stripShadowColor').addEventListener('input',  e => { state.adj.stripShadow.color = e.target.value;   persistState(); draw(); });
 
 document.getElementById('resetPositions').addEventListener('click', () => {
   state.adj = {
@@ -996,6 +1097,8 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     rightSquare: { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
     leftShadow: true, rightShadow: true,
     shadowDx: 2, shadowDy: 2, shadowBlur: 3, shadowColor: '#000000', shadowAlpha: 60,
+    logoShadow: { leftOn: true, rightOn: true, dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 50 },
+    stripShadow: { on: false, dx: 1, dy: 1, blur: 2, color: '#000000', alpha: 60 },
     stripDx: 0, stripDy: 0,
     dateNudge:    { dx: 0, dy: 0 },
     timeNudge:    { dx: 0, dy: 0 },
