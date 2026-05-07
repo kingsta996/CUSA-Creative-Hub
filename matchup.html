@@ -113,6 +113,9 @@ body.embedded .tabs{display:none !important}
       <div class="field"><label class="field-label">Network</label><input id="networkText" type="text" maxlength="10" value="ESPN+"></div>
     </div>
 
+    <button class="btn secondary" id="toggleAdvanced" style="font-size:11px;padding:9px 12px;margin-top:6px">✏️ Edit · Show Advanced Controls</button>
+
+    <div id="advancedControls" style="display:none;flex-direction:column;gap:12px">
     <div class="panel-head" style="margin-top:6px">Position Tuning <span style="font-weight:600;color:rgba(255,255,255,0.35);letter-spacing:1px">· auto-saved</span></div>
     <div class="team-card">
       <div class="team-card-title">Logo Boxes</div>
@@ -294,6 +297,7 @@ body.embedded .tabs{display:none !important}
       </div>
     </div>
     <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
+    </div><!-- /#advancedControls -->
 
     <div class="panel-spacer"></div>
     <button class="btn" id="download">Download PNG</button>
@@ -895,6 +899,25 @@ ADJ_BINDINGS.forEach(([id, setter, unit]) => {
     draw();
   });
 });
+
+// Edit / Advanced-controls toggle. State persists per-browser so the operator
+// can leave it open or closed across sessions.
+const ADV_KEY = 'cusa_matchup_adv_open_v1';
+function setAdvancedOpen(open){
+  const wrap = document.getElementById('advancedControls');
+  const btn  = document.getElementById('toggleAdvanced');
+  wrap.style.display = open ? 'flex' : 'none';
+  btn.textContent = open
+    ? '✕ Hide Advanced Controls'
+    : '✏️ Edit · Show Advanced Controls';
+  try { localStorage.setItem(ADV_KEY, open ? '1' : '0'); } catch (_) {}
+}
+document.getElementById('toggleAdvanced').addEventListener('click', () => {
+  const open = document.getElementById('advancedControls').style.display !== 'flex';
+  setAdvancedOpen(open);
+});
+// Restore the toggle state on load (default = closed).
+try { setAdvancedOpen(localStorage.getItem(ADV_KEY) === '1'); } catch (_) {}
 
 // Texture upload
 const TEXTURE_KEY = 'cusa_matchup_texture_v1';
