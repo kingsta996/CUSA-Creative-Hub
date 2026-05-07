@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;700&display=swap">
 <style>
+@font-face{font-family:'Proxima Nova';font-weight:400;src:url('fonts/ProximaNovaRegular.woff') format('woff'),url('fonts/ProximaNovaRegular.ttf') format('truetype');font-display:swap}
 @font-face{font-family:'Proxima Nova';font-weight:700;src:url('fonts/ProximaNovaBold.woff') format('woff'),url('fonts/ProximaNovaBold.ttf') format('truetype');font-display:swap}
 @font-face{font-family:'Proxima Nova';font-weight:900;src:url('fonts/ProximaNovaBlack.woff') format('woff'),url('fonts/ProximaNovaBlack.ttf') format('truetype');font-display:swap}
 @font-face{font-family:'Gazzetta ExtraBold';src:url('fonts/gazzetta-extrabold.otf') format('opentype');font-display:swap}
@@ -211,12 +212,12 @@ body.embedded .tabs{display:none !important}
     <div class="team-card">
       <div class="team-card-title">Logo Square · Left</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">X <span class="nudge-readout" id="leftSqDxR">0px</span></label><input id="leftSqDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="leftSqDxR">0px</span></label><input id="leftSqDx" type="range" min="-500" max="500" step="1" value="0"></div>
         <div class="field"><label class="field-label">Y <span class="nudge-readout" id="leftSqDyR">0px</span></label><input id="leftSqDy" type="range" min="-50" max="50" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="leftSqWR">76px</span></label><input id="leftSqW" type="range" min="40" max="180" step="1" value="76"></div>
-        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="leftSqHR">67px</span></label><input id="leftSqH" type="range" min="40" max="135" step="1" value="67"></div>
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="leftSqWR">76px</span></label><input id="leftSqW" type="range" min="0" max="220" step="1" value="76"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="leftSqHR">67px</span></label><input id="leftSqH" type="range" min="0" max="135" step="1" value="67"></div>
       </div>
       <div class="row-2">
         <div class="field"><label class="field-label">Color</label><input id="leftSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
@@ -226,12 +227,12 @@ body.embedded .tabs{display:none !important}
     <div class="team-card">
       <div class="team-card-title">Logo Square · Right</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">X <span class="nudge-readout" id="rightSqDxR">0px</span></label><input id="rightSqDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="rightSqDxR">0px</span></label><input id="rightSqDx" type="range" min="-500" max="500" step="1" value="0"></div>
         <div class="field"><label class="field-label">Y <span class="nudge-readout" id="rightSqDyR">0px</span></label><input id="rightSqDy" type="range" min="-50" max="50" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="rightSqWR">76px</span></label><input id="rightSqW" type="range" min="40" max="180" step="1" value="76"></div>
-        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightSqHR">67px</span></label><input id="rightSqH" type="range" min="40" max="135" step="1" value="67"></div>
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="rightSqWR">76px</span></label><input id="rightSqW" type="range" min="0" max="220" step="1" value="76"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightSqHR">67px</span></label><input id="rightSqH" type="range" min="0" max="135" step="1" value="67"></div>
       </div>
       <div class="row-2">
         <div class="field"><label class="field-label">Color</label><input id="rightSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
@@ -283,6 +284,29 @@ body.embedded .tabs{display:none !important}
         <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="logoShadowAlphaR">50%</span></label><input id="logoShadowAlpha" type="range" min="0" max="100" step="1" value="50"></div>
       </div>
       <div class="field"><label class="field-label">Color</label><input id="logoShadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Knockout Logo Shadow</div>
+      <div class="row-2">
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="leftKoShadow" style="width:auto;margin:0">
+          <label class="field-label" for="leftKoShadow" style="margin:0">Left on</label>
+        </div>
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="rightKoShadow" style="width:auto;margin:0">
+          <label class="field-label" for="rightKoShadow" style="margin:0">Right on</label>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="koShadowDxR">2px</span></label><input id="koShadowDx" type="range" min="-10" max="10" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="koShadowDyR">2px</span></label><input id="koShadowDy" type="range" min="-10" max="10" step="1" value="2"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="koShadowBlurR">4px</span></label><input id="koShadowBlur" type="range" min="0" max="20" step="1" value="4"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="koShadowAlphaR">60%</span></label><input id="koShadowAlpha" type="range" min="0" max="100" step="1" value="60"></div>
+      </div>
+      <div class="field"><label class="field-label">Color</label><input id="koShadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
     </div>
 
     <div class="team-card">
@@ -378,6 +402,14 @@ function schoolColor(s){
   if (ep && /^#?[0-9a-f]+/i.test(ep)) return ep[0] === '#' ? ep : '#' + ep;
   return '#666666';
 }
+// Resolve a school's secondary color (ESPN Alt). Falls back to primary so the
+// logo-square is never invisible if a school is missing the alt swatch.
+function schoolSecondaryColor(s){
+  if (!s) return schoolColor(s);
+  const sec = (s.secondary || '').trim();
+  if (sec && /^#?[0-9a-f]+/i.test(sec)) return sec[0] === '#' ? sec : '#' + sec;
+  return schoolColor(s);
+}
 // Display nickname (uppercase mascot, fall back to school short tail).
 function schoolNickname(s){
   if (!s) return '';
@@ -425,13 +457,16 @@ const CANVAS_W = 1080;
 const CANVAS_H = 135;
 const LOGO_BOX = { w: 100, h: 100, leftX: 14, rightX: 1080 - 14 - 100, y: 10 };  // logo box positions
 const BAR     = { x: 60, y: 10, w: 1080 - 120, h: 95, mid: 540 };                 // colored bar bounds + center split
-const NAME_FS = 14;    // Proxima Nova ExtraBold (black weight 900) for school name
-const NICK_FS = 52;    // Gazzetta ExtraBold for nickname
+const NAME_FS = 14;    // Proxima Nova Bold (700) for school name
+const NICK_FS = 52;    // Proxima Nova Bold (700) for nickname
 const NAME_CY = 38;    // small label near top of bar
 const NICK_CY = 78;    // big nickname mid-bar
-// Each side's text anchor (centered between logo box and AT badge).
-const LEFT_TEXT_CX  = 350;  // center of left half (excluding logo box + AT margin)
-const RIGHT_TEXT_CX = 730;  // center of right half
+// Each side's text anchor — text aligns INWARD toward the centered AT badge:
+// left team is right-aligned (right edge anchored just left of AT), right
+// team is left-aligned (left edge anchored just right of AT). Names of any
+// length share the same inner edge near the AT badge.
+const LEFT_TEXT_RIGHT = 510;
+const RIGHT_TEXT_LEFT = 570;
 
 // ─── State ────────────────────────────────────────────────────────────────
 const state = {
@@ -478,6 +513,13 @@ const state = {
     logoShadow: {
       leftOn: true, rightOn: true,
       dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 50,
+    },
+    // Drop shadow for the knockout (mascot) textures inside the color blocks.
+    // Rendered via a two-pass technique because the KO uses screen blend, and
+    // a screen-blended shadow would be invisible.
+    koShadow: {
+      leftOn: false, rightOn: false,
+      dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 60,
     },
     // Drop shadow for the Date / Time / Network strip text.
     stripShadow: {
@@ -580,8 +622,9 @@ async function draw(forExport = false){
   // 2. Knockout texture per side — clipped to the (possibly-resized) block.
   const koAlpha = state.adj.koOpacity / 100;
   const koScale = state.adj.koScale / 100;
-  if (state.left.koImg)  drawKoTexture(state.left.koImg,  BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH, koAlpha, koScale, 'left',  state.adj.leftKo);
-  if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH, koAlpha, koScale, 'right', state.adj.rightKo);
+  const koSh = state.adj.koShadow || {};
+  if (state.left.koImg)  drawKoTexture(state.left.koImg,  BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH, koAlpha, koScale, 'left',  state.adj.leftKo,  koSh.leftOn  ? koSh : null);
+  if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH, koAlpha, koScale, 'right', state.adj.rightKo, koSh.rightOn ? koSh : null);
 
   // 3. Custom user-uploaded texture — overlay over the team color boxes,
   //    operator-selected blend mode + opacity. Clipped to the bar bounds
@@ -607,8 +650,8 @@ async function draw(forExport = false){
   // 5. Per-side logo squares — recolor / resize / reposition the logo box
   //    backdrops with the operator's choice. Default color = school primary,
   //    blend mode = overlay (so the box keeps the depth from Image #11).
-  drawLogoSquare(LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftSquare,  schoolColor(leftConf));
-  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightSquare, schoolColor(rightConf));
+  drawLogoSquare(LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftSquare,  schoolSecondaryColor(leftConf));
+  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightSquare, schoolSecondaryColor(rightConf));
 
   // 6. School primary logos — with optional drop shadow per side.
   const ls = state.adj.logoShadow || {};
@@ -628,13 +671,12 @@ async function draw(forExport = false){
   }
 
   // 7. Text — school name + nickname per side, with optional drop shadow.
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   if (leftConf) {
-    drawSideText(leftConf, LEFT_TEXT_CX, state.adj.leftName, state.adj.leftNick, !!state.adj.leftShadow);
+    drawSideText(leftConf, LEFT_TEXT_RIGHT, state.adj.leftName, state.adj.leftNick, !!state.adj.leftShadow, 'right');
   }
   if (rightConf) {
-    drawSideText(rightConf, RIGHT_TEXT_CX, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow);
+    drawSideText(rightConf, RIGHT_TEXT_LEFT, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow, 'left');
   }
 
   // 8. Date / Time / Network strip text — group nudge applied to all three,
@@ -682,13 +724,14 @@ function hexToRgba(hex, a){
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
 }
 
-function drawSideText(conf, cx, nameAdj, nickAdj, shadowOn){
+function drawSideText(conf, anchorX, nameAdj, nickAdj, shadowOn, align){
   ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = align || 'center';
   if (shadowOn) applyShadow(); else clearShadow();
-  ctx.font = `900 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  ctx.fillText((conf.name || '').toUpperCase(), cx + nameAdj.dx, NAME_CY + nameAdj.dy);
-  ctx.font = `700 ${NICK_FS}px "Gazzetta ExtraBold","Proxima Nova",sans-serif`;
-  ctx.fillText(schoolNickname(conf), cx + nickAdj.dx, NICK_CY + nickAdj.dy);
+  ctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText((conf.name || '').toUpperCase(), anchorX + nameAdj.dx, NAME_CY + nameAdj.dy);
+  ctx.font = `700 ${NICK_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText(schoolNickname(conf), anchorX + nickAdj.dx, NICK_CY + nickAdj.dy);
   clearShadow();
 }
 
@@ -709,7 +752,7 @@ function drawLogoSquare(boxX, boxY, sqAdj, defaultColor){
   ctx.restore();
 }
 
-function drawKoTexture(img, x, y, w, h, alpha, scale, side, nudge){
+function drawKoTexture(img, x, y, w, h, alpha, scale, side, nudge, shadowCfg){
   // Knockout logo as a screen-blended texture, clipped to the team's color
   // block. Per-side dx/dy nudges let the operator place the mascot where it
   // looks best. Scale is shared (operators usually want symmetric zoom).
@@ -725,6 +768,35 @@ function drawKoTexture(img, x, y, w, h, alpha, scale, side, nudge){
   const baseOy = y + (h - targetH) / 2;
   const ox = baseOx + (nudge?.dx || 0);
   const oy = baseOy + (nudge?.dy || 0);
+
+  // Optional drop shadow. Standard ctx.shadowColor would be invisible since
+  // the KO is screen-blended (black-on-color is a no-op in screen). Two-pass
+  // technique: build a shadow-only bitmap offscreen (image + shadow, then
+  // subtract the image with destination-out), stamp it onto the main canvas
+  // in normal blend, THEN draw the actual KO in screen blend on top.
+  if (shadowCfg) {
+    const blur = shadowCfg.blur ?? 4;
+    const sdx  = shadowCfg.dx   ?? 2;
+    const sdy  = shadowCfg.dy   ?? 2;
+    const padX = Math.ceil(Math.abs(sdx) + blur * 3 + 8);
+    const padY = Math.ceil(Math.abs(sdy) + blur * 3 + 8);
+    const off = document.createElement('canvas');
+    off.width  = Math.ceil(targetW) + padX * 2;
+    off.height = Math.ceil(targetH) + padY * 2;
+    const oc = off.getContext('2d');
+    oc.shadowColor   = hexToRgba(shadowCfg.color || '#000000', (shadowCfg.alpha ?? 60) / 100);
+    oc.shadowBlur    = blur;
+    oc.shadowOffsetX = sdx;
+    oc.shadowOffsetY = sdy;
+    oc.drawImage(img, padX, padY, targetW, targetH);
+    // Subtract the original image so only the offset/blurred shadow remains.
+    oc.shadowColor = 'rgba(0,0,0,0)';
+    oc.shadowBlur = oc.shadowOffsetX = oc.shadowOffsetY = 0;
+    oc.globalCompositeOperation = 'destination-out';
+    oc.drawImage(img, padX, padY, targetW, targetH);
+    ctx.drawImage(off, ox - padX, oy - padY);
+  }
+
   ctx.globalAlpha = alpha;
   ctx.globalCompositeOperation = 'screen';
   ctx.drawImage(img, ox, oy, targetW, targetH);
@@ -761,7 +833,7 @@ function restoreState(){
       ['leftLogo','rightLogo','leftName','leftNick','rightName','rightNick',
        'leftBlock','rightBlock','leftKo','rightKo','leftSquare','rightSquare',
        'dateNudge','timeNudge','networkNudge',
-       'logoShadow','stripShadow'].forEach(k => {
+       'logoShadow','stripShadow','koShadow'].forEach(k => {
         if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]);
       });
       ['koOpacity','koScale','textureOpacity','shadowDx','shadowDy','shadowBlur','shadowAlpha','stripDx','stripDy'].forEach(k => {
@@ -888,6 +960,10 @@ const ADJ_BINDINGS = [
   ['logoShadowDy',    v => state.adj.logoShadow.dy    = v, 'px'],
   ['logoShadowBlur',  v => state.adj.logoShadow.blur  = v, 'px'],
   ['logoShadowAlpha', v => state.adj.logoShadow.alpha = v, '%'],
+  ['koShadowDx',      v => state.adj.koShadow.dx      = v, 'px'],
+  ['koShadowDy',      v => state.adj.koShadow.dy      = v, 'px'],
+  ['koShadowBlur',    v => state.adj.koShadow.blur    = v, 'px'],
+  ['koShadowAlpha',   v => state.adj.koShadow.alpha   = v, '%'],
   ['stripShadowDx',    v => state.adj.stripShadow.dx    = v, 'px'],
   ['stripShadowDy',    v => state.adj.stripShadow.dy    = v, 'px'],
   ['stripShadowBlur',  v => state.adj.stripShadow.blur  = v, 'px'],
@@ -926,6 +1002,8 @@ function syncSlidersFromState(){
     shadowBlur:      state.adj.shadowBlur,    shadowAlpha: state.adj.shadowAlpha,
     logoShadowDx:     state.adj.logoShadow.dx,    logoShadowDy:    state.adj.logoShadow.dy,
     logoShadowBlur:   state.adj.logoShadow.blur,  logoShadowAlpha: state.adj.logoShadow.alpha,
+    koShadowDx:       state.adj.koShadow.dx,      koShadowDy:      state.adj.koShadow.dy,
+    koShadowBlur:     state.adj.koShadow.blur,    koShadowAlpha:   state.adj.koShadow.alpha,
     stripShadowDx:    state.adj.stripShadow.dx,   stripShadowDy:   state.adj.stripShadow.dy,
     stripShadowBlur:  state.adj.stripShadow.blur, stripShadowAlpha:state.adj.stripShadow.alpha,
     stripDx:         state.adj.stripDx,       stripDy:  state.adj.stripDy,
@@ -950,9 +1028,9 @@ function syncSlidersFromState(){
   const rightBlend = document.getElementById('rightSqBlend');
   if (rightBlend) rightBlend.value = state.adj.rightSquare.blend || 'overlay';
   const leftCol = document.getElementById('leftSqColor');
-  if (leftCol)  leftCol.value  = state.adj.leftSquare.color  || schoolColor(SCHOOLS.find(s => s.name === state.left.school));
+  if (leftCol)  leftCol.value  = state.adj.leftSquare.color  || schoolSecondaryColor(SCHOOLS.find(s => s.name === state.left.school));
   const rightCol = document.getElementById('rightSqColor');
-  if (rightCol) rightCol.value = state.adj.rightSquare.color || schoolColor(SCHOOLS.find(s => s.name === state.right.school));
+  if (rightCol) rightCol.value = state.adj.rightSquare.color || schoolSecondaryColor(SCHOOLS.find(s => s.name === state.right.school));
   const sc = document.getElementById('shadowColor');
   if (sc) sc.value = state.adj.shadowColor || '#000000';
   document.getElementById('leftShadow').checked  = !!state.adj.leftShadow;
@@ -964,6 +1042,13 @@ function syncSlidersFromState(){
   if (lLogoChk)  lLogoChk.checked  = !!state.adj.logoShadow?.leftOn;
   const rLogoChk = document.getElementById('rightLogoShadow');
   if (rLogoChk)  rLogoChk.checked  = !!state.adj.logoShadow?.rightOn;
+  // KO shadow
+  const ksc = document.getElementById('koShadowColor');
+  if (ksc) ksc.value = state.adj.koShadow?.color || '#000000';
+  const lKoChk = document.getElementById('leftKoShadow');
+  if (lKoChk)  lKoChk.checked  = !!state.adj.koShadow?.leftOn;
+  const rKoChk = document.getElementById('rightKoShadow');
+  if (rKoChk)  rKoChk.checked  = !!state.adj.koShadow?.rightOn;
   // Strip shadow
   const ssc = document.getElementById('stripShadowColor');
   if (ssc) ssc.value = state.adj.stripShadow?.color || '#000000';
@@ -1079,6 +1164,10 @@ document.getElementById('shadowColor').addEventListener('input', e => { state.ad
 document.getElementById('leftLogoShadow').addEventListener('change',  e => { state.adj.logoShadow.leftOn  = e.target.checked; persistState(); draw(); });
 document.getElementById('rightLogoShadow').addEventListener('change', e => { state.adj.logoShadow.rightOn = e.target.checked; persistState(); draw(); });
 document.getElementById('logoShadowColor').addEventListener('input',  e => { state.adj.logoShadow.color   = e.target.value;   persistState(); draw(); });
+// Knockout-logo shadow
+document.getElementById('leftKoShadow').addEventListener('change',    e => { state.adj.koShadow.leftOn  = e.target.checked; persistState(); draw(); });
+document.getElementById('rightKoShadow').addEventListener('change',   e => { state.adj.koShadow.rightOn = e.target.checked; persistState(); draw(); });
+document.getElementById('koShadowColor').addEventListener('input',    e => { state.adj.koShadow.color   = e.target.value;   persistState(); draw(); });
 // Strip (Date / Time / Network) shadow
 document.getElementById('stripShadowOn').addEventListener('change',    e => { state.adj.stripShadow.on    = e.target.checked; persistState(); draw(); });
 document.getElementById('stripShadowColor').addEventListener('input',  e => { state.adj.stripShadow.color = e.target.value;   persistState(); draw(); });
@@ -1098,6 +1187,7 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     leftShadow: true, rightShadow: true,
     shadowDx: 2, shadowDy: 2, shadowBlur: 3, shadowColor: '#000000', shadowAlpha: 60,
     logoShadow: { leftOn: true, rightOn: true, dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 50 },
+    koShadow:   { leftOn: false, rightOn: false, dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 60 },
     stripShadow: { on: false, dx: 1, dy: 1, blur: 2, color: '#000000', alpha: 60 },
     stripDx: 0, stripDy: 0,
     dateNudge:    { dx: 0, dy: 0 },
@@ -1152,8 +1242,8 @@ window.addEventListener('storage', e => {
   document.getElementById('timeText').value    = state.time;
   document.getElementById('networkText').value = state.network;
   if (document.fonts && document.fonts.load) {
-    try { await document.fonts.load(`900 ${NAME_FS}px "Proxima Nova"`); } catch(_) {}
-    try { await document.fonts.load(`700 ${NICK_FS}px "Gazzetta ExtraBold"`); } catch(_) {}
+    try { await document.fonts.load(`700 ${NAME_FS}px "Proxima Nova"`); } catch(_) {}
+    try { await document.fonts.load(`700 ${NICK_FS}px "Proxima Nova"`); } catch(_) {}
   }
   restoreTexture();
   await Promise.all([
