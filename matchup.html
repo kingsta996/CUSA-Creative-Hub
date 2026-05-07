@@ -260,10 +260,37 @@ body.embedded .tabs{display:none !important}
     </div>
 
     <div class="team-card">
-      <div class="team-card-title">Date / Time / Network (group)</div>
+      <div class="team-card-title">Date / Time / Network · group</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">X <span class="nudge-readout" id="stripDxR">0px</span></label><input id="stripDx" type="range" min="-200" max="200" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="stripDyR">0px</span></label><input id="stripDy" type="range" min="-50" max="50" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Group X <span class="nudge-readout" id="stripDxR">0px</span></label><input id="stripDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Group Y <span class="nudge-readout" id="stripDyR">0px</span></label><input id="stripDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Date X <span class="nudge-readout" id="dateDxR">0px</span></label><input id="dateDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Date Y <span class="nudge-readout" id="dateDyR">0px</span></label><input id="dateDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Time X <span class="nudge-readout" id="timeDxR">0px</span></label><input id="timeDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Time Y <span class="nudge-readout" id="timeDyR">0px</span></label><input id="timeDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Network X <span class="nudge-readout" id="networkDxR">0px</span></label><input id="networkDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Network Y <span class="nudge-readout" id="networkDyR">0px</span></label><input id="networkDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Preview Background</div>
+      <div class="field" style="font-size:9px;color:rgba(255,255,255,0.45);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">
+        Editor only — not baked into the downloaded PNG.
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="previewBg" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+        <div class="field" style="display:flex;gap:6px;flex-direction:row;flex-wrap:wrap;align-items:flex-end">
+          <button class="btn secondary" id="bgPresetBlack" style="font-size:9px;padding:4px 8px;width:auto">Black</button>
+          <button class="btn secondary" id="bgPresetWhite" style="font-size:9px;padding:4px 8px;width:auto">White</button>
+          <button class="btn secondary" id="bgPresetNavy"  style="font-size:9px;padding:4px 8px;width:auto">Navy</button>
+        </div>
       </div>
     </div>
     <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
@@ -393,10 +420,18 @@ const state = {
     shadowBlur:   3,
     shadowColor: '#000000',
     shadowAlpha:  60,
-    // Date/Time/Network strip text — group X/Y nudge applied to all 3.
+    // Date / Time / Network strip text — group X/Y nudge applied to all 3,
+    // PLUS per-element X/Y offsets so each can move independently.
     stripDx: 0,
     stripDy: 0,
+    dateNudge:    { dx: 0, dy: 0 },
+    timeNudge:    { dx: 0, dy: 0 },
+    networkNudge: { dx: 0, dy: 0 },
   },
+  // Preview background (color shown BEHIND the matchup row in the editor —
+  // not baked into the exported PNG). Lets the operator preview how the
+  // matchup row reads on different platform backgrounds.
+  previewBg: '#000000',
   texture: null,      // data URL of uploaded texture, if any
   textureImg: null,   // decoded Image instance
 };
@@ -450,8 +485,16 @@ function drawContainFit(img, x, y, w, h, dx, dy){
   ctx.drawImage(img, ox, oy, dw, dh);
 }
 
-async function draw(){
+async function draw(forExport = false){
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Preview background — fills the canvas BEHIND everything so the operator
+  // can preview how the matchup reads against different platform backgrounds.
+  // Skipped when exporting so the PNG keeps any transparent corners.
+  if (!forExport && state.previewBg) {
+    ctx.fillStyle = state.previewBg;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
 
   const leftConf  = SCHOOLS.find(s => s.id === state.left.school);
   const rightConf = SCHOOLS.find(s => s.id === state.right.school);
@@ -523,14 +566,18 @@ async function draw(){
     drawSideText(rightConf, RIGHT_TEXT_CX, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow);
   }
 
-  // 8. Date / Time / Network strip text — group X/Y nudge.
+  // 8. Date / Time / Network strip text — group nudge applied to all three,
+  //    plus per-element X/Y so each can be moved independently.
   const sx = state.adj.stripDx || 0;
   const sy = state.adj.stripDy || 0;
+  const dN = state.adj.dateNudge    || { dx: 0, dy: 0 };
+  const tN = state.adj.timeNudge    || { dx: 0, dy: 0 };
+  const nN = state.adj.networkNudge || { dx: 0, dy: 0 };
   ctx.fillStyle = '#0A254E';
   ctx.font = `900 11px "Proxima Nova","Barlow Condensed",sans-serif`;
-  ctx.fillText(state.date,    487 + sx, 120 + sy);
-  ctx.fillText(state.time,    540 + sx, 120 + sy);
-  ctx.fillText(state.network, 593 + sx, 120 + sy);
+  ctx.fillText(state.date,    487 + sx + dN.dx, 120 + sy + dN.dy);
+  ctx.fillText(state.time,    540 + sx + tN.dx, 120 + sy + tN.dy);
+  ctx.fillText(state.network, 593 + sx + nN.dx, 120 + sy + nN.dy);
 }
 
 function applyShadow(){
@@ -612,6 +659,7 @@ function persistState(){
       time:    state.time,
       network: state.network,
       adj:     state.adj,
+      previewBg: state.previewBg,
     }));
   } catch (_) {}
 }
@@ -625,9 +673,11 @@ function restoreState(){
     if (s.date != null)    state.date = s.date;
     if (s.time != null)    state.time = s.time;
     if (s.network != null) state.network = s.network;
+    if (typeof s.previewBg === 'string') state.previewBg = s.previewBg;
     if (s.adj && typeof s.adj === 'object') {
       ['leftLogo','rightLogo','leftName','leftNick','rightName','rightNick',
-       'leftBlock','rightBlock','leftKo','rightKo','leftSquare','rightSquare'].forEach(k => {
+       'leftBlock','rightBlock','leftKo','rightKo','leftSquare','rightSquare',
+       'dateNudge','timeNudge','networkNudge'].forEach(k => {
         if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]);
       });
       ['koOpacity','koScale','textureOpacity','shadowDx','shadowDy','shadowBlur','shadowAlpha','stripDx','stripDy'].forEach(k => {
@@ -725,6 +775,12 @@ const ADJ_BINDINGS = [
   ['shadowAlpha',    v => state.adj.shadowAlpha     = v, '%'],
   ['stripDx',        v => state.adj.stripDx         = v, 'px'],
   ['stripDy',        v => state.adj.stripDy         = v, 'px'],
+  ['dateDx',         v => state.adj.dateNudge.dx    = v, 'px'],
+  ['dateDy',         v => state.adj.dateNudge.dy    = v, 'px'],
+  ['timeDx',         v => state.adj.timeNudge.dx    = v, 'px'],
+  ['timeDy',         v => state.adj.timeNudge.dy    = v, 'px'],
+  ['networkDx',      v => state.adj.networkNudge.dx = v, 'px'],
+  ['networkDy',      v => state.adj.networkNudge.dy = v, 'px'],
 ];
 
 function syncSlidersFromState(){
@@ -750,6 +806,9 @@ function syncSlidersFromState(){
     shadowDx:        state.adj.shadowDx,      shadowDy: state.adj.shadowDy,
     shadowBlur:      state.adj.shadowBlur,    shadowAlpha: state.adj.shadowAlpha,
     stripDx:         state.adj.stripDx,       stripDy:  state.adj.stripDy,
+    dateDx:          state.adj.dateNudge.dx,  dateDy:   state.adj.dateNudge.dy,
+    timeDx:          state.adj.timeNudge.dx,  timeDy:   state.adj.timeNudge.dy,
+    networkDx:       state.adj.networkNudge.dx, networkDy: state.adj.networkNudge.dy,
   };
   for (const [id, val] of Object.entries(m)) {
     const inp = document.getElementById(id);
@@ -775,6 +834,17 @@ function syncSlidersFromState(){
   if (sc) sc.value = state.adj.shadowColor || '#000000';
   document.getElementById('leftShadow').checked  = !!state.adj.leftShadow;
   document.getElementById('rightShadow').checked = !!state.adj.rightShadow;
+  const pb = document.getElementById('previewBg');
+  if (pb) pb.value = state.previewBg || '#000000';
+  applyPreviewBgCss();
+}
+
+function applyPreviewBgCss(){
+  // Mirror the canvas's fill onto the surrounding wrap so the preview area
+  // also reflects the chosen background — useful when the matchup row is
+  // narrower than the canvas-area letterbox.
+  const wrap = document.querySelector('.canvas-wrap');
+  if (wrap) wrap.style.background = state.previewBg || '#000000';
 }
 
 ADJ_BINDINGS.forEach(([id, setter, unit]) => {
@@ -827,6 +897,19 @@ document.getElementById('clearTextureBtn').addEventListener('click', () => {
   draw();
 });
 
+// Preview background
+document.getElementById('previewBg').addEventListener('input', e => {
+  state.previewBg = e.target.value; applyPreviewBgCss(); persistState(); draw();
+});
+function setPreviewBg(hex){
+  state.previewBg = hex;
+  document.getElementById('previewBg').value = hex;
+  applyPreviewBgCss(); persistState(); draw();
+}
+document.getElementById('bgPresetBlack').addEventListener('click', () => setPreviewBg('#000000'));
+document.getElementById('bgPresetWhite').addEventListener('click', () => setPreviewBg('#FFFFFF'));
+document.getElementById('bgPresetNavy').addEventListener('click',  () => setPreviewBg('#0A254E'));
+
 // Texture blend mode + per-side square blend
 document.getElementById('textureBlend').addEventListener('change', e => { state.adj.textureBlend = e.target.value; persistState(); draw(); });
 document.getElementById('leftSqBlend').addEventListener('change', e => { state.adj.leftSquare.blend = e.target.value; persistState(); draw(); });
@@ -854,17 +937,25 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     leftShadow: true, rightShadow: true,
     shadowDx: 2, shadowDy: 2, shadowBlur: 3, shadowColor: '#000000', shadowAlpha: 60,
     stripDx: 0, stripDy: 0,
+    dateNudge:    { dx: 0, dy: 0 },
+    timeNudge:    { dx: 0, dy: 0 },
+    networkNudge: { dx: 0, dy: 0 },
   };
   syncSlidersFromState();
   persistState();
   draw();
 });
 
-document.getElementById('download').addEventListener('click', () => {
+document.getElementById('download').addEventListener('click', async () => {
+  // Render once without the preview bg so the exported PNG keeps any
+  // transparent corners outside the matchup row, then restore the preview.
+  await draw(true);
+  const dataUrl = cvs.toDataURL('image/png');
+  await draw();
   const safe = (s) => (s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'') || 'X';
   const fname = `CUSA_Matchup_${safe(state.left.school)}_vs_${safe(state.right.school)}.png`;
   const a = document.createElement('a');
-  a.href = cvs.toDataURL('image/png');
+  a.href = dataUrl;
   a.download = fname;
   a.click();
 });
