@@ -121,12 +121,12 @@ body.embedded .tabs{display:none !important}
     <div class="team-card">
       <div class="team-card-title">Logo Boxes</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Left X <span class="nudge-readout" id="leftLogoDxR">0px</span></label><input id="leftLogoDx" type="range" min="-50" max="50" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Left Y <span class="nudge-readout" id="leftLogoDyR">0px</span></label><input id="leftLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Left X <span class="nudge-readout" id="leftLogoDxR">0px</span></label><input id="leftLogoDx" type="range" min="-300" max="300" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Left Y <span class="nudge-readout" id="leftLogoDyR">0px</span></label><input id="leftLogoDy" type="range" min="-60" max="60" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Right X <span class="nudge-readout" id="rightLogoDxR">0px</span></label><input id="rightLogoDx" type="range" min="-50" max="50" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Right Y <span class="nudge-readout" id="rightLogoDyR">0px</span></label><input id="rightLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Right X <span class="nudge-readout" id="rightLogoDxR">0px</span></label><input id="rightLogoDx" type="range" min="-300" max="300" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Right Y <span class="nudge-readout" id="rightLogoDyR">0px</span></label><input id="rightLogoDy" type="range" min="-60" max="60" step="1" value="0"></div>
       </div>
       <div class="row-2">
         <div class="field"><label class="field-label">Left Size <span class="nudge-readout" id="leftLogoScaleR">100%</span></label><input id="leftLogoScale" type="range" min="30" max="200" step="1" value="100"></div>
@@ -143,6 +143,7 @@ body.embedded .tabs{display:none !important}
         <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="leftNickDxR">0px</span></label><input id="leftNickDx" type="range" min="-500" max="500" step="1" value="0"></div>
         <div class="field"><label class="field-label">Nick Y <span class="nudge-readout" id="leftNickDyR">0px</span></label><input id="leftNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
+      <div class="field"><label class="field-label">Nick Size <span class="nudge-readout" id="leftNickScaleR">100%</span></label><input id="leftNickScale" type="range" min="40" max="160" step="1" value="100"></div>
     </div>
     <div class="team-card">
       <div class="team-card-title">Text · Right</div>
@@ -154,6 +155,7 @@ body.embedded .tabs{display:none !important}
         <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="rightNickDxR">0px</span></label><input id="rightNickDx" type="range" min="-500" max="500" step="1" value="0"></div>
         <div class="field"><label class="field-label">Nick Y <span class="nudge-readout" id="rightNickDyR">0px</span></label><input id="rightNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
+      <div class="field"><label class="field-label">Nick Size <span class="nudge-readout" id="rightNickScaleR">100%</span></label><input id="rightNickScale" type="range" min="40" max="160" step="1" value="100"></div>
     </div>
     <div class="team-card">
       <div class="team-card-title">Custom Texture</div>
@@ -486,9 +488,9 @@ const state = {
     leftLogo:  { dx: 0, dy: 0, scale: 100 },
     rightLogo: { dx: 0, dy: 0, scale: 100 },
     leftName:  { dx: 0, dy: 0 },
-    leftNick:  { dx: 0, dy: 0 },
+    leftNick:  { dx: 0, dy: 0, scale: 100 },
     rightName: { dx: 0, dy: 0 },
-    rightNick: { dx: 0, dy: 0 },
+    rightNick: { dx: 0, dy: 0, scale: 100 },
     // Per-side color block: dx/dy nudge + width/height % scale around its
     // own anchor (left block grows right; right block grows left).
     leftBlock:  { dx: 0, dy: 0, sw: 100, sh: 100 },
@@ -746,7 +748,8 @@ function drawSideText(conf, anchorX, nameAdj, nickAdj, shadowOn, align){
   // Anchor is the strip divider line for the team's side.
   ctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
   ctx.fillText((conf.name || '').toUpperCase(), anchorX + nameAdj.dx, NAME_CY + nameAdj.dy);
-  ctx.font = `700 ${NICK_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  const nickFs = Math.round(NICK_FS * ((nickAdj.scale ?? 100) / 100));
+  ctx.font = `700 ${nickFs}px "Proxima Nova","Barlow Condensed",sans-serif`;
   ctx.fillText(schoolNickname(conf), anchorX + nickAdj.dx, NICK_CY + nickAdj.dy);
   clearShadow();
 }
@@ -958,10 +961,12 @@ const ADJ_BINDINGS = [
   ['leftNameDy',     v => state.adj.leftName.dy     = v, 'px'],
   ['leftNickDx',     v => state.adj.leftNick.dx     = v, 'px'],
   ['leftNickDy',     v => state.adj.leftNick.dy     = v, 'px'],
+  ['leftNickScale',  v => state.adj.leftNick.scale  = v, '%'],
   ['rightNameDx',    v => state.adj.rightName.dx    = v, 'px'],
   ['rightNameDy',    v => state.adj.rightName.dy    = v, 'px'],
   ['rightNickDx',    v => state.adj.rightNick.dx    = v, 'px'],
   ['rightNickDy',    v => state.adj.rightNick.dy    = v, 'px'],
+  ['rightNickScale', v => state.adj.rightNick.scale = v, '%'],
   ['leftBlockDx',    v => state.adj.leftBlock.dx    = v, 'px'],
   ['leftBlockDy',    v => state.adj.leftBlock.dy    = v, 'px'],
   ['leftBlockSW',    v => state.adj.leftBlock.sw    = v, '%'],
@@ -1019,8 +1024,10 @@ function syncSlidersFromState(){
     rightLogoScale:  state.adj.rightLogo.scale ?? 100,
     leftNameDx:      state.adj.leftName.dx,  leftNameDy:  state.adj.leftName.dy,
     leftNickDx:      state.adj.leftNick.dx,  leftNickDy:  state.adj.leftNick.dy,
+    leftNickScale:   state.adj.leftNick.scale ?? 100,
     rightNameDx:     state.adj.rightName.dx, rightNameDy: state.adj.rightName.dy,
     rightNickDx:     state.adj.rightNick.dx, rightNickDy: state.adj.rightNick.dy,
+    rightNickScale:  state.adj.rightNick.scale ?? 100,
     leftBlockDx:     state.adj.leftBlock.dx, leftBlockDy: state.adj.leftBlock.dy,
     leftBlockSW:     state.adj.leftBlock.sw, leftBlockSH: state.adj.leftBlock.sh,
     rightBlockDx:    state.adj.rightBlock.dx,rightBlockDy:state.adj.rightBlock.dy,
@@ -1210,8 +1217,8 @@ document.getElementById('stripShadowColor').addEventListener('input',  e => { st
 document.getElementById('resetPositions').addEventListener('click', () => {
   state.adj = {
     leftLogo:  { dx: 0, dy: 0, scale: 100 }, rightLogo: { dx: 0, dy: 0, scale: 100 },
-    leftName:  { dx: 0, dy: 0 }, leftNick:  { dx: 0, dy: 0 },
-    rightName: { dx: 0, dy: 0 }, rightNick: { dx: 0, dy: 0 },
+    leftName:  { dx: 0, dy: 0 }, leftNick:  { dx: 0, dy: 0, scale: 100 },
+    rightName: { dx: 0, dy: 0 }, rightNick: { dx: 0, dy: 0, scale: 100 },
     leftBlock:  { dx: 0, dy: 0, sw: 100, sh: 100 },
     rightBlock: { dx: 0, dy: 0, sw: 100, sh: 100 },
     leftKo:    { dx: 0, dy: 0 }, rightKo:   { dx: 0, dy: 0 },
