@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CUSA Matchup &amp; Final Score Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;700&display=swap">
+<style>
+@font-face{font-family:'Proxima Nova';font-weight:400;src:url('fonts/ProximaNovaRegular.woff') format('woff'),url('fonts/ProximaNovaRegular.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:700;src:url('fonts/ProximaNovaBold.woff') format('woff'),url('fonts/ProximaNovaBold.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:900;src:url('fonts/ProximaNovaBlack.woff') format('woff'),url('fonts/ProximaNovaBlack.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Gazzetta ExtraBold';src:url('fonts/gazzetta-extrabold.otf') format('opentype');font-display:swap}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Barlow',sans-serif;background:#060f1a;color:#fff}
+body{display:flex;flex-direction:column;overflow:hidden}
+/* Embedded mode (?embedded=1) — hide ONLY the duplicate chrome (topbar +
+   inner tab strip) when matchup.html is loaded inside Campus Insider's
+   iframe. The Admin Portal panel + canvas stay so the operator can still
+   edit from inside the Campus Insider tab. */
+body.embedded .topbar,
+body.embedded .tabs{display:none !important}
+
+.topbar{width:100%;background:#0a1624;border-bottom:2px solid rgba(235,25,70,0.5);display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:54px;flex-shrink:0;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.topbar-logo{height:30px;width:auto;display:block;filter:drop-shadow(0 2px 12px rgba(235,25,70,0.25))}
+.topbar-sep{width:1px;height:22px;background:rgba(255,255,255,0.2)}
+.topbar-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:2px;color:#fff}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-status{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.5)}
+.topbar-status.error{color:#ff6f8b}
+.back{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.6);text-decoration:none;border:1px solid rgba(255,255,255,0.18);padding:7px 12px;border-radius:4px}
+.back:hover{color:#fff;border-color:rgba(235,25,70,0.6)}
+
+.tabs{width:100%;background:rgba(10,22,36,0.9);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;gap:0;padding:0 12px;flex-shrink:0}
+.tab{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.45);text-transform:uppercase;background:transparent;border:none;padding:11px 18px;cursor:pointer;border-bottom:2px solid transparent;text-decoration:none}
+.tab:hover{color:rgba(255,255,255,0.75)}
+.tab.active{color:#fff;border-bottom-color:#EB1946}
+
+.main{display:flex;width:100%;gap:14px;padding:12px;flex:1;min-height:0;overflow:hidden}
+
+.panel{background:#0e1d2e;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:14px;width:340px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;height:100%}
+.panel-head{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid rgba(235,25,70,0.18)}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.55);text-transform:uppercase}
+.field input[type=text],.field input[type=number],.field select{font-family:'Barlow',sans-serif;font-size:13px;background:#0a1624;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:8px 10px;width:100%}
+.field input[type=text]:focus,.field input[type=number]:focus,.field select:focus{outline:none;border-color:#EB1946}
+.field input[type=range]{width:100%;accent-color:#EB1946}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.team-card{border:1px solid rgba(235,25,70,0.18);border-radius:6px;padding:10px 11px;background:rgba(235,25,70,0.04);display:flex;flex-direction:column;gap:8px}
+.team-card-title{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase}
+.nudge-readout{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(235,25,70,0.85);margin-left:6px}
+
+.btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:#fff;background:#EB1946;border:none;padding:11px 16px;border-radius:4px;cursor:pointer;text-transform:uppercase;width:100%}
+.btn:hover{background:#c91240}
+.btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.25)}
+.btn.secondary:hover{background:rgba(255,255,255,0.06)}
+.panel-spacer{flex:1}
+
+.canvas-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:0;height:100%;padding:8px}
+.canvas-wrap{position:relative;border-radius:4px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.85);width:100%;max-width:1200px;background:#000}
+.canvas-wrap canvas{display:block;width:100%;height:auto}
+.preview-meta{margin-top:10px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-align:center}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" aria-label="CUSA Creative Hub"><img class="topbar-logo" src="assets/cusa-primary-white.png" alt="Conference USA"></a>
+    <div class="topbar-sep"></div>
+    <div class="topbar-title">FINAL SCORE</div>
+  </div>
+  <div class="topbar-right">
+    <div id="topStatus" class="topbar-status"></div>
+    <a class="back" href="index.html">← HUB</a>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active">Matchup &amp; Final Score</button>
+</div>
+
+<div class="main">
+
+  <!-- Left controls — Admin Portal -->
+  <div class="panel" id="panel">
+
+    <div class="panel-head">Admin Portal · Final Score</div>
+
+    <div class="team-card">
+      <div class="team-card-title">ESPN · Auto-fill from a CUSA game</div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label" for="espnSport">Sport</label>
+          <select id="espnSport">
+            <option value="basketball/mens-college-basketball">Men's Basketball</option>
+            <option value="basketball/womens-college-basketball">Women's Basketball</option>
+            <option value="football/college-football">Football</option>
+            <option value="baseball/college-baseball">Baseball</option>
+            <option value="softball/college-softball">Softball</option>
+          </select>
+        </div>
+        <div class="field"><label class="field-label" for="espnDate">Date</label><input id="espnDate" type="date"></div>
+      </div>
+      <button class="btn secondary" id="espnFetch" style="font-size:11px;padding:9px 12px">🔄 Fetch CUSA games</button>
+      <div class="field" style="margin-top:6px"><label class="field-label" for="espnGame">Pick a game</label><select id="espnGame"><option value="">— fetch first —</option></select></div>
+      <div id="espnStatus" style="font-size:10px;color:rgba(255,255,255,0.45);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Left Team</div>
+      <div class="field">
+        <label class="field-label" for="leftSchool">School</label>
+        <select id="leftSchool"></select>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Right Team</div>
+      <div class="field">
+        <label class="field-label" for="rightSchool">School</label>
+        <select id="rightSchool"></select>
+      </div>
+    </div>
+
+    <div class="panel-head" style="margin-top:6px">Final Score</div>
+    <div class="row-2">
+      <div class="field"><label class="field-label">Left Score</label><input id="leftScoreText" type="text" maxlength="4" value="0"></div>
+      <div class="field"><label class="field-label">Right Score</label><input id="rightScoreText" type="text" maxlength="4" value="0"></div>
+    </div>
+    <div class="row-2">
+      <div class="field"><label class="field-label">FINAL Label</label><input id="finalText" type="text" maxlength="10" value="FINAL"></div>
+      <div class="field">
+        <label class="field-label" for="winnerDir">Winner Arrow</label>
+        <select id="winnerDir">
+          <option value="auto">Auto (by score)</option>
+          <option value="left">Point Left</option>
+          <option value="right">Point Right</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn secondary" id="toggleAdvanced" style="font-size:11px;padding:9px 12px;margin-top:6px">✏️ Edit · Show Advanced Controls</button>
+
+    <div id="advancedControls" style="display:none;flex-direction:column;gap:12px">
+    <div class="panel-head" style="margin-top:6px">Position Tuning <span style="font-weight:600;color:rgba(255,255,255,0.35);letter-spacing:1px">· auto-saved</span></div>
+    <div class="team-card">
+      <div class="team-card-title">Logo Boxes</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Left X <span class="nudge-readout" id="leftLogoDxR">0px</span></label><input id="leftLogoDx" type="range" min="-300" max="300" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Left Y <span class="nudge-readout" id="leftLogoDyR">0px</span></label><input id="leftLogoDy" type="range" min="-60" max="60" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Right X <span class="nudge-readout" id="rightLogoDxR">0px</span></label><input id="rightLogoDx" type="range" min="-300" max="300" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Right Y <span class="nudge-readout" id="rightLogoDyR">0px</span></label><input id="rightLogoDy" type="range" min="-60" max="60" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Left Size <span class="nudge-readout" id="leftLogoScaleR">100%</span></label><input id="leftLogoScale" type="range" min="30" max="200" step="1" value="100"></div>
+        <div class="field"><label class="field-label">Right Size <span class="nudge-readout" id="rightLogoScaleR">100%</span></label><input id="rightLogoScale" type="range" min="30" max="200" step="1" value="100"></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Text · Left</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Name X <span class="nudge-readout" id="leftNameDxR">0px</span></label><input id="leftNameDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Name Y <span class="nudge-readout" id="leftNameDyR">0px</span></label><input id="leftNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="leftNickDxR">0px</span></label><input id="leftNickDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Nick Y <span class="nudge-readout" id="leftNickDyR">0px</span></label><input id="leftNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="field"><label class="field-label">Nick Size <span class="nudge-readout" id="leftNickScaleR">100%</span></label><input id="leftNickScale" type="range" min="40" max="160" step="1" value="100"></div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Text · Right</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Name X <span class="nudge-readout" id="rightNameDxR">0px</span></label><input id="rightNameDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Name Y <span class="nudge-readout" id="rightNameDyR">0px</span></label><input id="rightNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="rightNickDxR">0px</span></label><input id="rightNickDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Nick Y <span class="nudge-readout" id="rightNickDyR">0px</span></label><input id="rightNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="field"><label class="field-label">Nick Size <span class="nudge-readout" id="rightNickScaleR">100%</span></label><input id="rightNickScale" type="range" min="40" max="160" step="1" value="100"></div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Custom Texture</div>
+      <div class="field">
+        <label class="upload-zone" id="textureZone" style="padding:14px">
+          <input type="file" accept="image/*" onchange="onTextureUpload(event)" style="display:none">
+          <span id="textureZoneText">+ Upload texture image</span>
+        </label>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label" for="textureBlend">Blend Mode</label>
+          <select id="textureBlend"></select>
+        </div>
+        <div class="field">
+          <label class="field-label">Opacity <span class="nudge-readout" id="textureOpacityR">60%</span></label>
+          <input id="textureOpacity" type="range" min="0" max="100" step="1" value="60">
+        </div>
+      </div>
+      <button class="btn secondary" id="clearTextureBtn" style="font-size:10px;padding:6px 10px">Clear texture</button>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Knockout Texture (per side)</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="koOpacityR">22%</span></label><input id="koOpacity" type="range" min="0" max="100" step="1" value="22"></div>
+        <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="koScaleR">130%</span></label><input id="koScale" type="range" min="40" max="500" step="5" value="130"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Left X <span class="nudge-readout" id="leftKoDxR">0px</span></label><input id="leftKoDx" type="range" min="-400" max="400" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Left Y <span class="nudge-readout" id="leftKoDyR">0px</span></label><input id="leftKoDy" type="range" min="-200" max="200" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Right X <span class="nudge-readout" id="rightKoDxR">0px</span></label><input id="rightKoDx" type="range" min="-400" max="400" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Right Y <span class="nudge-readout" id="rightKoDyR">0px</span></label><input id="rightKoDy" type="range" min="-200" max="200" step="1" value="0"></div>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Color Block · Left</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="leftBlockDxR">0px</span></label><input id="leftBlockDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="leftBlockDyR">0px</span></label><input id="leftBlockDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="leftBlockSWR">100%</span></label><input id="leftBlockSW" type="range" min="40" max="180" step="1" value="100"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="leftBlockSHR">100%</span></label><input id="leftBlockSH" type="range" min="40" max="160" step="1" value="100"></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Color Block · Right</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="rightBlockDxR">0px</span></label><input id="rightBlockDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="rightBlockDyR">0px</span></label><input id="rightBlockDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="rightBlockSWR">100%</span></label><input id="rightBlockSW" type="range" min="40" max="180" step="1" value="100"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightBlockSHR">100%</span></label><input id="rightBlockSH" type="range" min="40" max="160" step="1" value="100"></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Logo Square · Left</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="leftSqDxR">0px</span></label><input id="leftSqDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="leftSqDyR">0px</span></label><input id="leftSqDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="leftSqWR">76px</span></label><input id="leftSqW" type="range" min="0" max="220" step="1" value="76"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="leftSqHR">67px</span></label><input id="leftSqH" type="range" min="0" max="135" step="1" value="67"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="leftSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+        <div class="field"><label class="field-label" for="leftSqBlend">Blend</label><select id="leftSqBlend"></select></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Logo Square · Right</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="rightSqDxR">0px</span></label><input id="rightSqDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="rightSqDyR">0px</span></label><input id="rightSqDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="rightSqWR">76px</span></label><input id="rightSqW" type="range" min="0" max="220" step="1" value="76"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightSqHR">67px</span></label><input id="rightSqH" type="range" min="0" max="135" step="1" value="67"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="rightSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+        <div class="field"><label class="field-label" for="rightSqBlend">Blend</label><select id="rightSqBlend"></select></div>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Drop Shadow (name + nickname)</div>
+      <div class="row-2">
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="leftShadow" checked style="width:auto;margin:0">
+          <label class="field-label" for="leftShadow" style="margin:0">Left side on</label>
+        </div>
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="rightShadow" checked style="width:auto;margin:0">
+          <label class="field-label" for="rightShadow" style="margin:0">Right side on</label>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="shadowDxR">2px</span></label><input id="shadowDx" type="range" min="-10" max="10" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="shadowDyR">2px</span></label><input id="shadowDy" type="range" min="-10" max="10" step="1" value="2"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="shadowBlurR">3px</span></label><input id="shadowBlur" type="range" min="0" max="20" step="1" value="3"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="shadowAlphaR">60%</span></label><input id="shadowAlpha" type="range" min="0" max="100" step="1" value="60"></div>
+      </div>
+      <div class="field"><label class="field-label">Color</label><input id="shadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Team Logo Shadow</div>
+      <div class="row-2">
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="leftLogoShadow" checked style="width:auto;margin:0">
+          <label class="field-label" for="leftLogoShadow" style="margin:0">Left on</label>
+        </div>
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="rightLogoShadow" checked style="width:auto;margin:0">
+          <label class="field-label" for="rightLogoShadow" style="margin:0">Right on</label>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="logoShadowDxR">2px</span></label><input id="logoShadowDx" type="range" min="-10" max="10" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="logoShadowDyR">2px</span></label><input id="logoShadowDy" type="range" min="-10" max="10" step="1" value="2"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="logoShadowBlurR">4px</span></label><input id="logoShadowBlur" type="range" min="0" max="20" step="1" value="4"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="logoShadowAlphaR">50%</span></label><input id="logoShadowAlpha" type="range" min="0" max="100" step="1" value="50"></div>
+      </div>
+      <div class="field"><label class="field-label">Color</label><input id="logoShadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Knockout Logo Shadow</div>
+      <div class="row-2">
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="leftKoShadow" style="width:auto;margin:0">
+          <label class="field-label" for="leftKoShadow" style="margin:0">Left on</label>
+        </div>
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="rightKoShadow" style="width:auto;margin:0">
+          <label class="field-label" for="rightKoShadow" style="margin:0">Right on</label>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="koShadowDxR">2px</span></label><input id="koShadowDx" type="range" min="-10" max="10" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="koShadowDyR">2px</span></label><input id="koShadowDy" type="range" min="-10" max="10" step="1" value="2"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="koShadowBlurR">4px</span></label><input id="koShadowBlur" type="range" min="0" max="20" step="1" value="4"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="koShadowAlphaR">60%</span></label><input id="koShadowAlpha" type="range" min="0" max="100" step="1" value="60"></div>
+      </div>
+      <div class="field"><label class="field-label">Color</label><input id="koShadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Date / Time / Network Shadow</div>
+      <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+        <input type="checkbox" id="stripShadowOn" style="width:auto;margin:0">
+        <label class="field-label" for="stripShadowOn" style="margin:0">Strip shadow on</label>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="stripShadowDxR">1px</span></label><input id="stripShadowDx" type="range" min="-10" max="10" step="1" value="1"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="stripShadowDyR">1px</span></label><input id="stripShadowDy" type="range" min="-10" max="10" step="1" value="1"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="stripShadowBlurR">2px</span></label><input id="stripShadowBlur" type="range" min="0" max="20" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="stripShadowAlphaR">60%</span></label><input id="stripShadowAlpha" type="range" min="0" max="100" step="1" value="60"></div>
+      </div>
+      <div class="field"><label class="field-label">Color</label><input id="stripShadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">FINAL Label · group</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Group X <span class="nudge-readout" id="stripDxR">0px</span></label><input id="stripDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Group Y <span class="nudge-readout" id="stripDyR">0px</span></label><input id="stripDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Winner Arrow</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="arrowDxR">0px</span></label><input id="arrowDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="arrowDyR">0px</span></label><input id="arrowDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="field"><label class="field-label">Size <span class="nudge-readout" id="arrowSizeR">14px</span></label><input id="arrowSize" type="range" min="6" max="40" step="1" value="14"></div>
+      <div class="field"><label class="field-label">Color</label><input id="arrowColor" type="color" value="#0A254E" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Preview Background</div>
+      <div class="field" style="font-size:9px;color:rgba(255,255,255,0.45);font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;text-transform:uppercase">
+        Editor only — not baked into the downloaded PNG.
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="previewBg" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+        <div class="field" style="display:flex;gap:6px;flex-direction:row;flex-wrap:wrap;align-items:flex-end">
+          <button class="btn secondary" id="bgPresetBlack" style="font-size:9px;padding:4px 8px;width:auto">Black</button>
+          <button class="btn secondary" id="bgPresetWhite" style="font-size:9px;padding:4px 8px;width:auto">White</button>
+          <button class="btn secondary" id="bgPresetNavy"  style="font-size:9px;padding:4px 8px;width:auto">Navy</button>
+        </div>
+      </div>
+    </div>
+    <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
+    </div><!-- /#advancedControls -->
+
+    <div class="panel-spacer"></div>
+    <button class="btn" id="download">Download PNG</button>
+  </div>
+
+  <!-- Center preview -->
+  <div class="canvas-area">
+    <div class="canvas-wrap">
+      <canvas id="cvs" width="1080" height="135"></canvas>
+    </div>
+    <div class="preview-meta">1080 × 135  ·  Final Score Row</div>
+  </div>
+
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────
+const ASSET_DIR_TEMPLATE = 'matchup/template/';
+const ASSET_DIR_PRIMARY  = 'matchup/primary/';
+const ASSET_DIR_KO       = 'matchup/knockouts/';
+
+// School list — loaded asynchronously from matchup/schools.json (generated
+// from IMS_Color_Mapping.xlsx). Each entry: { name, tricode, mascot,
+// primary, ko, swatch, espn }. Until the fetch completes we fall back to
+// this CUSA-only seed so the page renders something on first paint.
+const SCHOOLS_FALLBACK = [
+  { name: 'Liberty',           tricode: 'LIB',  mascot: 'Flames',        primary: 'LIBERTY.PNG',          ko: 'LIBERTY.PNG',          swatch: '#0A254E', espn: '#0a254e' },
+  { name: 'Middle Tennessee',  tricode: 'MTSU', mascot: 'Blue Raiders',  primary: 'MIDDLE_TENNESSEE.PNG', ko: 'MIDDLE_TENNESSEE.PNG', swatch: '#036EB7', espn: '#036eb7' },
+];
+let SCHOOLS = SCHOOLS_FALLBACK.slice();
+
+// Resolve a school's primary color (fall back through swatch → espn → gray).
+function schoolColor(s){
+  if (!s) return '#666666';
+  const sw = (s.swatch || '').trim();
+  if (sw && sw !== 'N/A' && sw !== 'None' && /^#?[0-9a-f]+/i.test(sw)) return sw[0] === '#' ? sw : '#' + sw;
+  const ep = (s.espn || '').trim();
+  if (ep && /^#?[0-9a-f]+/i.test(ep)) return ep[0] === '#' ? ep : '#' + ep;
+  return '#666666';
+}
+// Resolve a school's secondary color (ESPN Alt). Falls back to primary so the
+// logo-square is never invisible if a school is missing the alt swatch.
+function schoolSecondaryColor(s){
+  if (!s) return schoolColor(s);
+  const sec = (s.secondary || '').trim();
+  if (sec && /^#?[0-9a-f]+/i.test(sec)) return sec[0] === '#' ? sec : '#' + sec;
+  return schoolColor(s);
+}
+// Display nickname (uppercase mascot, fall back to school short tail).
+function schoolNickname(s){
+  if (!s) return '';
+  if (s.mascot) return s.mascot.toUpperCase();
+  // Fall back to last word of school name (e.g. "State" or the school's short)
+  const parts = (s.name || '').split(/\s+/);
+  return (parts[parts.length - 1] || '').toUpperCase();
+}
+
+// Layer assets — Image #10 (Empty Matchup Template) is gone; the team color
+// blocks alone now provide the matchup background. Image #11 (the gradient
+// overlay with logo box outlines + AT badge + Date/Time/Network pill strip)
+// becomes the top fixture layer; the operator-controlled "logo squares"
+// draw on top of #11's logo boxes to recolor them per-team.
+const LAYERS = {
+  gradientOverlay: ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Gradient Overlay - Small Logo Placeholders - At, Date, Network Placeholder.png',
+};
+
+// Canvas-supported blend modes. The empty matchup template can be rendered
+// with any of these so the operator can pick how the template's gradient +
+// logo-box edges interact with the team colors underneath.
+const BLEND_MODES = [
+  { value: 'source-over', label: 'Normal' },
+  { value: 'overlay',     label: 'Overlay' },
+  { value: 'soft-light',  label: 'Soft Light' },
+  { value: 'hard-light',  label: 'Hard Light' },
+  { value: 'multiply',    label: 'Multiply' },
+  { value: 'screen',      label: 'Screen' },
+  { value: 'darken',      label: 'Darken' },
+  { value: 'lighten',     label: 'Lighten' },
+  { value: 'color-dodge', label: 'Color Dodge' },
+  { value: 'color-burn',  label: 'Color Burn' },
+  { value: 'difference',  label: 'Difference' },
+  { value: 'exclusion',   label: 'Exclusion' },
+  { value: 'hue',         label: 'Hue' },
+  { value: 'saturation',  label: 'Saturation' },
+  { value: 'color',       label: 'Color' },
+  { value: 'luminosity',  label: 'Luminosity' },
+];
+
+// Geometry — measured from the empty template (1080×135).
+// Logo boxes appear at the far edges; the colored matchup bar runs across
+// the middle. The "AT" badge + date/time/network strip sit centered.
+const CANVAS_W = 1080;
+const CANVAS_H = 135;
+const LOGO_BOX = { w: 100, h: 100, leftX: 14, rightX: 1080 - 14 - 100, y: 10 };  // logo box positions
+const BAR     = { x: 60, y: 10, w: 1080 - 120, h: 95, mid: 540 };                 // colored bar bounds + center split
+const NAME_FS = 14;    // Proxima Nova Bold (700) for school name
+const NICK_FS = 52;    // Proxima Nova Bold (700) for nickname
+const NAME_CY = 38;    // small label near top of bar
+const NICK_CY = 78;    // big nickname mid-bar
+// Each side's text anchor LOCKS to the divider lines in the strip's
+// Date/Time/Network pill so school names of any length stay aligned with
+// the template — measured directly from the gradient overlay PNG:
+//   - Date / Time divider:  x = 512  → left team text right-aligned here
+//   - Time / Network divider: x = 571 → right team text left-aligned here
+// Both name AND nickname share the same anchor for each side.
+const LEFT_TEXT_X  = 512;
+const RIGHT_TEXT_X = 571;
+
+// ─── State ────────────────────────────────────────────────────────────────
+const state = {
+  left:  { school: 'Liberty',          primaryImg: null, koImg: null },
+  right: { school: 'Middle Tennessee', primaryImg: null, koImg: null },
+  // Final-score variant: scores in the corner boxes, FINAL label centered,
+  // and an arrow pointing toward the winner (auto from scores by default).
+  leftScore:  '0',
+  rightScore: '0',
+  finalLabel: 'FINAL',
+  winnerDir:  'auto',  // 'auto' | 'left' | 'right' | 'off'
+  espn: { sport: 'basketball/mens-college-basketball', date: '', eventId: '' },
+  layerImgs: {},
+  adj: {
+    leftLogo:  { dx: 0, dy: 0, scale: 100 },
+    rightLogo: { dx: 0, dy: 0, scale: 100 },
+    leftName:  { dx: 0, dy: 0 },
+    leftNick:  { dx: 0, dy: 0, scale: 100 },
+    rightName: { dx: 0, dy: 0 },
+    rightNick: { dx: 0, dy: 0, scale: 100 },
+    // Per-side color block: dx/dy nudge + width/height % scale around its
+    // own anchor (left block grows right; right block grows left).
+    leftBlock:  { dx: 0, dy: 0, sw: 100, sh: 100 },
+    rightBlock: { dx: 0, dy: 0, sw: 100, sh: 100 },
+    // Per-side knockout dx/dy nudge — independent positioning so each
+    // school's mascot can sit where it looks best in its half.
+    leftKo:    { dx: 0, dy: 0 },
+    rightKo:   { dx: 0, dy: 0 },
+    koOpacity: 22,
+    koScale:   130,
+    // Custom uploaded texture (data URL persisted separately) — overlay over
+    // the team color boxes with operator-selected blend + opacity.
+    textureBlend:   'overlay',
+    textureOpacity: 60,
+    // Per-side logo squares — independent dx/dy/size/color/blend. Default
+    // color comes from the school primary; default blend = overlay.
+    leftSquare:  { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    rightSquare: { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    // Drop shadow shared by name + nickname text (per-side toggle).
+    leftShadow:  true,
+    rightShadow: true,
+    shadowDx:     2,
+    shadowDy:     2,
+    shadowBlur:   3,
+    shadowColor: '#000000',
+    shadowAlpha:  60,
+    // Drop shadow for the school primary logos in the corner boxes.
+    logoShadow: {
+      leftOn: true, rightOn: true,
+      dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 50,
+    },
+    // Drop shadow for the knockout (mascot) textures inside the color blocks.
+    // Rendered via a two-pass technique because the KO uses screen blend, and
+    // a screen-blended shadow would be invisible.
+    koShadow: {
+      leftOn: false, rightOn: false,
+      dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 60,
+    },
+    // Drop shadow for the Date / Time / Network strip text.
+    stripShadow: {
+      on: false,
+      dx: 1, dy: 1, blur: 2, color: '#000000', alpha: 60,
+    },
+    // Date / Time / Network strip text — group X/Y nudge applied to all 3,
+    // PLUS per-element X/Y offsets so each can move independently.
+    stripDx: 0,
+    stripDy: 0,
+    arrow: { dx: 0, dy: 0, size: 14, color: '#0A254E' },
+  },
+  // Preview background (color shown BEHIND the matchup row in the editor —
+  // not baked into the exported PNG). Lets the operator preview how the
+  // matchup row reads on different platform backgrounds.
+  previewBg: '#000000',
+  texture: null,      // data URL of uploaded texture, if any
+  textureImg: null,   // decoded Image instance
+};
+
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+const topStatus = document.getElementById('topStatus');
+function setStatus(msg, isErr){
+  topStatus.textContent = msg || '';
+  topStatus.classList.toggle('error', !!isErr);
+}
+
+// ─── Image loading ────────────────────────────────────────────────────────
+const imgCache = new Map();
+function loadImage(src){
+  if (imgCache.has(src)) return imgCache.get(src);
+  const p = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload  = () => resolve(img);
+    img.onerror = () => reject(new Error('Image load failed: ' + src));
+    img.src = src;
+  });
+  imgCache.set(src, p);
+  return p;
+}
+async function ensureLayer(key){
+  if (state.layerImgs[key]) return state.layerImgs[key];
+  state.layerImgs[key] = await loadImage(encodeURI(LAYERS[key]));
+  return state.layerImgs[key];
+}
+async function ensureSchoolImages(side){
+  const sObj = state[side];
+  const conf = SCHOOLS.find(s => s.name ===sObj.school);
+  if (!conf) { sObj.primaryImg = null; sObj.koImg = null; return; }
+  try { sObj.primaryImg = await loadImage(encodeURI(ASSET_DIR_PRIMARY + conf.primary)); }
+  catch (_) { sObj.primaryImg = null; setStatus('Could not load primary for ' + sObj.school, true); }
+  try { sObj.koImg = await loadImage(encodeURI(ASSET_DIR_KO + conf.ko)); }
+  catch (_) { sObj.koImg = null; }
+}
+
+// ─── Render helpers ───────────────────────────────────────────────────────
+// Cover-fit: scale image to fill (w,h) preserving aspect, cropping overflow.
+// scale (percent, default 100) lets the operator grow or shrink the rendered
+// logo around its centered anchor without changing the box position.
+function drawContainFit(img, x, y, w, h, dx, dy, scale){
+  const ar = img.naturalWidth / img.naturalHeight;
+  const tar = w / h;
+  let dw, dh, ox, oy;
+  if (ar > tar) { dw = w; dh = w / ar; }
+  else          { dh = h; dw = h * ar; }
+  const s = (scale ?? 100) / 100;
+  dw *= s; dh *= s;
+  ox = x + (w - dw) / 2 + (dx || 0);
+  oy = y + (h - dh) / 2 + (dy || 0);
+  ctx.drawImage(img, ox, oy, dw, dh);
+}
+
+async function draw(forExport = false){
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Preview background — fills the canvas BEHIND everything so the operator
+  // can preview how the matchup reads against different platform backgrounds.
+  // Skipped when exporting so the PNG keeps any transparent corners.
+  if (!forExport && state.previewBg) {
+    ctx.fillStyle = state.previewBg;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
+
+  const leftConf  = SCHOOLS.find(s => s.name ===state.left.school);
+  const rightConf = SCHOOLS.find(s => s.name ===state.right.school);
+
+  // 1. Team-color blocks (BG fill — lives BEHIND the template). Each side has
+  //    its own X/Y nudge + width/height % so the operator can stretch or
+  //    reposition the colored area independently.
+  const leftBaseW  = BAR.mid - BAR.x;
+  const rightBaseW = BAR.x + BAR.w - BAR.mid;
+  const lb = state.adj.leftBlock;
+  const rb = state.adj.rightBlock;
+  const lW = leftBaseW * (lb.sw / 100);
+  const lH = BAR.h     * (lb.sh / 100);
+  const rW = rightBaseW * (rb.sw / 100);
+  const rH = BAR.h      * (rb.sh / 100);
+  if (leftConf)  { ctx.fillStyle = schoolColor(leftConf);  ctx.fillRect(BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH); }
+  if (rightConf) { ctx.fillStyle = schoolColor(rightConf); ctx.fillRect(BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH); }
+
+  // 2. Knockout texture per side — clipped to the (possibly-resized) block.
+  const koAlpha = state.adj.koOpacity / 100;
+  const koScale = state.adj.koScale / 100;
+  const koSh = state.adj.koShadow || {};
+  if (state.left.koImg)  drawKoTexture(state.left.koImg,  BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH, koAlpha, koScale, 'left',  state.adj.leftKo,  koSh.leftOn  ? koSh : null);
+  if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH, koAlpha, koScale, 'right', state.adj.rightKo, koSh.rightOn ? koSh : null);
+
+  // 3. Custom user-uploaded texture — overlay over the team color boxes,
+  //    operator-selected blend mode + opacity. Clipped to the bar bounds
+  //    so it doesn't bleed past the colored area.
+  if (state.textureImg) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(BAR.x, BAR.y, BAR.w, BAR.h);
+    ctx.clip();
+    ctx.globalCompositeOperation = state.adj.textureBlend || 'overlay';
+    ctx.globalAlpha = (state.adj.textureOpacity ?? 60) / 100;
+    // Stretch texture to fill the bar area
+    ctx.drawImage(state.textureImg, BAR.x, BAR.y, BAR.w, BAR.h);
+    ctx.restore();
+  }
+
+  // 4. Image #11 — Gradient overlay (logo box edges + AT badge + Date/Time/
+  //    Network pill strip). Drawn opaque on top of color blocks + texture.
+  let overlayImg;
+  try { overlayImg = await ensureLayer('gradientOverlay'); } catch (_) {}
+  if (overlayImg) ctx.drawImage(overlayImg, 0, 0, CANVAS_W, CANVAS_H);
+
+  // 5. Per-side logo squares — recolor / resize / reposition the logo box
+  //    backdrops with the operator's choice. Default color = school primary,
+  //    blend mode = overlay (so the box keeps the depth from Image #11).
+  drawLogoSquare(LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftSquare,  schoolSecondaryColor(leftConf));
+  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightSquare, schoolSecondaryColor(rightConf));
+
+  // 6. SCORES replace the school primary logos in the corner boxes.
+  //    Drawn with the leftLogo / rightLogo position + scale state so the
+  //    operator can nudge them like the original logos.
+  const ls = state.adj.logoShadow || {};
+  drawScoreText(state.leftScore,  LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftLogo,  ls, ls.leftOn);
+  drawScoreText(state.rightScore, LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightLogo, ls, ls.rightOn);
+
+  // 7. Text — school name + nickname per side, with optional drop shadow.
+  ctx.textBaseline = 'middle';
+  if (leftConf) {
+    drawSideText(leftConf, LEFT_TEXT_X, state.adj.leftName, state.adj.leftNick, !!state.adj.leftShadow, 'right');
+  }
+  if (rightConf) {
+    drawSideText(rightConf, RIGHT_TEXT_X, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow, 'left');
+  }
+
+  // 8. Strip — single centered FINAL label (replaces Date / Time / Network).
+  //    Plus a winner arrow pointing toward the higher-scoring side.
+  const sx = state.adj.stripDx || 0;
+  const sy = state.adj.stripDy || 0;
+  const ss = state.adj.stripShadow || {};
+  ctx.save();
+  if (ss.on) applyShadowFrom(ss);
+  ctx.fillStyle = '#0A254E';
+  ctx.textAlign = 'center';
+  ctx.font = `700 11px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText(state.finalLabel || 'FINAL', 540 + sx, 120 + sy);
+  ctx.restore();
+
+  // Winner arrow — auto from scores (left/right), or operator override.
+  const dir = resolveWinnerDir();
+  if (dir === 'left' || dir === 'right') {
+    drawWinnerArrow(dir, state.adj.arrow || {});
+  }
+}
+
+function applyShadow(){
+  ctx.shadowColor   = hexToRgba(state.adj.shadowColor || '#000000', (state.adj.shadowAlpha ?? 60) / 100);
+  ctx.shadowBlur    = state.adj.shadowBlur ?? 3;
+  ctx.shadowOffsetX = state.adj.shadowDx   ?? 2;
+  ctx.shadowOffsetY = state.adj.shadowDy   ?? 2;
+}
+// Generic version that takes any { dx, dy, blur, color, alpha } config — used
+// for the team-logo and strip-text shadows so each can have independent values.
+function applyShadowFrom(cfg){
+  ctx.shadowColor   = hexToRgba(cfg.color || '#000000', (cfg.alpha ?? 60) / 100);
+  ctx.shadowBlur    = cfg.blur ?? 3;
+  ctx.shadowOffsetX = cfg.dx   ?? 2;
+  ctx.shadowOffsetY = cfg.dy   ?? 2;
+}
+function clearShadow(){
+  ctx.shadowColor = 'rgba(0,0,0,0)';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+}
+function hexToRgba(hex, a){
+  const m = /^#([0-9a-f]{6})$/i.exec(hex || '#000000');
+  if (!m) return `rgba(0,0,0,${a})`;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+function drawSideText(conf, anchorX, nameAdj, nickAdj, shadowOn, align){
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = align || 'center';
+  if (shadowOn) applyShadow(); else clearShadow();
+  // Both name AND nickname share the same anchor so they line up vertically.
+  // Anchor is the strip divider line for the team's side.
+  ctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText((conf.name || '').toUpperCase(), anchorX + nameAdj.dx, NAME_CY + nameAdj.dy);
+  const nickFs = Math.round(NICK_FS * ((nickAdj.scale ?? 100) / 100));
+  ctx.font = `700 ${nickFs}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText(schoolNickname(conf), anchorX + nickAdj.dx, NICK_CY + nickAdj.dy);
+  clearShadow();
+}
+
+// Score text in place of the corner school logo. Uses the leftLogo/rightLogo
+// dx/dy/scale state (already wired to existing UI sliders) so the operator
+// nudges scores like they would the original logos.
+function drawScoreText(scoreText, boxX, boxY, logoAdj, shadowCfg, shadowOn){
+  ctx.save();
+  if (shadowOn && shadowCfg) applyShadowFrom(shadowCfg);
+  const baseFs = 86;
+  const fs = Math.round(baseFs * ((logoAdj?.scale ?? 100) / 100));
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${fs}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  const cx = boxX + LOGO_BOX.w / 2 + (logoAdj?.dx || 0);
+  const cy = boxY + LOGO_BOX.h / 2 + (logoAdj?.dy || 0);
+  ctx.fillText(String(scoreText ?? ''), cx, cy);
+  ctx.restore();
+}
+
+// Resolve the winner-arrow direction. 'auto' compares scores; manual values
+// short-circuit. 'off' (or no clear winner in auto) returns null → no arrow.
+function resolveWinnerDir(){
+  const w = state.winnerDir || 'auto';
+  if (w === 'left' || w === 'right' || w === 'off') return w === 'off' ? null : w;
+  const l = parseInt(state.leftScore, 10);
+  const r = parseInt(state.rightScore, 10);
+  if (Number.isFinite(l) && Number.isFinite(r) && l !== r) return l > r ? 'left' : 'right';
+  return null;
+}
+
+// Triangle arrow pointing toward the winner side. Lives in the strip pill
+// area so it reads as a result indicator, not a navigation control.
+function drawWinnerArrow(dir, arrowAdj){
+  const cx = 540 + (arrowAdj.dx || 0);
+  const cy = 120 + (arrowAdj.dy || 0);
+  const w  = (arrowAdj.size ?? 14);
+  const h  = w * 0.9;
+  ctx.save();
+  ctx.fillStyle = arrowAdj.color || '#0A254E';
+  ctx.beginPath();
+  if (dir === 'left') {
+    // Tip points left of the FINAL label — operator can dx-nudge to clear.
+    const tipX = cx - 30;
+    ctx.moveTo(tipX, cy);
+    ctx.lineTo(tipX + w, cy - h / 2);
+    ctx.lineTo(tipX + w, cy + h / 2);
+  } else {
+    const tipX = cx + 30;
+    ctx.moveTo(tipX, cy);
+    ctx.lineTo(tipX - w, cy - h / 2);
+    ctx.lineTo(tipX - w, cy + h / 2);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawLogoSquare(boxX, boxY, sqAdj, defaultColor){
+  // Operator-controlled square: independent dx/dy/w/h/color/blend per side.
+  // Centered on the existing logo box position, scaled around that center.
+  const w = sqAdj.w || 76;
+  const h = sqAdj.h || 67;
+  const cx = boxX + LOGO_BOX.w / 2 + (sqAdj.dx || 0);
+  const cy = boxY + LOGO_BOX.h / 2 + (sqAdj.dy || 0);
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  ctx.save();
+  // Use operator color if explicitly set; else fall back to school primary.
+  ctx.fillStyle = sqAdj.color || defaultColor || '#FFFFFF';
+  ctx.globalCompositeOperation = sqAdj.blend || 'overlay';
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+
+function drawKoTexture(img, x, y, w, h, alpha, scale, side, nudge, shadowCfg){
+  // Knockout logo as a screen-blended texture, clipped to the team's color
+  // block. Per-side dx/dy nudges let the operator place the mascot where it
+  // looks best. Scale is shared (operators usually want symmetric zoom).
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  const targetH = h * scale;
+  const ar = img.naturalWidth / img.naturalHeight;
+  const targetW = targetH * ar;
+  // Anchor: left side biases knockout toward the left; right toward the right
+  const baseOx = side === 'left' ? x + (w - targetW) * 0.25 : x + (w - targetW) * 0.75;
+  const baseOy = y + (h - targetH) / 2;
+  const ox = baseOx + (nudge?.dx || 0);
+  const oy = baseOy + (nudge?.dy || 0);
+
+  // Optional drop shadow. Standard ctx.shadowColor would be invisible since
+  // the KO is screen-blended (black-on-color is a no-op in screen). Two-pass
+  // technique: build a shadow-only bitmap offscreen (image + shadow, then
+  // subtract the image with destination-out), stamp it onto the main canvas
+  // in normal blend, THEN draw the actual KO in screen blend on top.
+  if (shadowCfg) {
+    const blur = shadowCfg.blur ?? 4;
+    const sdx  = shadowCfg.dx   ?? 2;
+    const sdy  = shadowCfg.dy   ?? 2;
+    const padX = Math.ceil(Math.abs(sdx) + blur * 3 + 8);
+    const padY = Math.ceil(Math.abs(sdy) + blur * 3 + 8);
+    const off = document.createElement('canvas');
+    off.width  = Math.ceil(targetW) + padX * 2;
+    off.height = Math.ceil(targetH) + padY * 2;
+    const oc = off.getContext('2d');
+    oc.shadowColor   = hexToRgba(shadowCfg.color || '#000000', (shadowCfg.alpha ?? 60) / 100);
+    oc.shadowBlur    = blur;
+    oc.shadowOffsetX = sdx;
+    oc.shadowOffsetY = sdy;
+    oc.drawImage(img, padX, padY, targetW, targetH);
+    // Subtract the original image so only the offset/blurred shadow remains.
+    oc.shadowColor = 'rgba(0,0,0,0)';
+    oc.shadowBlur = oc.shadowOffsetX = oc.shadowOffsetY = 0;
+    oc.globalCompositeOperation = 'destination-out';
+    oc.drawImage(img, padX, padY, targetW, targetH);
+    ctx.drawImage(off, ox - padX, oy - padY);
+  }
+
+  ctx.globalAlpha = alpha;
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(img, ox, oy, targetW, targetH);
+  ctx.restore();
+}
+
+// ─── Persistence ──────────────────────────────────────────────────────────
+const STATE_KEY = 'cusa_matchup_final_v1';
+function persistState(){
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      left:       { school: state.left.school },
+      right:      { school: state.right.school },
+      leftScore:  state.leftScore,
+      rightScore: state.rightScore,
+      finalLabel: state.finalLabel,
+      winnerDir:  state.winnerDir,
+      espn:       state.espn,
+      adj:        state.adj,
+      previewBg:  state.previewBg,
+    }));
+  } catch (_) {}
+}
+function restoreState(){
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.left?.school)  state.left.school = s.left.school;
+    if (s.right?.school) state.right.school = s.right.school;
+    if (typeof s.leftScore  === 'string') state.leftScore  = s.leftScore;
+    if (typeof s.rightScore === 'string') state.rightScore = s.rightScore;
+    if (typeof s.finalLabel === 'string') state.finalLabel = s.finalLabel;
+    if (typeof s.winnerDir  === 'string') state.winnerDir  = s.winnerDir;
+    if (s.espn && typeof s.espn === 'object') Object.assign(state.espn, s.espn);
+    if (typeof s.previewBg === 'string') state.previewBg = s.previewBg;
+    if (s.adj && typeof s.adj === 'object') {
+      ['leftLogo','rightLogo','leftName','leftNick','rightName','rightNick',
+       'leftBlock','rightBlock','leftKo','rightKo','leftSquare','rightSquare',
+       'arrow',
+       'logoShadow','stripShadow','koShadow'].forEach(k => {
+        if (s.adj[k] && typeof s.adj[k] === 'object' && state.adj[k]) Object.assign(state.adj[k], s.adj[k]);
+      });
+      ['koOpacity','koScale','textureOpacity','shadowDx','shadowDy','shadowBlur','shadowAlpha','stripDx','stripDy'].forEach(k => {
+        if (typeof s.adj[k] === 'number') state.adj[k] = s.adj[k];
+      });
+      ['leftShadow','rightShadow'].forEach(k => {
+        if (typeof s.adj[k] === 'boolean') state.adj[k] = s.adj[k];
+      });
+      if (typeof s.adj.textureBlend === 'string') state.adj.textureBlend = s.adj.textureBlend;
+      if (typeof s.adj.shadowColor  === 'string') state.adj.shadowColor  = s.adj.shadowColor;
+    }
+    // One-time migration: drop legacy persisted square colors so the new
+    // SECONDARY-color default takes effect for existing users. Mark it done
+    // via a flag so subsequent custom picks are honored. Custom picks made
+    // AFTER the migration are persisted normally.
+    if (!localStorage.getItem('cusa_matchup_squarecolor_migrated_v1')) {
+      state.adj.leftSquare.color  = '';
+      state.adj.rightSquare.color = '';
+      try { localStorage.setItem('cusa_matchup_squarecolor_migrated_v1', '1'); } catch (_) {}
+    }
+  } catch (_) {}
+}
+
+// ─── Wire-up ──────────────────────────────────────────────────────────────
+// CUSA full members + key affiliates — these float to the top of the
+// dropdown for fast access. Other D1 schools follow alphabetically.
+const CUSA_PRIORITY_NAMES = new Set([
+  'Liberty','Middle Tennessee','Delaware','FIU','Florida International',
+  'Jacksonville State','Kennesaw State','Louisiana Tech','Missouri State',
+  'New Mexico State','Sam Houston','UTEP','Western Kentucky','Dallas Baptist',
+]);
+
+function populateSchools(){
+  const cusa  = SCHOOLS.filter(s => CUSA_PRIORITY_NAMES.has(s.name));
+  const other = SCHOOLS.filter(s => !CUSA_PRIORITY_NAMES.has(s.name));
+  const cusaOpts  = cusa.map(s => `<option value="${escapeAttr(s.name)}">${escapeAttr(s.name)}${s.tricode ? ' · ' + s.tricode : ''}</option>`).join('');
+  const otherOpts = other.map(s => `<option value="${escapeAttr(s.name)}">${escapeAttr(s.name)}${s.tricode ? ' · ' + s.tricode : ''}</option>`).join('');
+  const sep = '<option disabled>──────────</option>';
+  const html = (cusa.length ? cusaOpts + sep : '') + otherOpts;
+  const lSel = document.getElementById('leftSchool');
+  const rSel = document.getElementById('rightSchool');
+  lSel.innerHTML = html; rSel.innerHTML = html;
+  lSel.value = state.left.school;
+  rSel.value = state.right.school;
+}
+function escapeAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+async function loadSchoolsJson(){
+  try {
+    const r = await fetch('matchup/schools.json', { cache: 'force-cache' });
+    if (!r.ok) throw new Error('schools.json HTTP ' + r.status);
+    const data = await r.json();
+    if (Array.isArray(data) && data.length) {
+      SCHOOLS = data;
+    }
+  } catch (e) {
+    console.warn('Could not load schools.json — falling back to seed list.', e);
+  }
+}
+function populateBlendModes(){
+  const opts = BLEND_MODES.map(b => `<option value="${b.value}">${b.label}</option>`).join('');
+  ['textureBlend', 'leftSqBlend', 'rightSqBlend'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = opts;
+  });
+  document.getElementById('textureBlend').value = state.adj.textureBlend || 'overlay';
+  document.getElementById('leftSqBlend').value  = state.adj.leftSquare.blend  || 'overlay';
+  document.getElementById('rightSqBlend').value = state.adj.rightSquare.blend || 'overlay';
+}
+
+document.getElementById('leftSchool').addEventListener('change', async e => {
+  state.left.school = e.target.value;
+  // Clear any custom logo-square color so the new team's SECONDARY color
+  // takes effect by default (operator can still override via the picker).
+  state.adj.leftSquare.color = '';
+  await ensureSchoolImages('left');
+  syncSlidersFromState();
+  persistState();
+  draw();
+});
+document.getElementById('rightSchool').addEventListener('change', async e => {
+  state.right.school = e.target.value;
+  state.adj.rightSquare.color = '';
+  await ensureSchoolImages('right');
+  syncSlidersFromState();
+  persistState();
+  draw();
+});
+// Score / FINAL label / winner-arrow inputs
+document.getElementById('leftScoreText').addEventListener('input', e => {
+  state.leftScore = e.target.value; persistState(); draw();
+});
+document.getElementById('rightScoreText').addEventListener('input', e => {
+  state.rightScore = e.target.value; persistState(); draw();
+});
+document.getElementById('finalText').addEventListener('input', e => {
+  state.finalLabel = e.target.value; persistState(); draw();
+});
+document.getElementById('winnerDir').addEventListener('change', e => {
+  state.winnerDir = e.target.value; persistState(); draw();
+});
+
+// ESPN game picker
+document.getElementById('espnSport').addEventListener('change', e => {
+  state.espn.sport = e.target.value; persistState();
+});
+document.getElementById('espnDate').addEventListener('change', e => {
+  state.espn.date = e.target.value; persistState();
+});
+document.getElementById('espnFetch').addEventListener('click', fetchEspnGames);
+document.getElementById('espnGame').addEventListener('change', e => {
+  applyEspnGame(e.target.value);
+});
+
+// Build a Set of CUSA tricodes from our schools.json so client-side
+// filtering doesn't depend on per-sport ESPN group IDs.
+function cusaTricodeSet(){
+  return new Set(
+    SCHOOLS
+      .filter(s => CUSA_PRIORITY_NAMES.has(s.name))
+      .map(s => (s.tricode || '').toUpperCase())
+  );
+}
+function setEspnStatus(msg, isErr){
+  const el = document.getElementById('espnStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = isErr ? 'rgba(235,25,70,0.85)' : 'rgba(255,255,255,0.45)';
+}
+let lastEspnEvents = [];
+async function fetchEspnGames(){
+  const sport = document.getElementById('espnSport').value;
+  const dateInput = document.getElementById('espnDate').value;
+  const ymd = dateInput ? dateInput.replace(/-/g, '') : '';
+  if (!ymd) { setEspnStatus('Pick a date first.', true); return; }
+  setEspnStatus('Fetching…');
+  try {
+    const url = `https://site.api.espn.com/apis/site/v2/sports/${sport}/scoreboard?dates=${ymd}&limit=300`;
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const events = data.events || [];
+    const cusa = cusaTricodeSet();
+    const matched = events.filter(ev => {
+      const cs = ev.competitions?.[0]?.competitors || [];
+      return cs.some(c => cusa.has((c.team?.abbreviation || '').toUpperCase()));
+    });
+    lastEspnEvents = matched;
+    const sel = document.getElementById('espnGame');
+    if (!matched.length) {
+      sel.innerHTML = '<option value="">— no CUSA games on this date —</option>';
+      setEspnStatus(`Found ${events.length} games, 0 with CUSA teams.`);
+      return;
+    }
+    sel.innerHTML = '<option value="">— pick a game —</option>' + matched.map(ev => {
+      const c = ev.competitions[0].competitors;
+      const a = c.find(x => x.homeAway === 'away') || c[1];
+      const h = c.find(x => x.homeAway === 'home') || c[0];
+      const status = ev.competitions[0].status?.type?.shortDetail || '';
+      return `<option value="${ev.id}">${escapeAttr(a.team.displayName)} ${a.score ?? '–'} @ ${escapeAttr(h.team.displayName)} ${h.score ?? '–'} · ${escapeAttr(status)}</option>`;
+    }).join('');
+    setEspnStatus(`Found ${matched.length} CUSA game${matched.length === 1 ? '' : 's'}.`);
+  } catch (e) {
+    setEspnStatus('Could not reach ESPN: ' + e.message, true);
+    console.error(e);
+  }
+}
+async function applyEspnGame(eventId){
+  if (!eventId) return;
+  const ev = lastEspnEvents.find(e => e.id === eventId);
+  if (!ev) return;
+  const comp = ev.competitions[0];
+  const cs = comp.competitors;
+  const away = cs.find(x => x.homeAway === 'away') || cs[1];
+  const home = cs.find(x => x.homeAway === 'home') || cs[0];
+  // Match ESPN tricodes back to our schools.json entries.
+  const matchByTricode = (tricode) => {
+    const t = (tricode || '').toUpperCase();
+    return SCHOOLS.find(s => (s.tricode || '').toUpperCase() === t);
+  };
+  const lConf = matchByTricode(away.team.abbreviation);
+  const rConf = matchByTricode(home.team.abbreviation);
+  if (lConf) {
+    state.left.school = lConf.name;
+    document.getElementById('leftSchool').value = lConf.name;
+    state.adj.leftSquare.color = '';
+    await ensureSchoolImages('left');
+  }
+  if (rConf) {
+    state.right.school = rConf.name;
+    document.getElementById('rightSchool').value = rConf.name;
+    state.adj.rightSquare.color = '';
+    await ensureSchoolImages('right');
+  }
+  state.leftScore  = String(away.score ?? '0');
+  state.rightScore = String(home.score ?? '0');
+  document.getElementById('leftScoreText').value  = state.leftScore;
+  document.getElementById('rightScoreText').value = state.rightScore;
+  state.espn.eventId = ev.id;
+  state.winnerDir = 'auto';
+  document.getElementById('winnerDir').value = 'auto';
+  syncSlidersFromState();
+  persistState();
+  draw();
+}
+
+const ADJ_BINDINGS = [
+  ['leftLogoDx',     v => state.adj.leftLogo.dx     = v, 'px'],
+  ['leftLogoDy',     v => state.adj.leftLogo.dy     = v, 'px'],
+  ['leftLogoScale',  v => state.adj.leftLogo.scale  = v, '%'],
+  ['rightLogoDx',    v => state.adj.rightLogo.dx    = v, 'px'],
+  ['rightLogoDy',    v => state.adj.rightLogo.dy    = v, 'px'],
+  ['rightLogoScale', v => state.adj.rightLogo.scale = v, '%'],
+  ['leftNameDx',     v => state.adj.leftName.dx     = v, 'px'],
+  ['leftNameDy',     v => state.adj.leftName.dy     = v, 'px'],
+  ['leftNickDx',     v => state.adj.leftNick.dx     = v, 'px'],
+  ['leftNickDy',     v => state.adj.leftNick.dy     = v, 'px'],
+  ['leftNickScale',  v => state.adj.leftNick.scale  = v, '%'],
+  ['rightNameDx',    v => state.adj.rightName.dx    = v, 'px'],
+  ['rightNameDy',    v => state.adj.rightName.dy    = v, 'px'],
+  ['rightNickDx',    v => state.adj.rightNick.dx    = v, 'px'],
+  ['rightNickDy',    v => state.adj.rightNick.dy    = v, 'px'],
+  ['rightNickScale', v => state.adj.rightNick.scale = v, '%'],
+  ['leftBlockDx',    v => state.adj.leftBlock.dx    = v, 'px'],
+  ['leftBlockDy',    v => state.adj.leftBlock.dy    = v, 'px'],
+  ['leftBlockSW',    v => state.adj.leftBlock.sw    = v, '%'],
+  ['leftBlockSH',    v => state.adj.leftBlock.sh    = v, '%'],
+  ['rightBlockDx',   v => state.adj.rightBlock.dx   = v, 'px'],
+  ['rightBlockDy',   v => state.adj.rightBlock.dy   = v, 'px'],
+  ['rightBlockSW',   v => state.adj.rightBlock.sw   = v, '%'],
+  ['rightBlockSH',   v => state.adj.rightBlock.sh   = v, '%'],
+  ['leftKoDx',       v => state.adj.leftKo.dx       = v, 'px'],
+  ['leftKoDy',       v => state.adj.leftKo.dy       = v, 'px'],
+  ['rightKoDx',      v => state.adj.rightKo.dx      = v, 'px'],
+  ['rightKoDy',      v => state.adj.rightKo.dy      = v, 'px'],
+  ['koOpacity',      v => state.adj.koOpacity       = v, '%'],
+  ['koScale',        v => state.adj.koScale         = v, '%'],
+  ['textureOpacity', v => state.adj.textureOpacity  = v, '%'],
+  ['leftSqDx',       v => state.adj.leftSquare.dx   = v, 'px'],
+  ['leftSqDy',       v => state.adj.leftSquare.dy   = v, 'px'],
+  ['leftSqW',        v => state.adj.leftSquare.w    = v, 'px'],
+  ['leftSqH',        v => state.adj.leftSquare.h    = v, 'px'],
+  ['rightSqDx',      v => state.adj.rightSquare.dx  = v, 'px'],
+  ['rightSqDy',      v => state.adj.rightSquare.dy  = v, 'px'],
+  ['rightSqW',       v => state.adj.rightSquare.w   = v, 'px'],
+  ['rightSqH',       v => state.adj.rightSquare.h   = v, 'px'],
+  ['shadowDx',       v => state.adj.shadowDx        = v, 'px'],
+  ['shadowDy',       v => state.adj.shadowDy        = v, 'px'],
+  ['shadowBlur',     v => state.adj.shadowBlur      = v, 'px'],
+  ['shadowAlpha',    v => state.adj.shadowAlpha     = v, '%'],
+  ['logoShadowDx',    v => state.adj.logoShadow.dx    = v, 'px'],
+  ['logoShadowDy',    v => state.adj.logoShadow.dy    = v, 'px'],
+  ['logoShadowBlur',  v => state.adj.logoShadow.blur  = v, 'px'],
+  ['logoShadowAlpha', v => state.adj.logoShadow.alpha = v, '%'],
+  ['koShadowDx',      v => state.adj.koShadow.dx      = v, 'px'],
+  ['koShadowDy',      v => state.adj.koShadow.dy      = v, 'px'],
+  ['koShadowBlur',    v => state.adj.koShadow.blur    = v, 'px'],
+  ['koShadowAlpha',   v => state.adj.koShadow.alpha   = v, '%'],
+  ['stripShadowDx',    v => state.adj.stripShadow.dx    = v, 'px'],
+  ['stripShadowDy',    v => state.adj.stripShadow.dy    = v, 'px'],
+  ['stripShadowBlur',  v => state.adj.stripShadow.blur  = v, 'px'],
+  ['stripShadowAlpha', v => state.adj.stripShadow.alpha = v, '%'],
+  ['stripDx',        v => state.adj.stripDx         = v, 'px'],
+  ['stripDy',        v => state.adj.stripDy         = v, 'px'],
+  ['arrowDx',        v => state.adj.arrow.dx        = v, 'px'],
+  ['arrowDy',        v => state.adj.arrow.dy        = v, 'px'],
+  ['arrowSize',      v => state.adj.arrow.size      = v, 'px'],
+];
+
+function syncSlidersFromState(){
+  const m = {
+    leftLogoDx:      state.adj.leftLogo.dx,  leftLogoDy:  state.adj.leftLogo.dy,
+    leftLogoScale:   state.adj.leftLogo.scale ?? 100,
+    rightLogoDx:     state.adj.rightLogo.dx, rightLogoDy: state.adj.rightLogo.dy,
+    rightLogoScale:  state.adj.rightLogo.scale ?? 100,
+    leftNameDx:      state.adj.leftName.dx,  leftNameDy:  state.adj.leftName.dy,
+    leftNickDx:      state.adj.leftNick.dx,  leftNickDy:  state.adj.leftNick.dy,
+    leftNickScale:   state.adj.leftNick.scale ?? 100,
+    rightNameDx:     state.adj.rightName.dx, rightNameDy: state.adj.rightName.dy,
+    rightNickDx:     state.adj.rightNick.dx, rightNickDy: state.adj.rightNick.dy,
+    rightNickScale:  state.adj.rightNick.scale ?? 100,
+    leftBlockDx:     state.adj.leftBlock.dx, leftBlockDy: state.adj.leftBlock.dy,
+    leftBlockSW:     state.adj.leftBlock.sw, leftBlockSH: state.adj.leftBlock.sh,
+    rightBlockDx:    state.adj.rightBlock.dx,rightBlockDy:state.adj.rightBlock.dy,
+    rightBlockSW:    state.adj.rightBlock.sw,rightBlockSH:state.adj.rightBlock.sh,
+    leftKoDx:        state.adj.leftKo.dx,    leftKoDy:    state.adj.leftKo.dy,
+    rightKoDx:       state.adj.rightKo.dx,   rightKoDy:   state.adj.rightKo.dy,
+    koOpacity:       state.adj.koOpacity,    koScale:     state.adj.koScale,
+    textureOpacity:  state.adj.textureOpacity ?? 60,
+    leftSqDx:        state.adj.leftSquare.dx, leftSqDy: state.adj.leftSquare.dy,
+    leftSqW:         state.adj.leftSquare.w,  leftSqH:  state.adj.leftSquare.h,
+    rightSqDx:       state.adj.rightSquare.dx,rightSqDy:state.adj.rightSquare.dy,
+    rightSqW:        state.adj.rightSquare.w, rightSqH: state.adj.rightSquare.h,
+    shadowDx:        state.adj.shadowDx,      shadowDy: state.adj.shadowDy,
+    shadowBlur:      state.adj.shadowBlur,    shadowAlpha: state.adj.shadowAlpha,
+    logoShadowDx:     state.adj.logoShadow.dx,    logoShadowDy:    state.adj.logoShadow.dy,
+    logoShadowBlur:   state.adj.logoShadow.blur,  logoShadowAlpha: state.adj.logoShadow.alpha,
+    koShadowDx:       state.adj.koShadow.dx,      koShadowDy:      state.adj.koShadow.dy,
+    koShadowBlur:     state.adj.koShadow.blur,    koShadowAlpha:   state.adj.koShadow.alpha,
+    stripShadowDx:    state.adj.stripShadow.dx,   stripShadowDy:   state.adj.stripShadow.dy,
+    stripShadowBlur:  state.adj.stripShadow.blur, stripShadowAlpha:state.adj.stripShadow.alpha,
+    stripDx:         state.adj.stripDx,       stripDy:  state.adj.stripDy,
+    arrowDx:         state.adj.arrow?.dx ?? 0,
+    arrowDy:         state.adj.arrow?.dy ?? 0,
+    arrowSize:       state.adj.arrow?.size ?? 14,
+  };
+  for (const [id, val] of Object.entries(m)) {
+    const inp = document.getElementById(id);
+    const ro  = document.getElementById(id + 'R');
+    if (inp) inp.value = String(val);
+    if (ro) {
+      const unit = ADJ_BINDINGS.find(b => b[0] === id)?.[2] || 'px';
+      ro.textContent = (val >= 0 && unit === 'px' ? '+' : '') + val + unit;
+    }
+  }
+  // Dropdowns + color pickers + checkboxes
+  const tb = document.getElementById('textureBlend');
+  if (tb) tb.value = state.adj.textureBlend || 'overlay';
+  const leftBlend = document.getElementById('leftSqBlend');
+  if (leftBlend) leftBlend.value = state.adj.leftSquare.blend || 'overlay';
+  const rightBlend = document.getElementById('rightSqBlend');
+  if (rightBlend) rightBlend.value = state.adj.rightSquare.blend || 'overlay';
+  const leftCol = document.getElementById('leftSqColor');
+  if (leftCol)  leftCol.value  = state.adj.leftSquare.color  || schoolSecondaryColor(SCHOOLS.find(s => s.name === state.left.school));
+  const rightCol = document.getElementById('rightSqColor');
+  if (rightCol) rightCol.value = state.adj.rightSquare.color || schoolSecondaryColor(SCHOOLS.find(s => s.name === state.right.school));
+  const sc = document.getElementById('shadowColor');
+  if (sc) sc.value = state.adj.shadowColor || '#000000';
+  document.getElementById('leftShadow').checked  = !!state.adj.leftShadow;
+  document.getElementById('rightShadow').checked = !!state.adj.rightShadow;
+  // Logo shadow
+  const lsc = document.getElementById('logoShadowColor');
+  if (lsc) lsc.value = state.adj.logoShadow?.color || '#000000';
+  const lLogoChk = document.getElementById('leftLogoShadow');
+  if (lLogoChk)  lLogoChk.checked  = !!state.adj.logoShadow?.leftOn;
+  const rLogoChk = document.getElementById('rightLogoShadow');
+  if (rLogoChk)  rLogoChk.checked  = !!state.adj.logoShadow?.rightOn;
+  // KO shadow
+  const ksc = document.getElementById('koShadowColor');
+  if (ksc) ksc.value = state.adj.koShadow?.color || '#000000';
+  const lKoChk = document.getElementById('leftKoShadow');
+  if (lKoChk)  lKoChk.checked  = !!state.adj.koShadow?.leftOn;
+  const rKoChk = document.getElementById('rightKoShadow');
+  if (rKoChk)  rKoChk.checked  = !!state.adj.koShadow?.rightOn;
+  // Strip shadow
+  const ssc = document.getElementById('stripShadowColor');
+  if (ssc) ssc.value = state.adj.stripShadow?.color || '#000000';
+  const ssChk = document.getElementById('stripShadowOn');
+  if (ssChk)  ssChk.checked  = !!state.adj.stripShadow?.on;
+  // Winner arrow
+  const ac = document.getElementById('arrowColor');
+  if (ac) ac.value = state.adj.arrow?.color || '#0A254E';
+  const pb = document.getElementById('previewBg');
+  if (pb) pb.value = state.previewBg || '#000000';
+  applyPreviewBgCss();
+}
+
+function applyPreviewBgCss(){
+  // Mirror the canvas's fill onto the surrounding wrap so the preview area
+  // also reflects the chosen background — useful when the matchup row is
+  // narrower than the canvas-area letterbox.
+  const wrap = document.querySelector('.canvas-wrap');
+  if (wrap) wrap.style.background = state.previewBg || '#000000';
+}
+
+ADJ_BINDINGS.forEach(([id, setter, unit]) => {
+  const inp = document.getElementById(id);
+  const ro  = document.getElementById(id + 'R');
+  inp.addEventListener('input', () => {
+    const v = Number(inp.value || 0);
+    setter(v);
+    if (ro) ro.textContent = (v >= 0 && unit === 'px' ? '+' : '') + v + unit;
+    persistState();
+    draw();
+  });
+});
+
+// Edit / Advanced-controls toggle. State persists per-browser so the operator
+// can leave it open or closed across sessions.
+const ADV_KEY = 'cusa_matchup_adv_open_v1';
+function setAdvancedOpen(open){
+  const wrap = document.getElementById('advancedControls');
+  const btn  = document.getElementById('toggleAdvanced');
+  wrap.style.display = open ? 'flex' : 'none';
+  btn.textContent = open
+    ? '✕ Hide Advanced Controls'
+    : '✏️ Edit · Show Advanced Controls';
+  try { localStorage.setItem(ADV_KEY, open ? '1' : '0'); } catch (_) {}
+}
+document.getElementById('toggleAdvanced').addEventListener('click', () => {
+  const open = document.getElementById('advancedControls').style.display !== 'flex';
+  setAdvancedOpen(open);
+});
+// Restore the toggle state on load (default = closed).
+try { setAdvancedOpen(localStorage.getItem(ADV_KEY) === '1'); } catch (_) {}
+
+// Texture upload
+const TEXTURE_KEY = 'cusa_matchup_texture_v1';
+function onTextureUpload(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = ev => {
+    state.texture = ev.target.result;
+    try { localStorage.setItem(TEXTURE_KEY, state.texture); } catch (_) {}
+    const img = new Image();
+    img.onload = () => { state.textureImg = img; draw(); };
+    img.src = state.texture;
+    document.getElementById('textureZone').classList.add('loaded');
+    document.getElementById('textureZoneText').textContent = '✓ Texture loaded — click to replace';
+  };
+  fr.readAsDataURL(file);
+}
+function restoreTexture(){
+  try {
+    const raw = localStorage.getItem(TEXTURE_KEY);
+    if (!raw) return;
+    state.texture = raw;
+    const img = new Image();
+    img.onload = () => { state.textureImg = img; draw(); };
+    img.src = raw;
+    document.getElementById('textureZone').classList.add('loaded');
+    document.getElementById('textureZoneText').textContent = '✓ Texture loaded — click to replace';
+  } catch (_) {}
+}
+document.getElementById('clearTextureBtn').addEventListener('click', () => {
+  state.texture = null; state.textureImg = null;
+  try { localStorage.removeItem(TEXTURE_KEY); } catch (_) {}
+  document.getElementById('textureZone').classList.remove('loaded');
+  document.getElementById('textureZoneText').textContent = '+ Upload texture image';
+  document.querySelector('#textureZone input').value = '';
+  draw();
+});
+
+// Preview background
+document.getElementById('previewBg').addEventListener('input', e => {
+  state.previewBg = e.target.value; applyPreviewBgCss(); persistState(); draw();
+});
+function setPreviewBg(hex){
+  state.previewBg = hex;
+  document.getElementById('previewBg').value = hex;
+  applyPreviewBgCss(); persistState(); draw();
+}
+document.getElementById('bgPresetBlack').addEventListener('click', () => setPreviewBg('#000000'));
+document.getElementById('bgPresetWhite').addEventListener('click', () => setPreviewBg('#FFFFFF'));
+document.getElementById('bgPresetNavy').addEventListener('click',  () => setPreviewBg('#0A254E'));
+
+// Texture blend mode + per-side square blend
+document.getElementById('textureBlend').addEventListener('change', e => { state.adj.textureBlend = e.target.value; persistState(); draw(); });
+document.getElementById('leftSqBlend').addEventListener('change', e => { state.adj.leftSquare.blend = e.target.value; persistState(); draw(); });
+document.getElementById('rightSqBlend').addEventListener('change', e => { state.adj.rightSquare.blend = e.target.value; persistState(); draw(); });
+// Logo-square colors
+document.getElementById('leftSqColor').addEventListener('input', e => { state.adj.leftSquare.color = e.target.value; persistState(); draw(); });
+document.getElementById('rightSqColor').addEventListener('input', e => { state.adj.rightSquare.color = e.target.value; persistState(); draw(); });
+// Shadow
+document.getElementById('leftShadow').addEventListener('change', e => { state.adj.leftShadow = e.target.checked; persistState(); draw(); });
+document.getElementById('rightShadow').addEventListener('change', e => { state.adj.rightShadow = e.target.checked; persistState(); draw(); });
+document.getElementById('shadowColor').addEventListener('input', e => { state.adj.shadowColor = e.target.value; persistState(); draw(); });
+// Team-logo shadow
+document.getElementById('leftLogoShadow').addEventListener('change',  e => { state.adj.logoShadow.leftOn  = e.target.checked; persistState(); draw(); });
+document.getElementById('rightLogoShadow').addEventListener('change', e => { state.adj.logoShadow.rightOn = e.target.checked; persistState(); draw(); });
+document.getElementById('logoShadowColor').addEventListener('input',  e => { state.adj.logoShadow.color   = e.target.value;   persistState(); draw(); });
+// Knockout-logo shadow
+document.getElementById('leftKoShadow').addEventListener('change',    e => { state.adj.koShadow.leftOn  = e.target.checked; persistState(); draw(); });
+document.getElementById('rightKoShadow').addEventListener('change',   e => { state.adj.koShadow.rightOn = e.target.checked; persistState(); draw(); });
+document.getElementById('koShadowColor').addEventListener('input',    e => { state.adj.koShadow.color   = e.target.value;   persistState(); draw(); });
+// Strip (Date / Time / Network) shadow
+document.getElementById('stripShadowOn').addEventListener('change',    e => { state.adj.stripShadow.on    = e.target.checked; persistState(); draw(); });
+document.getElementById('stripShadowColor').addEventListener('input',  e => { state.adj.stripShadow.color = e.target.value;   persistState(); draw(); });
+// Winner-arrow color
+document.getElementById('arrowColor').addEventListener('input', e => { state.adj.arrow.color = e.target.value; persistState(); draw(); });
+
+document.getElementById('resetPositions').addEventListener('click', () => {
+  state.adj = {
+    leftLogo:  { dx: 0, dy: 0, scale: 100 }, rightLogo: { dx: 0, dy: 0, scale: 100 },
+    leftName:  { dx: 0, dy: 0 }, leftNick:  { dx: 0, dy: 0, scale: 100 },
+    rightName: { dx: 0, dy: 0 }, rightNick: { dx: 0, dy: 0, scale: 100 },
+    leftBlock:  { dx: 0, dy: 0, sw: 100, sh: 100 },
+    rightBlock: { dx: 0, dy: 0, sw: 100, sh: 100 },
+    leftKo:    { dx: 0, dy: 0 }, rightKo:   { dx: 0, dy: 0 },
+    koOpacity: 22, koScale: 130,
+    textureBlend: 'overlay', textureOpacity: 60,
+    leftSquare:  { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    rightSquare: { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    leftShadow: true, rightShadow: true,
+    shadowDx: 2, shadowDy: 2, shadowBlur: 3, shadowColor: '#000000', shadowAlpha: 60,
+    logoShadow: { leftOn: true, rightOn: true, dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 50 },
+    koShadow:   { leftOn: false, rightOn: false, dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 60 },
+    stripShadow: { on: false, dx: 1, dy: 1, blur: 2, color: '#000000', alpha: 60 },
+    stripDx: 0, stripDy: 0,
+    arrow: { dx: 0, dy: 0, size: 14, color: '#0A254E' },
+  };
+  syncSlidersFromState();
+  persistState();
+  draw();
+});
+
+document.getElementById('download').addEventListener('click', async () => {
+  // Render once without the preview bg so the exported PNG keeps any
+  // transparent corners outside the matchup row, then restore the preview.
+  await draw(true);
+  const dataUrl = cvs.toDataURL('image/png');
+  await draw();
+  const safe = (s) => (s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'') || 'X';
+  const fname = `CUSA_Final_${safe(state.left.school)}_${state.leftScore}-${state.rightScore}_${safe(state.right.school)}.png`;
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = fname;
+  a.click();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+// Embedded mode (loaded inside the Campus Insider iframe). Hide chrome and
+// listen for cross-window storage events so the admin's edits in a sibling
+// /matchup.html tab live-update inside the iframe.
+const IS_EMBEDDED = new URLSearchParams(location.search).get('embedded') === '1';
+if (IS_EMBEDDED) document.body.classList.add('embedded');
+
+function refreshFinalInputs(){
+  document.getElementById('leftScoreText').value  = state.leftScore  ?? '0';
+  document.getElementById('rightScoreText').value = state.rightScore ?? '0';
+  document.getElementById('finalText').value      = state.finalLabel ?? 'FINAL';
+  document.getElementById('winnerDir').value      = state.winnerDir  ?? 'auto';
+  document.getElementById('espnSport').value      = state.espn.sport || 'basketball/mens-college-basketball';
+  // Default the date picker to today if no prior selection.
+  const dInput = document.getElementById('espnDate');
+  if (state.espn.date) {
+    dInput.value = state.espn.date;
+  } else if (!dInput.value) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    dInput.value = `${y}-${m}-${d}`;
+    state.espn.date = dInput.value;
+  }
+}
+
+window.addEventListener('storage', e => {
+  if (e.key !== STATE_KEY) return;
+  restoreState();
+  syncSlidersFromState();
+  document.getElementById('leftSchool').value  = state.left.school;
+  document.getElementById('rightSchool').value = state.right.school;
+  refreshFinalInputs();
+  Promise.all([ensureSchoolImages('left'), ensureSchoolImages('right')]).then(draw);
+});
+
+(async () => {
+  restoreState();
+  await loadSchoolsJson();
+  populateSchools();
+  populateBlendModes();
+  syncSlidersFromState();
+  refreshFinalInputs();
+  if (document.fonts && document.fonts.load) {
+    try { await document.fonts.load(`400 11px "Proxima Nova"`); } catch(_) {}
+    try { await document.fonts.load(`700 ${NAME_FS}px "Proxima Nova"`); } catch(_) {}
+    try { await document.fonts.load(`700 ${NICK_FS}px "Proxima Nova"`); } catch(_) {}
+  }
+  restoreTexture();
+  await Promise.all([
+    ensureLayer('gradientOverlay').catch(()=>null),
+    ensureSchoolImages('left'),
+    ensureSchoolImages('right'),
+  ]);
+  draw();
+})();
+</script>
+</body>
+</html>
