@@ -315,23 +315,33 @@ const ASSET_DIR_TEMPLATE = 'matchup/template/';
 const ASSET_DIR_PRIMARY  = 'matchup/primary/';
 const ASSET_DIR_KO       = 'matchup/knockouts/';
 
-// CUSA schools — name + nickname + primary color + logo files. Hex pulled from
-// IMS_Color_Mapping.xlsx (Swatch column, ESPN Primary fallback). FIU is dark
-// navy because the brand uses #091F3F (the swatch column had 'N/A').
-const SCHOOLS = [
-  { id: 'Liberty',           nickname: 'FLAMES',        color: '#0A254E', primary: 'LIBERTY.PNG',          ko: 'LIBERTY.PNG' },
-  { id: 'Middle Tennessee',  nickname: 'BLUE RAIDERS',  color: '#036EB7', primary: 'MIDDLE_TENNESSEE.PNG', ko: 'MIDDLE_TENNESSEE.PNG' },
-  { id: 'Delaware',          nickname: 'BLUE HENS',     color: '#00539F', primary: 'DELAWARE.PNG',         ko: 'DELAWARE.PNG' },
-  { id: 'FIU',               nickname: 'PANTHERS',      color: '#091F3F', primary: 'FIU.PNG',              ko: 'FIU.PNG' },
-  { id: 'Jacksonville State',nickname: 'GAMECOCKS',     color: '#CC0000', primary: 'JACKSONVILLE_ST.PNG',  ko: 'JACKSONVILLE_ST.PNG' },
-  { id: 'Kennesaw State',    nickname: 'OWLS',          color: '#FDBB30', primary: 'KENNESAW_ST.PNG',      ko: 'KENNESAW_ST.PNG' },
-  { id: 'Louisiana Tech',    nickname: 'BULLDOGS',      color: '#003087', primary: 'LOUISIANA_TECH.PNG',   ko: 'LOUISIANA_TECH.PNG' },
-  { id: 'Missouri State',    nickname: 'BEARS',         color: '#5E0009', primary: 'MISSOURI_ST.PNG',      ko: 'MISSOURI_ST.PNG' },
-  { id: 'New Mexico State',  nickname: 'AGGIES',        color: '#7E141B', primary: 'NEW_MEXICO_ST.PNG',    ko: 'NEW_MEXICO_ST.PNG' },
-  { id: 'Sam Houston',       nickname: 'BEARKATS',      color: '#FF5000', primary: 'SAM_HOUSTON_ST.PNG',   ko: 'SAM_HOUSTON_ST.PNG' },
-  { id: 'UTEP',              nickname: 'MINERS',        color: '#041E42', primary: 'UTEP.PNG',             ko: 'UTEP.PNG' },
-  { id: 'Western Kentucky',  nickname: 'HILLTOPPERS',   color: '#E13A3E', primary: 'WESTERN_KENTUCKY.PNG', ko: 'WESTERN_KENTUCKY.PNG' },
+// School list — loaded asynchronously from matchup/schools.json (generated
+// from IMS_Color_Mapping.xlsx). Each entry: { name, tricode, mascot,
+// primary, ko, swatch, espn }. Until the fetch completes we fall back to
+// this CUSA-only seed so the page renders something on first paint.
+const SCHOOLS_FALLBACK = [
+  { name: 'Liberty',           tricode: 'LIB',  mascot: 'Flames',        primary: 'LIBERTY.PNG',          ko: 'LIBERTY.PNG',          swatch: '#0A254E', espn: '#0a254e' },
+  { name: 'Middle Tennessee',  tricode: 'MTSU', mascot: 'Blue Raiders',  primary: 'MIDDLE_TENNESSEE.PNG', ko: 'MIDDLE_TENNESSEE.PNG', swatch: '#036EB7', espn: '#036eb7' },
 ];
+let SCHOOLS = SCHOOLS_FALLBACK.slice();
+
+// Resolve a school's primary color (fall back through swatch → espn → gray).
+function schoolColor(s){
+  if (!s) return '#666666';
+  const sw = (s.swatch || '').trim();
+  if (sw && sw !== 'N/A' && sw !== 'None' && /^#?[0-9a-f]+/i.test(sw)) return sw[0] === '#' ? sw : '#' + sw;
+  const ep = (s.espn || '').trim();
+  if (ep && /^#?[0-9a-f]+/i.test(ep)) return ep[0] === '#' ? ep : '#' + ep;
+  return '#666666';
+}
+// Display nickname (uppercase mascot, fall back to school short tail).
+function schoolNickname(s){
+  if (!s) return '';
+  if (s.mascot) return s.mascot.toUpperCase();
+  // Fall back to last word of school name (e.g. "State" or the school's short)
+  const parts = (s.name || '').split(/\s+/);
+  return (parts[parts.length - 1] || '').toUpperCase();
+}
 
 // Layer assets — Image #10 (Empty Matchup Template) is gone; the team color
 // blocks alone now provide the matchup background. Image #11 (the gradient
@@ -464,7 +474,7 @@ async function ensureLayer(key){
 }
 async function ensureSchoolImages(side){
   const sObj = state[side];
-  const conf = SCHOOLS.find(s => s.id === sObj.school);
+  const conf = SCHOOLS.find(s => s.name ===sObj.school);
   if (!conf) { sObj.primaryImg = null; sObj.koImg = null; return; }
   try { sObj.primaryImg = await loadImage(encodeURI(ASSET_DIR_PRIMARY + conf.primary)); }
   catch (_) { sObj.primaryImg = null; setStatus('Could not load primary for ' + sObj.school, true); }
@@ -496,8 +506,8 @@ async function draw(forExport = false){
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   }
 
-  const leftConf  = SCHOOLS.find(s => s.id === state.left.school);
-  const rightConf = SCHOOLS.find(s => s.id === state.right.school);
+  const leftConf  = SCHOOLS.find(s => s.name ===state.left.school);
+  const rightConf = SCHOOLS.find(s => s.name ===state.right.school);
 
   // 1. Team-color blocks (BG fill — lives BEHIND the template). Each side has
   //    its own X/Y nudge + width/height % so the operator can stretch or
@@ -510,8 +520,8 @@ async function draw(forExport = false){
   const lH = BAR.h     * (lb.sh / 100);
   const rW = rightBaseW * (rb.sw / 100);
   const rH = BAR.h      * (rb.sh / 100);
-  if (leftConf)  { ctx.fillStyle = leftConf.color;  ctx.fillRect(BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH); }
-  if (rightConf) { ctx.fillStyle = rightConf.color; ctx.fillRect(BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH); }
+  if (leftConf)  { ctx.fillStyle = schoolColor(leftConf);  ctx.fillRect(BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH); }
+  if (rightConf) { ctx.fillStyle = schoolColor(rightConf); ctx.fillRect(BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH); }
 
   // 2. Knockout texture per side — clipped to the (possibly-resized) block.
   const koAlpha = state.adj.koOpacity / 100;
@@ -543,8 +553,8 @@ async function draw(forExport = false){
   // 5. Per-side logo squares — recolor / resize / reposition the logo box
   //    backdrops with the operator's choice. Default color = school primary,
   //    blend mode = overlay (so the box keeps the depth from Image #11).
-  drawLogoSquare(LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftSquare,  leftConf?.color);
-  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightSquare, rightConf?.color);
+  drawLogoSquare(LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftSquare,  schoolColor(leftConf));
+  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightSquare, schoolColor(rightConf));
 
   // 6. School primary logos
   if (state.left.primaryImg) {
@@ -603,9 +613,9 @@ function drawSideText(conf, cx, nameAdj, nickAdj, shadowOn){
   ctx.fillStyle = '#FFFFFF';
   if (shadowOn) applyShadow(); else clearShadow();
   ctx.font = `900 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  ctx.fillText(conf.id.toUpperCase(), cx + nameAdj.dx, NAME_CY + nameAdj.dy);
+  ctx.fillText((conf.name || '').toUpperCase(), cx + nameAdj.dx, NAME_CY + nameAdj.dy);
   ctx.font = `700 ${NICK_FS}px "Gazzetta ExtraBold","Proxima Nova",sans-serif`;
-  ctx.fillText(conf.nickname, cx + nickAdj.dx, NICK_CY + nickAdj.dy);
+  ctx.fillText(schoolNickname(conf), cx + nickAdj.dx, NICK_CY + nickAdj.dy);
   clearShadow();
 }
 
@@ -693,13 +703,40 @@ function restoreState(){
 }
 
 // ─── Wire-up ──────────────────────────────────────────────────────────────
+// CUSA full members + key affiliates — these float to the top of the
+// dropdown for fast access. Other D1 schools follow alphabetically.
+const CUSA_PRIORITY_NAMES = new Set([
+  'Liberty','Middle Tennessee','Delaware','FIU','Florida International',
+  'Jacksonville State','Kennesaw State','Louisiana Tech','Missouri State',
+  'New Mexico State','Sam Houston','UTEP','Western Kentucky','Dallas Baptist',
+]);
+
 function populateSchools(){
-  const opts = SCHOOLS.map(s => `<option value="${s.id}">${s.id}</option>`).join('');
+  const cusa  = SCHOOLS.filter(s => CUSA_PRIORITY_NAMES.has(s.name));
+  const other = SCHOOLS.filter(s => !CUSA_PRIORITY_NAMES.has(s.name));
+  const cusaOpts  = cusa.map(s => `<option value="${escapeAttr(s.name)}">${escapeAttr(s.name)}${s.tricode ? ' · ' + s.tricode : ''}</option>`).join('');
+  const otherOpts = other.map(s => `<option value="${escapeAttr(s.name)}">${escapeAttr(s.name)}${s.tricode ? ' · ' + s.tricode : ''}</option>`).join('');
+  const sep = '<option disabled>──────────</option>';
+  const html = (cusa.length ? cusaOpts + sep : '') + otherOpts;
   const lSel = document.getElementById('leftSchool');
   const rSel = document.getElementById('rightSchool');
-  lSel.innerHTML = opts; rSel.innerHTML = opts;
+  lSel.innerHTML = html; rSel.innerHTML = html;
   lSel.value = state.left.school;
   rSel.value = state.right.school;
+}
+function escapeAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+async function loadSchoolsJson(){
+  try {
+    const r = await fetch('matchup/schools.json', { cache: 'force-cache' });
+    if (!r.ok) throw new Error('schools.json HTTP ' + r.status);
+    const data = await r.json();
+    if (Array.isArray(data) && data.length) {
+      SCHOOLS = data;
+    }
+  } catch (e) {
+    console.warn('Could not load schools.json — falling back to seed list.', e);
+  }
 }
 function populateBlendModes(){
   const opts = BLEND_MODES.map(b => `<option value="${b.value}">${b.label}</option>`).join('');
@@ -827,9 +864,9 @@ function syncSlidersFromState(){
   const rightBlend = document.getElementById('rightSqBlend');
   if (rightBlend) rightBlend.value = state.adj.rightSquare.blend || 'overlay';
   const leftCol = document.getElementById('leftSqColor');
-  if (leftCol)  leftCol.value  = state.adj.leftSquare.color  || (SCHOOLS.find(s => s.id === state.left.school)?.color  || '#FFFFFF');
+  if (leftCol)  leftCol.value  = state.adj.leftSquare.color  || schoolColor(SCHOOLS.find(s => s.name === state.left.school));
   const rightCol = document.getElementById('rightSqColor');
-  if (rightCol) rightCol.value = state.adj.rightSquare.color || (SCHOOLS.find(s => s.id === state.right.school)?.color || '#FFFFFF');
+  if (rightCol) rightCol.value = state.adj.rightSquare.color || schoolColor(SCHOOLS.find(s => s.name === state.right.school));
   const sc = document.getElementById('shadowColor');
   if (sc) sc.value = state.adj.shadowColor || '#000000';
   document.getElementById('leftShadow').checked  = !!state.adj.leftShadow;
@@ -981,6 +1018,7 @@ window.addEventListener('storage', e => {
 
 (async () => {
   restoreState();
+  await loadSchoolsJson();
   populateSchools();
   populateBlendModes();
   syncSlidersFromState();
