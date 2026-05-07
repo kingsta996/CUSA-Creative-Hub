@@ -253,36 +253,6 @@ body.embedded .tabs{display:none !important}
         <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightBlockSHR">100%</span></label><input id="rightBlockSH" type="range" min="40" max="160" step="1" value="100"></div>
       </div>
     </div>
-    <div class="team-card">
-      <div class="team-card-title">Score Box · Left</div>
-      <div class="row-2">
-        <div class="field"><label class="field-label">X <span class="nudge-readout" id="leftSqDxR">0px</span></label><input id="leftSqDx" type="range" min="-500" max="500" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="leftSqDyR">0px</span></label><input id="leftSqDy" type="range" min="-100" max="100" step="1" value="0"></div>
-      </div>
-      <div class="row-2">
-        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="leftSqWR">100px</span></label><input id="leftSqW" type="range" min="0" max="300" step="1" value="100"></div>
-        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="leftSqHR">100px</span></label><input id="leftSqH" type="range" min="0" max="200" step="1" value="100"></div>
-      </div>
-      <div class="row-2">
-        <div class="field"><label class="field-label">Color</label><input id="leftSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
-        <div class="field"><label class="field-label" for="leftSqBlend">Blend</label><select id="leftSqBlend"></select></div>
-      </div>
-    </div>
-    <div class="team-card">
-      <div class="team-card-title">Score Box · Right</div>
-      <div class="row-2">
-        <div class="field"><label class="field-label">X <span class="nudge-readout" id="rightSqDxR">0px</span></label><input id="rightSqDx" type="range" min="-500" max="500" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="rightSqDyR">0px</span></label><input id="rightSqDy" type="range" min="-100" max="100" step="1" value="0"></div>
-      </div>
-      <div class="row-2">
-        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="rightSqWR">100px</span></label><input id="rightSqW" type="range" min="0" max="300" step="1" value="100"></div>
-        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightSqHR">100px</span></label><input id="rightSqH" type="range" min="0" max="200" step="1" value="100"></div>
-      </div>
-      <div class="row-2">
-        <div class="field"><label class="field-label">Color</label><input id="rightSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
-        <div class="field"><label class="field-label" for="rightSqBlend">Blend</label><select id="rightSqBlend"></select></div>
-      </div>
-    </div>
 
     <div class="team-card">
       <div class="team-card-title">Drop Shadow (name + nickname)</div>
@@ -713,11 +683,8 @@ async function draw(forExport = false){
   try { overlayImg = await ensureLayer('gradientOverlay'); } catch (_) {}
   if (overlayImg) ctx.drawImage(overlayImg, 0, 0, CANVAS_W, CANVAS_H);
 
-  // 5. Per-side logo squares — recolor / resize / reposition the logo box
-  //    backdrops with the operator's choice. Default color = school primary,
-  //    blend mode = overlay (so the box keeps the depth from Image #11).
-  drawLogoSquare(LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftSquare,  schoolSecondaryColor(leftConf));
-  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightSquare, schoolSecondaryColor(rightConf));
+  // (Score-box backdrops removed — final-score draws scores directly on the
+  // gradient overlay layer.)
 
   // 6. SCORES replace the school primary logos in the corner boxes.
   //    Drawn with the leftLogo / rightLogo position + scale state so the
@@ -806,12 +773,11 @@ function drawScoreText(scoreText, boxX, boxY, logoAdj, shadowCfg, shadowOn){
   if (shadowOn && shadowCfg) applyShadowFrom(shadowCfg);
   const baseFs = 86;
   const fs = Math.round(baseFs * ((logoAdj?.scale ?? 100) / 100));
-  // Black text so the score reads against the white logo-square backdrop
-  // that intentionally encases each score number.
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `900 ${fs}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  // Regular weight (400) — score reads as a clean numeric, not a heavy banner.
+  ctx.font = `400 ${fs}px "Proxima Nova","Barlow Condensed",sans-serif`;
   const cx = boxX + LOGO_BOX.w / 2 + (logoAdj?.dx || 0);
   const cy = boxY + LOGO_BOX.h / 2 + (logoAdj?.dy || 0);
   ctx.fillText(String(scoreText ?? ''), cx, cy);
@@ -1033,14 +999,8 @@ async function loadSchoolsJson(){
 }
 function populateBlendModes(){
   const opts = BLEND_MODES.map(b => `<option value="${b.value}">${b.label}</option>`).join('');
-  ['textureBlend', 'leftSqBlend', 'rightSqBlend'].forEach(id => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    sel.innerHTML = opts;
-  });
-  document.getElementById('textureBlend').value = state.adj.textureBlend || 'overlay';
-  document.getElementById('leftSqBlend').value  = state.adj.leftSquare.blend  || 'overlay';
-  document.getElementById('rightSqBlend').value = state.adj.rightSquare.blend || 'overlay';
+  const tb = document.getElementById('textureBlend');
+  if (tb) { tb.innerHTML = opts; tb.value = state.adj.textureBlend || 'overlay'; }
 }
 
 document.getElementById('leftSchool').addEventListener('change', async e => {
@@ -1213,14 +1173,7 @@ const ADJ_BINDINGS = [
   ['rightKoOpacity', v => state.adj.rightKo.opacity = v, '%'],
   ['rightKoScale',   v => state.adj.rightKo.scale   = v, '%'],
   ['textureOpacity', v => state.adj.textureOpacity  = v, '%'],
-  ['leftSqDx',       v => state.adj.leftSquare.dx   = v, 'px'],
-  ['leftSqDy',       v => state.adj.leftSquare.dy   = v, 'px'],
-  ['leftSqW',        v => state.adj.leftSquare.w    = v, 'px'],
-  ['leftSqH',        v => state.adj.leftSquare.h    = v, 'px'],
-  ['rightSqDx',      v => state.adj.rightSquare.dx  = v, 'px'],
-  ['rightSqDy',      v => state.adj.rightSquare.dy  = v, 'px'],
-  ['rightSqW',       v => state.adj.rightSquare.w   = v, 'px'],
-  ['rightSqH',       v => state.adj.rightSquare.h   = v, 'px'],
+  // (Score-box bindings removed.)
   ['shadowDx',       v => state.adj.shadowDx        = v, 'px'],
   ['shadowDy',       v => state.adj.shadowDy        = v, 'px'],
   ['shadowBlur',     v => state.adj.shadowBlur      = v, 'px'],
@@ -1270,10 +1223,6 @@ function syncSlidersFromState(){
     rightKoOpacity:  state.adj.rightKo?.opacity ?? 22,
     rightKoScale:    state.adj.rightKo?.scale   ?? 130,
     textureOpacity:  state.adj.textureOpacity ?? 60,
-    leftSqDx:        state.adj.leftSquare.dx, leftSqDy: state.adj.leftSquare.dy,
-    leftSqW:         state.adj.leftSquare.w,  leftSqH:  state.adj.leftSquare.h,
-    rightSqDx:       state.adj.rightSquare.dx,rightSqDy:state.adj.rightSquare.dy,
-    rightSqW:        state.adj.rightSquare.w, rightSqH: state.adj.rightSquare.h,
     shadowDx:        state.adj.shadowDx,      shadowDy: state.adj.shadowDy,
     shadowBlur:      state.adj.shadowBlur,    shadowAlpha: state.adj.shadowAlpha,
     logoShadowDx:     state.adj.logoShadow.dx,    logoShadowDy:    state.adj.logoShadow.dy,
@@ -1435,11 +1384,7 @@ document.getElementById('bgPresetNavy').addEventListener('click',  () => setPrev
 
 // Texture blend mode + per-side square blend
 document.getElementById('textureBlend').addEventListener('change', e => { state.adj.textureBlend = e.target.value; persistState(); draw(); });
-document.getElementById('leftSqBlend').addEventListener('change', e => { state.adj.leftSquare.blend = e.target.value; persistState(); draw(); });
-document.getElementById('rightSqBlend').addEventListener('change', e => { state.adj.rightSquare.blend = e.target.value; persistState(); draw(); });
 // Logo-square colors
-document.getElementById('leftSqColor').addEventListener('input', e => { state.adj.leftSquare.color = e.target.value; persistState(); draw(); });
-document.getElementById('rightSqColor').addEventListener('input', e => { state.adj.rightSquare.color = e.target.value; persistState(); draw(); });
 // Shadow
 document.getElementById('leftShadow').addEventListener('change', e => { state.adj.leftShadow = e.target.checked; persistState(); draw(); });
 document.getElementById('rightShadow').addEventListener('change', e => { state.adj.rightShadow = e.target.checked; persistState(); draw(); });
