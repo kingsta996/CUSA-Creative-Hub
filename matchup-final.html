@@ -209,18 +209,25 @@ body.embedded .tabs{display:none !important}
       <button class="btn secondary" id="clearTextureBtn" style="font-size:10px;padding:6px 10px">Clear texture</button>
     </div>
     <div class="team-card">
-      <div class="team-card-title">Knockout Texture (per side)</div>
+      <div class="team-card-title">Knockout · Left</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="koOpacityR">22%</span></label><input id="koOpacity" type="range" min="0" max="100" step="1" value="22"></div>
-        <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="koScaleR">130%</span></label><input id="koScale" type="range" min="40" max="500" step="5" value="130"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="leftKoOpacityR">22%</span></label><input id="leftKoOpacity" type="range" min="0" max="100" step="1" value="22"></div>
+        <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="leftKoScaleR">130%</span></label><input id="leftKoScale" type="range" min="40" max="500" step="5" value="130"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Left X <span class="nudge-readout" id="leftKoDxR">0px</span></label><input id="leftKoDx" type="range" min="-400" max="400" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Left Y <span class="nudge-readout" id="leftKoDyR">0px</span></label><input id="leftKoDy" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="leftKoDxR">0px</span></label><input id="leftKoDx" type="range" min="-400" max="400" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="leftKoDyR">0px</span></label><input id="leftKoDy" type="range" min="-200" max="200" step="1" value="0"></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Knockout · Right</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="rightKoOpacityR">22%</span></label><input id="rightKoOpacity" type="range" min="0" max="100" step="1" value="22"></div>
+        <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="rightKoScaleR">130%</span></label><input id="rightKoScale" type="range" min="40" max="500" step="5" value="130"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Right X <span class="nudge-readout" id="rightKoDxR">0px</span></label><input id="rightKoDx" type="range" min="-400" max="400" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Right Y <span class="nudge-readout" id="rightKoDyR">0px</span></label><input id="rightKoDy" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="rightKoDxR">0px</span></label><input id="rightKoDx" type="range" min="-400" max="400" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="rightKoDyR">0px</span></label><input id="rightKoDy" type="range" min="-200" max="200" step="1" value="0"></div>
       </div>
     </div>
 
@@ -247,14 +254,14 @@ body.embedded .tabs{display:none !important}
       </div>
     </div>
     <div class="team-card">
-      <div class="team-card-title">Logo Square · Left</div>
+      <div class="team-card-title">Score Box · Left</div>
       <div class="row-2">
         <div class="field"><label class="field-label">X <span class="nudge-readout" id="leftSqDxR">0px</span></label><input id="leftSqDx" type="range" min="-500" max="500" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="leftSqDyR">0px</span></label><input id="leftSqDy" type="range" min="-50" max="50" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="leftSqDyR">0px</span></label><input id="leftSqDy" type="range" min="-100" max="100" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="leftSqWR">76px</span></label><input id="leftSqW" type="range" min="0" max="220" step="1" value="76"></div>
-        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="leftSqHR">67px</span></label><input id="leftSqH" type="range" min="0" max="135" step="1" value="67"></div>
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="leftSqWR">100px</span></label><input id="leftSqW" type="range" min="0" max="300" step="1" value="100"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="leftSqHR">100px</span></label><input id="leftSqH" type="range" min="0" max="200" step="1" value="100"></div>
       </div>
       <div class="row-2">
         <div class="field"><label class="field-label">Color</label><input id="leftSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
@@ -262,14 +269,14 @@ body.embedded .tabs{display:none !important}
       </div>
     </div>
     <div class="team-card">
-      <div class="team-card-title">Logo Square · Right</div>
+      <div class="team-card-title">Score Box · Right</div>
       <div class="row-2">
         <div class="field"><label class="field-label">X <span class="nudge-readout" id="rightSqDxR">0px</span></label><input id="rightSqDx" type="range" min="-500" max="500" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="rightSqDyR">0px</span></label><input id="rightSqDy" type="range" min="-50" max="50" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="rightSqDyR">0px</span></label><input id="rightSqDy" type="range" min="-100" max="100" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="rightSqWR">76px</span></label><input id="rightSqW" type="range" min="0" max="220" step="1" value="76"></div>
-        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightSqHR">67px</span></label><input id="rightSqH" type="range" min="0" max="135" step="1" value="67"></div>
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="rightSqWR">100px</span></label><input id="rightSqW" type="range" min="0" max="300" step="1" value="100"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightSqHR">100px</span></label><input id="rightSqH" type="range" min="0" max="200" step="1" value="100"></div>
       </div>
       <div class="row-2">
         <div class="field"><label class="field-label">Color</label><input id="rightSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
@@ -538,20 +545,20 @@ const state = {
     // own anchor (left block grows right; right block grows left).
     leftBlock:  { dx: 0, dy: 0, sw: 100, sh: 100 },
     rightBlock: { dx: 0, dy: 0, sw: 100, sh: 100 },
-    // Per-side knockout dx/dy nudge — independent positioning so each
-    // school's mascot can sit where it looks best in its half.
-    leftKo:    { dx: 0, dy: 0 },
-    rightKo:   { dx: 0, dy: 0 },
-    koOpacity: 22,
-    koScale:   130,
+    // Per-side knockout config — fully independent (dx, dy, scale, opacity)
+    // so each team's mascot can have its own positioning AND sizing AND
+    // transparency without one side dragging the other.
+    leftKo:    { dx: 0, dy: 0, scale: 130, opacity: 22 },
+    rightKo:   { dx: 0, dy: 0, scale: 130, opacity: 22 },
     // Custom uploaded texture (data URL persisted separately) — overlay over
     // the team color boxes with operator-selected blend + opacity.
     textureBlend:   'overlay',
     textureOpacity: 60,
-    // Per-side logo squares — independent dx/dy/size/color/blend. Default
-    // color comes from the school primary; default blend = overlay.
-    leftSquare:  { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
-    rightSquare: { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    // Per-side score boxes — solid white backdrops for the score numbers.
+    // Defaults: 100×100 (matches the LOGO_BOX area), opaque white, normal
+    // blend. Operator can override color/blend/size per side.
+    leftSquare:  { dx: 0, dy: 0, w: 100, h: 100, color: '#FFFFFF', blend: 'source-over' },
+    rightSquare: { dx: 0, dy: 0, w: 100, h: 100, color: '#FFFFFF', blend: 'source-over' },
     // Drop shadow shared by name + nickname text (per-side toggle).
     leftShadow:  true,
     rightShadow: true,
@@ -677,11 +684,13 @@ async function draw(forExport = false){
   if (rightConf) { ctx.fillStyle = schoolColor(rightConf); ctx.fillRect(BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH); }
 
   // 2. Knockout texture per side — clipped to the (possibly-resized) block.
-  const koAlpha = state.adj.koOpacity / 100;
-  const koScale = state.adj.koScale / 100;
+  // Per-side knockout opacity + scale (independent saves so adjusting one
+  // side doesn't drag the other).
+  const lKo = state.adj.leftKo;
+  const rKo = state.adj.rightKo;
   const koSh = state.adj.koShadow || {};
-  if (state.left.koImg)  drawKoTexture(state.left.koImg,  BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH, koAlpha, koScale, 'left',  state.adj.leftKo,  koSh.leftOn  ? koSh : null);
-  if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH, koAlpha, koScale, 'right', state.adj.rightKo, koSh.rightOn ? koSh : null);
+  if (state.left.koImg)  drawKoTexture(state.left.koImg,  BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH, (lKo.opacity ?? 22) / 100, (lKo.scale ?? 130) / 100, 'left',  lKo, koSh.leftOn  ? koSh : null);
+  if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH, (rKo.opacity ?? 22) / 100, (rKo.scale ?? 130) / 100, 'right', rKo, koSh.rightOn ? koSh : null);
 
   // 3. Custom user-uploaded texture — overlay over the team color boxes,
   //    operator-selected blend mode + opacity. Clipped to the bar bounds
@@ -952,9 +961,18 @@ function restoreState(){
        'logoShadow','stripShadow','koShadow'].forEach(k => {
         if (s.adj[k] && typeof s.adj[k] === 'object' && state.adj[k]) Object.assign(state.adj[k], s.adj[k]);
       });
-      ['koOpacity','koScale','textureOpacity','shadowDx','shadowDy','shadowBlur','shadowAlpha','stripDx','stripDy'].forEach(k => {
+      ['textureOpacity','shadowDx','shadowDy','shadowBlur','shadowAlpha','stripDx','stripDy'].forEach(k => {
         if (typeof s.adj[k] === 'number') state.adj[k] = s.adj[k];
       });
+      // Migrate legacy shared koOpacity/koScale into per-side values.
+      if (typeof s.adj.koOpacity === 'number') {
+        state.adj.leftKo.opacity  = s.adj.koOpacity;
+        state.adj.rightKo.opacity = s.adj.koOpacity;
+      }
+      if (typeof s.adj.koScale === 'number') {
+        state.adj.leftKo.scale  = s.adj.koScale;
+        state.adj.rightKo.scale = s.adj.koScale;
+      }
       ['leftShadow','rightShadow'].forEach(k => {
         if (typeof s.adj[k] === 'boolean') state.adj[k] = s.adj[k];
       });
@@ -965,10 +983,14 @@ function restoreState(){
     // SECONDARY-color default takes effect for existing users. Mark it done
     // via a flag so subsequent custom picks are honored. Custom picks made
     // AFTER the migration are persisted normally.
-    if (!localStorage.getItem('cusa_matchup_squarecolor_migrated_v1')) {
-      state.adj.leftSquare.color  = '';
-      state.adj.rightSquare.color = '';
-      try { localStorage.setItem('cusa_matchup_squarecolor_migrated_v1', '1'); } catch (_) {}
+    // One-time migration for the FINAL SCORE page: existing users may have
+    // legacy 76×67 square sizes + custom colors that pre-date the score-box
+    // role. Reset to the new white-100×100 default so the score is visibly
+    // encased on first load. Subsequent operator picks are honored.
+    if (!localStorage.getItem('cusa_matchup_final_scorebox_migrated_v1')) {
+      state.adj.leftSquare  = { dx: 0, dy: 0, w: 100, h: 100, color: '#FFFFFF', blend: 'source-over' };
+      state.adj.rightSquare = { dx: 0, dy: 0, w: 100, h: 100, color: '#FFFFFF', blend: 'source-over' };
+      try { localStorage.setItem('cusa_matchup_final_scorebox_migrated_v1', '1'); } catch (_) {}
     }
   } catch (_) {}
 }
@@ -1186,8 +1208,10 @@ const ADJ_BINDINGS = [
   ['leftKoDy',       v => state.adj.leftKo.dy       = v, 'px'],
   ['rightKoDx',      v => state.adj.rightKo.dx      = v, 'px'],
   ['rightKoDy',      v => state.adj.rightKo.dy      = v, 'px'],
-  ['koOpacity',      v => state.adj.koOpacity       = v, '%'],
-  ['koScale',        v => state.adj.koScale         = v, '%'],
+  ['leftKoOpacity',  v => state.adj.leftKo.opacity  = v, '%'],
+  ['leftKoScale',    v => state.adj.leftKo.scale    = v, '%'],
+  ['rightKoOpacity', v => state.adj.rightKo.opacity = v, '%'],
+  ['rightKoScale',   v => state.adj.rightKo.scale   = v, '%'],
   ['textureOpacity', v => state.adj.textureOpacity  = v, '%'],
   ['leftSqDx',       v => state.adj.leftSquare.dx   = v, 'px'],
   ['leftSqDy',       v => state.adj.leftSquare.dy   = v, 'px'],
@@ -1241,7 +1265,10 @@ function syncSlidersFromState(){
     rightBlockSW:    state.adj.rightBlock.sw,rightBlockSH:state.adj.rightBlock.sh,
     leftKoDx:        state.adj.leftKo.dx,    leftKoDy:    state.adj.leftKo.dy,
     rightKoDx:       state.adj.rightKo.dx,   rightKoDy:   state.adj.rightKo.dy,
-    koOpacity:       state.adj.koOpacity,    koScale:     state.adj.koScale,
+    leftKoOpacity:   state.adj.leftKo?.opacity  ?? 22,
+    leftKoScale:     state.adj.leftKo?.scale    ?? 130,
+    rightKoOpacity:  state.adj.rightKo?.opacity ?? 22,
+    rightKoScale:    state.adj.rightKo?.scale   ?? 130,
     textureOpacity:  state.adj.textureOpacity ?? 60,
     leftSqDx:        state.adj.leftSquare.dx, leftSqDy: state.adj.leftSquare.dy,
     leftSqW:         state.adj.leftSquare.w,  leftSqH:  state.adj.leftSquare.h,
@@ -1439,11 +1466,11 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     rightName: { dx: 0, dy: 0 }, rightNick: { dx: 0, dy: 0, scale: 100 },
     leftBlock:  { dx: 0, dy: 0, sw: 100, sh: 100 },
     rightBlock: { dx: 0, dy: 0, sw: 100, sh: 100 },
-    leftKo:    { dx: 0, dy: 0 }, rightKo:   { dx: 0, dy: 0 },
-    koOpacity: 22, koScale: 130,
+    leftKo:    { dx: 0, dy: 0, scale: 130, opacity: 22 },
+    rightKo:   { dx: 0, dy: 0, scale: 130, opacity: 22 },
     textureBlend: 'overlay', textureOpacity: 60,
-    leftSquare:  { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
-    rightSquare: { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    leftSquare:  { dx: 0, dy: 0, w: 100, h: 100, color: '#FFFFFF', blend: 'source-over' },
+    rightSquare: { dx: 0, dy: 0, w: 100, h: 100, color: '#FFFFFF', blend: 'source-over' },
     leftShadow: true, rightShadow: true,
     shadowDx: 2, shadowDy: 2, shadowBlur: 3, shadowColor: '#000000', shadowAlpha: 60,
     logoShadow: { leftOn: true, rightOn: true, dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 50 },
