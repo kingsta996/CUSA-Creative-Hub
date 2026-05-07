@@ -522,8 +522,10 @@ async function applyMode(mode){
 
   // Matchup tab: swap the builder UI for an embedded React app via iframe.
   if (mode === 'matchup') {
-    if (matchupIframe.src === 'about:blank' || !matchupIframe.src.includes('podcast-graphics')) {
-      matchupIframe.src = 'podcast-graphics/index.html?embedded=1';
+    // New matchup builder (1080×135 schedule row with school colors + knockout
+    // textures). Replaces the old podcast-graphics iframe.
+    if (matchupIframe.src === 'about:blank' || !matchupIframe.src.includes('matchup.html')) {
+      matchupIframe.src = 'matchup.html';
     }
     mainBuilder.style.display = 'none';
     matchupFrame.style.display = 'flex';

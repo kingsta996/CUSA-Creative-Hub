@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CUSA Matchup &amp; Final Score Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;700&display=swap">
+<style>
+@font-face{font-family:'Proxima Nova';font-weight:700;src:url('fonts/ProximaNovaBold.woff') format('woff'),url('fonts/ProximaNovaBold.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:900;src:url('fonts/ProximaNovaBlack.woff') format('woff'),url('fonts/ProximaNovaBlack.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Gazzetta ExtraBold';src:url('fonts/gazzetta-extrabold.otf') format('opentype');font-display:swap}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Barlow',sans-serif;background:#060f1a;color:#fff}
+body{display:flex;flex-direction:column;overflow:hidden}
+
+.topbar{width:100%;background:#0a1624;border-bottom:2px solid rgba(235,25,70,0.5);display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:54px;flex-shrink:0;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.topbar-logo{height:30px;width:auto;display:block;filter:drop-shadow(0 2px 12px rgba(235,25,70,0.25))}
+.topbar-sep{width:1px;height:22px;background:rgba(255,255,255,0.2)}
+.topbar-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:2px;color:#fff}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-status{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.5)}
+.topbar-status.error{color:#ff6f8b}
+.back{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.6);text-decoration:none;border:1px solid rgba(255,255,255,0.18);padding:7px 12px;border-radius:4px}
+.back:hover{color:#fff;border-color:rgba(235,25,70,0.6)}
+
+.tabs{width:100%;background:rgba(10,22,36,0.9);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;gap:0;padding:0 12px;flex-shrink:0}
+.tab{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.45);text-transform:uppercase;background:transparent;border:none;padding:11px 18px;cursor:pointer;border-bottom:2px solid transparent;text-decoration:none}
+.tab:hover{color:rgba(255,255,255,0.75)}
+.tab.active{color:#fff;border-bottom-color:#EB1946}
+
+.main{display:flex;width:100%;gap:14px;padding:12px;flex:1;min-height:0;overflow:hidden}
+
+.panel{background:#0e1d2e;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:14px;width:340px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;height:100%}
+.panel-head{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid rgba(235,25,70,0.18)}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.55);text-transform:uppercase}
+.field input[type=text],.field input[type=number],.field select{font-family:'Barlow',sans-serif;font-size:13px;background:#0a1624;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:8px 10px;width:100%}
+.field input[type=text]:focus,.field input[type=number]:focus,.field select:focus{outline:none;border-color:#EB1946}
+.field input[type=range]{width:100%;accent-color:#EB1946}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.team-card{border:1px solid rgba(235,25,70,0.18);border-radius:6px;padding:10px 11px;background:rgba(235,25,70,0.04);display:flex;flex-direction:column;gap:8px}
+.team-card-title{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase}
+.nudge-readout{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(235,25,70,0.85);margin-left:6px}
+
+.btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:#fff;background:#EB1946;border:none;padding:11px 16px;border-radius:4px;cursor:pointer;text-transform:uppercase;width:100%}
+.btn:hover{background:#c91240}
+.btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.25)}
+.btn.secondary:hover{background:rgba(255,255,255,0.06)}
+.panel-spacer{flex:1}
+
+.canvas-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:0;height:100%;padding:8px}
+.canvas-wrap{position:relative;border-radius:4px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.85);width:100%;max-width:1200px;background:#000}
+.canvas-wrap canvas{display:block;width:100%;height:auto}
+.preview-meta{margin-top:10px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-align:center}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" aria-label="CUSA Creative Hub"><img class="topbar-logo" src="assets/cusa-primary-white.png" alt="Conference USA"></a>
+    <div class="topbar-sep"></div>
+    <div class="topbar-title">MATCHUP</div>
+  </div>
+  <div class="topbar-right">
+    <div id="topStatus" class="topbar-status"></div>
+    <a class="back" href="index.html">← HUB</a>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active">Matchup &amp; Final Score</button>
+</div>
+
+<div class="main">
+
+  <!-- Left controls — Admin Portal -->
+  <div class="panel" id="panel">
+
+    <div class="panel-head">Admin Portal · Edit Matchup</div>
+
+    <div class="team-card">
+      <div class="team-card-title">Left Team</div>
+      <div class="field">
+        <label class="field-label" for="leftSchool">School</label>
+        <select id="leftSchool"></select>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Right Team</div>
+      <div class="field">
+        <label class="field-label" for="rightSchool">School</label>
+        <select id="rightSchool"></select>
+      </div>
+    </div>
+
+    <div class="panel-head" style="margin-top:6px">Matchup Details</div>
+    <div class="row-3">
+      <div class="field"><label class="field-label">Date</label><input id="dateText" type="text" maxlength="10" value="JAN 23"></div>
+      <div class="field"><label class="field-label">Time</label><input id="timeText" type="text" maxlength="10" value="6:30 PM"></div>
+      <div class="field"><label class="field-label">Network</label><input id="networkText" type="text" maxlength="10" value="ESPN+"></div>
+    </div>
+
+    <div class="panel-head" style="margin-top:6px">Position Tuning <span style="font-weight:600;color:rgba(255,255,255,0.35);letter-spacing:1px">· auto-saved</span></div>
+    <div class="team-card">
+      <div class="team-card-title">Logo Boxes</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Left X <span class="nudge-readout" id="leftLogoDxR">0px</span></label><input id="leftLogoDx" type="range" min="-50" max="50" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Left Y <span class="nudge-readout" id="leftLogoDyR">0px</span></label><input id="leftLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Right X <span class="nudge-readout" id="rightLogoDxR">0px</span></label><input id="rightLogoDx" type="range" min="-50" max="50" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Right Y <span class="nudge-readout" id="rightLogoDyR">0px</span></label><input id="rightLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Text · Left</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Name X <span class="nudge-readout" id="leftNameDxR">0px</span></label><input id="leftNameDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Name Y <span class="nudge-readout" id="leftNameDyR">0px</span></label><input id="leftNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="leftNickDxR">0px</span></label><input id="leftNickDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Nick Y <span class="nudge-readout" id="leftNickDyR">0px</span></label><input id="leftNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Text · Right</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Name X <span class="nudge-readout" id="rightNameDxR">0px</span></label><input id="rightNameDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Name Y <span class="nudge-readout" id="rightNameDyR">0px</span></label><input id="rightNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="rightNickDxR">0px</span></label><input id="rightNickDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Nick Y <span class="nudge-readout" id="rightNickDyR">0px</span></label><input id="rightNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Knockout Texture</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="koOpacityR">22%</span></label><input id="koOpacity" type="range" min="0" max="60" step="1" value="22"></div>
+        <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="koScaleR">130%</span></label><input id="koScale" type="range" min="60" max="220" step="5" value="130"></div>
+      </div>
+    </div>
+    <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
+
+    <div class="panel-spacer"></div>
+    <button class="btn" id="download">Download PNG</button>
+  </div>
+
+  <!-- Center preview -->
+  <div class="canvas-area">
+    <div class="canvas-wrap">
+      <canvas id="cvs" width="1080" height="135"></canvas>
+    </div>
+    <div class="preview-meta">1080 × 135  ·  Where to Watch · Matchup Row</div>
+  </div>
+
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────
+const ASSET_DIR_TEMPLATE = 'matchup/template/';
+const ASSET_DIR_PRIMARY  = 'matchup/primary/';
+const ASSET_DIR_KO       = 'matchup/knockouts/';
+
+// CUSA schools — name + nickname + primary color + logo files. Hex pulled from
+// IMS_Color_Mapping.xlsx (Swatch column, ESPN Primary fallback). FIU is dark
+// navy because the brand uses #091F3F (the swatch column had 'N/A').
+const SCHOOLS = [
+  { id: 'Liberty',           nickname: 'FLAMES',        color: '#0A254E', primary: 'LIBERTY.PNG',          ko: 'LIBERTY.PNG' },
+  { id: 'Middle Tennessee',  nickname: 'BLUE RAIDERS',  color: '#036EB7', primary: 'MIDDLE_TENNESSEE.PNG', ko: 'MIDDLE_TENNESSEE.PNG' },
+  { id: 'Delaware',          nickname: 'BLUE HENS',     color: '#00539F', primary: 'DELAWARE.PNG',         ko: 'DELAWARE.PNG' },
+  { id: 'FIU',               nickname: 'PANTHERS',      color: '#091F3F', primary: 'FIU.PNG',              ko: 'FIU.PNG' },
+  { id: 'Jacksonville State',nickname: 'GAMECOCKS',     color: '#CC0000', primary: 'JACKSONVILLE_ST.PNG',  ko: 'JACKSONVILLE_ST.PNG' },
+  { id: 'Kennesaw State',    nickname: 'OWLS',          color: '#FDBB30', primary: 'KENNESAW_ST.PNG',      ko: 'KENNESAW_ST.PNG' },
+  { id: 'Louisiana Tech',    nickname: 'BULLDOGS',      color: '#003087', primary: 'LOUISIANA_TECH.PNG',   ko: 'LOUISIANA_TECH.PNG' },
+  { id: 'Missouri State',    nickname: 'BEARS',         color: '#5E0009', primary: 'MISSOURI_ST.PNG',      ko: 'MISSOURI_ST.PNG' },
+  { id: 'New Mexico State',  nickname: 'AGGIES',        color: '#7E141B', primary: 'NEW_MEXICO_ST.PNG',    ko: 'NEW_MEXICO_ST.PNG' },
+  { id: 'Sam Houston',       nickname: 'BEARKATS',      color: '#FF5000', primary: 'SAM_HOUSTON_ST.PNG',   ko: 'SAM_HOUSTON_ST.PNG' },
+  { id: 'UTEP',              nickname: 'MINERS',        color: '#041E42', primary: 'UTEP.PNG',             ko: 'UTEP.PNG' },
+  { id: 'Western Kentucky',  nickname: 'HILLTOPPERS',   color: '#E13A3E', primary: 'WESTERN_KENTUCKY.PNG', ko: 'WESTERN_KENTUCKY.PNG' },
+];
+
+// Layer assets
+const LAYERS = {
+  template: ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Empty Matchup Template.png',
+  overlay:  ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Gradient Overlay - Small Logo Placeholders - At, Date, Network Placeholder - Element Only.png',
+};
+
+// Geometry — measured from the empty template (1080×135).
+// Logo boxes appear at the far edges; the colored matchup bar runs across
+// the middle. The "AT" badge + date/time/network strip sit centered.
+const CANVAS_W = 1080;
+const CANVAS_H = 135;
+const LOGO_BOX = { w: 100, h: 100, leftX: 14, rightX: 1080 - 14 - 100, y: 10 };  // logo box positions
+const BAR     = { x: 60, y: 10, w: 1080 - 120, h: 95, mid: 540 };                 // colored bar bounds + center split
+const NAME_FS = 14;    // Proxima Nova ExtraBold (black weight 900) for school name
+const NICK_FS = 52;    // Gazzetta ExtraBold for nickname
+const NAME_CY = 38;    // small label near top of bar
+const NICK_CY = 78;    // big nickname mid-bar
+// Each side's text anchor (centered between logo box and AT badge).
+const LEFT_TEXT_CX  = 350;  // center of left half (excluding logo box + AT margin)
+const RIGHT_TEXT_CX = 730;  // center of right half
+
+// ─── State ────────────────────────────────────────────────────────────────
+const state = {
+  left:  { school: 'Liberty',          primaryImg: null, koImg: null },
+  right: { school: 'Middle Tennessee', primaryImg: null, koImg: null },
+  date:    'JAN 23',
+  time:    '6:30 PM',
+  network: 'ESPN+',
+  layerImgs: {},
+  adj: {
+    leftLogo:  { dx: 0, dy: 0 },
+    rightLogo: { dx: 0, dy: 0 },
+    leftName:  { dx: 0, dy: 0 },
+    leftNick:  { dx: 0, dy: 0 },
+    rightName: { dx: 0, dy: 0 },
+    rightNick: { dx: 0, dy: 0 },
+    koOpacity: 22,
+    koScale:   130,
+  },
+};
+
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+const topStatus = document.getElementById('topStatus');
+function setStatus(msg, isErr){
+  topStatus.textContent = msg || '';
+  topStatus.classList.toggle('error', !!isErr);
+}
+
+// ─── Image loading ────────────────────────────────────────────────────────
+const imgCache = new Map();
+function loadImage(src){
+  if (imgCache.has(src)) return imgCache.get(src);
+  const p = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload  = () => resolve(img);
+    img.onerror = () => reject(new Error('Image load failed: ' + src));
+    img.src = src;
+  });
+  imgCache.set(src, p);
+  return p;
+}
+async function ensureLayer(key){
+  if (state.layerImgs[key]) return state.layerImgs[key];
+  state.layerImgs[key] = await loadImage(encodeURI(LAYERS[key]));
+  return state.layerImgs[key];
+}
+async function ensureSchoolImages(side){
+  const sObj = state[side];
+  const conf = SCHOOLS.find(s => s.id === sObj.school);
+  if (!conf) { sObj.primaryImg = null; sObj.koImg = null; return; }
+  try { sObj.primaryImg = await loadImage(encodeURI(ASSET_DIR_PRIMARY + conf.primary)); }
+  catch (_) { sObj.primaryImg = null; setStatus('Could not load primary for ' + sObj.school, true); }
+  try { sObj.koImg = await loadImage(encodeURI(ASSET_DIR_KO + conf.ko)); }
+  catch (_) { sObj.koImg = null; }
+}
+
+// ─── Render helpers ───────────────────────────────────────────────────────
+// Cover-fit: scale image to fill (w,h) preserving aspect, cropping overflow.
+function drawContainFit(img, x, y, w, h, dx, dy){
+  const ar = img.naturalWidth / img.naturalHeight;
+  const tar = w / h;
+  let dw, dh, ox, oy;
+  if (ar > tar) { dw = w; dh = w / ar; }
+  else          { dh = h; dw = h * ar; }
+  ox = x + (w - dw) / 2 + (dx || 0);
+  oy = y + (h - dh) / 2 + (dy || 0);
+  ctx.drawImage(img, ox, oy, dw, dh);
+}
+
+async function draw(){
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // 1. Empty Matchup Template (provides logo box outlines + AT badge + strip)
+  let tplImg;
+  try { tplImg = await ensureLayer('template'); ctx.drawImage(tplImg, 0, 0, CANVAS_W, CANVAS_H); }
+  catch (e) { ctx.fillStyle = '#0a1628'; ctx.fillRect(0,0,CANVAS_W,CANVAS_H); console.error(e); }
+
+  // 2. Color blocks per side — primary color, with knockout-logo texture on top.
+  //    Drawn UNDER the logo boxes + AT badge by re-drawing the template overlay
+  //    later (template has the AT/strip + logo boxes baked in opaque).
+  // Left bar: x=BAR.x..BAR.mid
+  // Right bar: x=BAR.mid..BAR.x+BAR.w
+  const leftConf  = SCHOOLS.find(s => s.id === state.left.school);
+  const rightConf = SCHOOLS.find(s => s.id === state.right.school);
+  if (leftConf)  { ctx.fillStyle = leftConf.color;  ctx.fillRect(BAR.x, BAR.y, BAR.mid - BAR.x, BAR.h); }
+  if (rightConf) { ctx.fillStyle = rightConf.color; ctx.fillRect(BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h); }
+
+  // 3. Knockout texture per side — clipped to its own half so it doesn't bleed.
+  const koAlpha = state.adj.koOpacity / 100;
+  const koScale = state.adj.koScale / 100;
+  if (state.left.koImg) drawKoTexture(state.left.koImg, BAR.x, BAR.y, BAR.mid - BAR.x, BAR.h, koAlpha, koScale, 'left');
+  if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h, koAlpha, koScale, 'right');
+
+  // 4. Re-draw the template OVERLAY to put logo boxes + AT badge + strip on top.
+  if (tplImg) ctx.drawImage(tplImg, 0, 0, CANVAS_W, CANVAS_H);
+
+  // 5. School primary logos in the left + right boxes
+  if (state.left.primaryImg) {
+    drawContainFit(state.left.primaryImg, LOGO_BOX.leftX, LOGO_BOX.y,
+      LOGO_BOX.w, LOGO_BOX.h, state.adj.leftLogo.dx, state.adj.leftLogo.dy);
+  }
+  if (state.right.primaryImg) {
+    drawContainFit(state.right.primaryImg, LOGO_BOX.rightX, LOGO_BOX.y,
+      LOGO_BOX.w, LOGO_BOX.h, state.adj.rightLogo.dx, state.adj.rightLogo.dy);
+  }
+
+  // 6. Text — school name (small) + nickname (large) per side
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (leftConf) {
+    ctx.font = `900 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+    ctx.fillText(leftConf.id.toUpperCase(),
+      LEFT_TEXT_CX + state.adj.leftName.dx,
+      NAME_CY + state.adj.leftName.dy);
+    ctx.font = `700 ${NICK_FS}px "Gazzetta ExtraBold","Proxima Nova",sans-serif`;
+    ctx.fillText(leftConf.nickname,
+      LEFT_TEXT_CX + state.adj.leftNick.dx,
+      NICK_CY + state.adj.leftNick.dy);
+  }
+  if (rightConf) {
+    ctx.font = `900 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+    ctx.fillText(rightConf.id.toUpperCase(),
+      RIGHT_TEXT_CX + state.adj.rightName.dx,
+      NAME_CY + state.adj.rightName.dy);
+    ctx.font = `700 ${NICK_FS}px "Gazzetta ExtraBold","Proxima Nova",sans-serif`;
+    ctx.fillText(rightConf.nickname,
+      RIGHT_TEXT_CX + state.adj.rightNick.dx,
+      NICK_CY + state.adj.rightNick.dy);
+  }
+
+  // 7. Date / Time / Network strip text (3 small cells under the AT badge).
+  //    Strip cells from the template are roughly at x=460..620, y=108..132.
+  //    Each cell ~53px wide.
+  ctx.fillStyle = '#0A254E';
+  ctx.font = `900 11px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText(state.date,    487, 120);
+  ctx.fillText(state.time,    540, 120);
+  ctx.fillText(state.network, 593, 120);
+}
+
+function drawKoTexture(img, x, y, w, h, alpha, scale, side){
+  // Crop a single instance of the knockout to fit, tinted white at low alpha.
+  // Texture: a single large knockout logo positioned within the bar's inner
+  // safe zone (avoiding the logo-box edges). Drawn with global alpha.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  const targetH = h * scale;
+  const ar = img.naturalWidth / img.naturalHeight;
+  const targetW = targetH * ar;
+  // Anchor: left side biases knockout toward the left; right toward the right
+  const ox = side === 'left' ? x + (w - targetW) * 0.25 : x + (w - targetW) * 0.75;
+  const oy = y + (h - targetH) / 2;
+  ctx.globalAlpha = alpha;
+  // White-tint by drawing image then masking with white. Simpler approach:
+  // use 'lighter' composite on the existing fill so the knockout's white
+  // portions become semi-transparent white texture.
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(img, ox, oy, targetW, targetH);
+  ctx.restore();
+}
+
+// ─── Persistence ──────────────────────────────────────────────────────────
+const STATE_KEY = 'cusa_matchup_v1';
+function persistState(){
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      left:    { school: state.left.school },
+      right:   { school: state.right.school },
+      date:    state.date,
+      time:    state.time,
+      network: state.network,
+      adj:     state.adj,
+    }));
+  } catch (_) {}
+}
+function restoreState(){
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.left?.school)  state.left.school = s.left.school;
+    if (s.right?.school) state.right.school = s.right.school;
+    if (s.date != null)    state.date = s.date;
+    if (s.time != null)    state.time = s.time;
+    if (s.network != null) state.network = s.network;
+    if (s.adj && typeof s.adj === 'object') {
+      ['leftLogo','rightLogo','leftName','leftNick','rightName','rightNick'].forEach(k => {
+        if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]);
+      });
+      ['koOpacity','koScale'].forEach(k => {
+        if (typeof s.adj[k] === 'number') state.adj[k] = s.adj[k];
+      });
+    }
+  } catch (_) {}
+}
+
+// ─── Wire-up ──────────────────────────────────────────────────────────────
+function populateSchools(){
+  const opts = SCHOOLS.map(s => `<option value="${s.id}">${s.id}</option>`).join('');
+  const lSel = document.getElementById('leftSchool');
+  const rSel = document.getElementById('rightSchool');
+  lSel.innerHTML = opts; rSel.innerHTML = opts;
+  lSel.value = state.left.school;
+  rSel.value = state.right.school;
+}
+
+document.getElementById('leftSchool').addEventListener('change', async e => {
+  state.left.school = e.target.value;
+  await ensureSchoolImages('left');
+  persistState();
+  draw();
+});
+document.getElementById('rightSchool').addEventListener('change', async e => {
+  state.right.school = e.target.value;
+  await ensureSchoolImages('right');
+  persistState();
+  draw();
+});
+['date','time','network'].forEach(k => {
+  document.getElementById(k + 'Text').addEventListener('input', e => {
+    state[k] = e.target.value;
+    persistState();
+    draw();
+  });
+});
+
+const ADJ_BINDINGS = [
+  ['leftLogoDx',  v => state.adj.leftLogo.dx  = v, 'px'],
+  ['leftLogoDy',  v => state.adj.leftLogo.dy  = v, 'px'],
+  ['rightLogoDx', v => state.adj.rightLogo.dx = v, 'px'],
+  ['rightLogoDy', v => state.adj.rightLogo.dy = v, 'px'],
+  ['leftNameDx',  v => state.adj.leftName.dx  = v, 'px'],
+  ['leftNameDy',  v => state.adj.leftName.dy  = v, 'px'],
+  ['leftNickDx',  v => state.adj.leftNick.dx  = v, 'px'],
+  ['leftNickDy',  v => state.adj.leftNick.dy  = v, 'px'],
+  ['rightNameDx', v => state.adj.rightName.dx = v, 'px'],
+  ['rightNameDy', v => state.adj.rightName.dy = v, 'px'],
+  ['rightNickDx', v => state.adj.rightNick.dx = v, 'px'],
+  ['rightNickDy', v => state.adj.rightNick.dy = v, 'px'],
+  ['koOpacity',   v => state.adj.koOpacity    = v, '%'],
+  ['koScale',     v => state.adj.koScale      = v, '%'],
+];
+
+function syncSlidersFromState(){
+  const m = {
+    leftLogoDx:  state.adj.leftLogo.dx,  leftLogoDy:  state.adj.leftLogo.dy,
+    rightLogoDx: state.adj.rightLogo.dx, rightLogoDy: state.adj.rightLogo.dy,
+    leftNameDx:  state.adj.leftName.dx,  leftNameDy:  state.adj.leftName.dy,
+    leftNickDx:  state.adj.leftNick.dx,  leftNickDy:  state.adj.leftNick.dy,
+    rightNameDx: state.adj.rightName.dx, rightNameDy: state.adj.rightName.dy,
+    rightNickDx: state.adj.rightNick.dx, rightNickDy: state.adj.rightNick.dy,
+    koOpacity:   state.adj.koOpacity,    koScale:     state.adj.koScale,
+  };
+  for (const [id, val] of Object.entries(m)) {
+    const inp = document.getElementById(id);
+    const ro  = document.getElementById(id + 'R');
+    if (inp) inp.value = String(val);
+    if (ro) {
+      const unit = ADJ_BINDINGS.find(b => b[0] === id)?.[2] || 'px';
+      ro.textContent = (val >= 0 && unit === 'px' ? '+' : '') + val + unit;
+    }
+  }
+}
+
+ADJ_BINDINGS.forEach(([id, setter, unit]) => {
+  const inp = document.getElementById(id);
+  const ro  = document.getElementById(id + 'R');
+  inp.addEventListener('input', () => {
+    const v = Number(inp.value || 0);
+    setter(v);
+    if (ro) ro.textContent = (v >= 0 && unit === 'px' ? '+' : '') + v + unit;
+    persistState();
+    draw();
+  });
+});
+
+document.getElementById('resetPositions').addEventListener('click', () => {
+  state.adj = {
+    leftLogo:  { dx: 0, dy: 0 }, rightLogo: { dx: 0, dy: 0 },
+    leftName:  { dx: 0, dy: 0 }, leftNick:  { dx: 0, dy: 0 },
+    rightName: { dx: 0, dy: 0 }, rightNick: { dx: 0, dy: 0 },
+    koOpacity: 22, koScale: 130,
+  };
+  syncSlidersFromState();
+  persistState();
+  draw();
+});
+
+document.getElementById('download').addEventListener('click', () => {
+  const safe = (s) => (s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'') || 'X';
+  const fname = `CUSA_Matchup_${safe(state.left.school)}_vs_${safe(state.right.school)}.png`;
+  const a = document.createElement('a');
+  a.href = cvs.toDataURL('image/png');
+  a.download = fname;
+  a.click();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+(async () => {
+  restoreState();
+  populateSchools();
+  syncSlidersFromState();
+  document.getElementById('dateText').value    = state.date;
+  document.getElementById('timeText').value    = state.time;
+  document.getElementById('networkText').value = state.network;
+  if (document.fonts && document.fonts.load) {
+    try { await document.fonts.load(`900 ${NAME_FS}px "Proxima Nova"`); } catch(_) {}
+    try { await document.fonts.load(`700 ${NICK_FS}px "Gazzetta ExtraBold"`); } catch(_) {}
+  }
+  await Promise.all([
+    ensureLayer('template').catch(()=>null),
+    ensureSchoolImages('left'),
+    ensureSchoolImages('right'),
+  ]);
+  draw();
+})();
+</script>
+</body>
+</html>
