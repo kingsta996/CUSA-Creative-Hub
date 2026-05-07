@@ -33,8 +33,9 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .tab:hover{color:rgba(255,255,255,0.75)}
 .tab.active{color:#fff;border-bottom-color:#EB1946}
 .matchup-subtab{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.45);text-transform:uppercase;background:transparent;border:none;padding:7px 14px;cursor:pointer;border-bottom:2px solid transparent}
+.matchup-subtab:focus{outline:none}
 .matchup-subtab:hover{color:rgba(255,255,255,0.75)}
-.matchup-subtab.active{color:#fff;border-bottom-color:#EB1946}
+.matchup-subtab.active{color:#fff;border-bottom-color:#EB1946;background:rgba(235,25,70,0.10)}
 
 /* ── Main grid ── */
 .main{display:flex;width:100%;gap:14px;padding:12px;flex:1;min-height:0;overflow:hidden}
@@ -534,7 +535,12 @@ const SUB_PAGES = {
 function loadMatchupSub(sub){
   state.matchupSub = sub;
   const want = SUB_PAGES[sub] || SUB_PAGES.schedule;
-  if (!matchupIframe.src.includes(want.split('?')[0])) {
+  const wantPage = want.split('?')[0];
+  // Compare exact page filename — substring .includes() is unsafe because
+  // 'matchup.html' is a substring of 'matchup-final.html', so going back to
+  // the schedule sub from final would short-circuit and never reload.
+  const currentPage = (matchupIframe.src || '').split('/').pop().split('?')[0];
+  if (currentPage !== wantPage) {
     matchupIframe.src = want;
   }
   document.querySelectorAll('.matchup-subtab').forEach(b => {
