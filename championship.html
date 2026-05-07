@@ -247,7 +247,10 @@ const LAYERS = {
 };
 
 // Geometry (1080×1350 source coords; measured from the reference PNGs).
-const PHOTO_AREA = { x: 15, y: 15, w: 1050, h: 688 };  // photo fits up to y=703 where the FINAL SCORE banner begins
+// Photo borders match the Score Box bbox (measured from the Score Box PNG:
+// x=19..1060). Photo bottom flushes against the Score Box top (y=697) so
+// the photo edge lines up with the FINAL SCORE banner with no gap.
+const PHOTO_AREA = { x: 19, y: 15, w: 1042, h: 682 };
 const TEAM_LOGO  = { w: 251, h: 166, x: 36, topY: 924, botY: 1093 };  // top-left corners
 const SEED_CY    = { top: 1007, bot: 1176 };
 const SEED_CX    = 56;
