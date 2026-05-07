@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CUSA Hub · Matchup Grid (16:9)</title>
+<link rel="icon" type="image/png" href="assets/cusa-favicon.png">
+<style>
+@font-face{font-family:'Barlow';font-weight:400;src:local('Barlow'),local('-apple-system')}
+@font-face{font-family:'Barlow Condensed';font-weight:400;src:local('Barlow Condensed'),local('-apple-system')}
+@font-face{font-family:'Proxima Nova';font-weight:400;src:url('fonts/ProximaNovaRegular.woff') format('woff'),url('fonts/ProximaNovaRegular.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:700;src:url('fonts/ProximaNovaBold.woff') format('woff'),url('fonts/ProximaNovaBold.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:900;src:url('fonts/ProximaNovaBlack.woff') format('woff'),url('fonts/ProximaNovaBlack.ttf') format('truetype');font-display:swap}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Barlow',sans-serif;background:#060f1a;color:#fff}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#0a1624;border-bottom:1px solid rgba(255,255,255,0.08)}
+.topbar-left{display:flex;align-items:center;gap:18px}
+.topbar-logo{height:30px;width:auto;display:block}
+.topbar-sep{width:1px;height:22px;background:rgba(255,255,255,0.18)}
+.topbar-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:2px;color:#fff}
+.back{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.6);text-decoration:none;border:1px solid rgba(255,255,255,0.18);padding:7px 12px;border-radius:4px}
+
+.main{display:flex;gap:14px;padding:14px;height:calc(100vh - 56px)}
+.panel{flex:0 0 360px;background:#0a1624;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.panel-head{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid rgba(235,25,70,0.18)}
+.field{display:flex;flex-direction:column;gap:4px}
+.field-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.55);text-transform:uppercase}
+.field input[type=text],.field input[type=number],.field select,.field input[type=color]{font-family:'Barlow',sans-serif;font-size:13px;background:#0a1624;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:8px 10px;width:100%}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row-5{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px}
+.team-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.team-card-title{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase}
+.btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:#fff;background:#EB1946;border:none;padding:11px 16px;border-radius:4px;cursor:pointer;text-transform:uppercase;width:100%}
+.btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.25)}
+.btn.secondary:hover{background:rgba(255,255,255,0.06)}
+.count-btn{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;background:transparent;color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:10px 0;cursor:pointer}
+.count-btn.active{background:#EB1946;color:#fff;border-color:#EB1946}
+.count-btn:hover:not(.active){background:rgba(255,255,255,0.06);color:#fff}
+
+.canvas-area{flex:1;display:flex;align-items:center;justify-content:center;background:#000;border-radius:6px;overflow:hidden;position:relative}
+.canvas-wrap{width:100%;max-width:1920px;aspect-ratio:16/9;background:var(--canvas-bg,#000);position:relative}
+canvas#cvs{display:block;width:100%;height:100%}
+.preview-meta{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);pointer-events:none}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" aria-label="CUSA Creative Hub"><img class="topbar-logo" src="assets/cusa-primary-white.png" alt="Conference USA"></a>
+    <div class="topbar-sep"></div>
+    <div class="topbar-title">MATCHUP GRID · 16:9</div>
+  </div>
+  <div>
+    <a class="back" href="index.html">← HUB</a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="panel">
+    <div class="panel-head">Grid Settings</div>
+    <div class="field">
+      <label class="field-label">How many matchups?</label>
+      <div class="row-5" id="countButtons">
+        <button class="count-btn" data-count="1">1</button>
+        <button class="count-btn" data-count="2">2</button>
+        <button class="count-btn" data-count="3">3</button>
+        <button class="count-btn" data-count="4">4</button>
+        <button class="count-btn active" data-count="5">5</button>
+      </div>
+    </div>
+    <div class="field"><label class="field-label">Title</label><input id="titleText" type="text" maxlength="40" value="WHERE TO WATCH"></div>
+    <div class="field"><label class="field-label">Subtitle / Date Range</label><input id="subtitleText" type="text" maxlength="40" value="WEEK 5 · SATURDAY"></div>
+
+    <div class="panel-head" style="margin-top:8px">Matchups</div>
+    <div id="rowCards"></div>
+
+    <button id="downloadBtn" class="btn">⬇ Download PNG (1920×1080)</button>
+  </div>
+
+  <div class="canvas-area">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="cvs" width="1920" height="1080"></canvas>
+      <div class="preview-meta">1920 × 1080 · Matchup Grid</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Constants ────────────────────────────────────────────────────────────
+const CANVAS_W = 1920;
+const CANVAS_H = 1080;
+const ROW_BASE_W = 1080;
+const ROW_BASE_H = 135;
+const TITLE_BAND_H = 110;
+const ROW_GAP = 18;
+const SIDE_MARGIN = 30;
+
+const ASSET_DIR_TEMPLATE = 'matchup/template/';
+const ASSET_DIR_PRIMARY  = 'matchup/primary/';
+const ASSET_DIR_KO       = 'matchup/knockouts/';
+const LAYER_OVERLAY = ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Gradient Overlay - Small Logo Placeholders - At, Date, Network Placeholder.png';
+
+// ─── Schools ──────────────────────────────────────────────────────────────
+let SCHOOLS = [
+  { name: 'Liberty',          tricode: 'LIB',  mascot: 'Flames',        primary: 'LIBERTY.PNG',          ko: 'LIBERTY.PNG',          swatch: '#0A254E' },
+  { name: 'Middle Tennessee', tricode: 'MTSU', mascot: 'Blue Raiders',  primary: 'MIDDLE_TENNESSEE.PNG', ko: 'MIDDLE_TENNESSEE.PNG', swatch: '#036EB7' },
+];
+const CUSA_PRIORITY_NAMES = new Set([
+  'Liberty','Middle Tennessee','Delaware','FIU','Florida International',
+  'Jacksonville State','Kennesaw State','Louisiana Tech','Missouri State',
+  'New Mexico State','Sam Houston','UTEP','Western Kentucky','Dallas Baptist',
+]);
+
+async function loadSchoolsJson(){
+  try {
+    const r = await fetch('matchup/schools.json', { cache: 'force-cache' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (Array.isArray(data) && data.length) SCHOOLS = data;
+  } catch (e) {
+    console.warn('schools.json fetch failed:', e);
+  }
+}
+function schoolColor(s){
+  if (!s) return '#666666';
+  const sw = (s.swatch || '').trim();
+  if (sw && sw !== 'N/A' && sw !== 'None' && /^#?[0-9a-f]+/i.test(sw)) return sw[0] === '#' ? sw : '#' + sw;
+  return '#666666';
+}
+function schoolNickname(s){
+  if (!s) return '';
+  if (s.mascot) return s.mascot.toUpperCase();
+  const parts = (s.name || '').split(/\s+/);
+  return (parts[parts.length - 1] || '').toUpperCase();
+}
+
+// ─── State ────────────────────────────────────────────────────────────────
+const STATE_KEY = 'cusa_matchup_grid_v1';
+const DEFAULT_ROW = () => ({
+  left:  { school: 'Liberty' },
+  right: { school: 'Middle Tennessee' },
+  date:    'JAN 23',
+  time:    '6:30 PM',
+  network: 'ESPN+',
+});
+const state = {
+  count: 5,
+  title:    'WHERE TO WATCH',
+  subtitle: 'WEEK 5 · SATURDAY',
+  rows: Array.from({ length: 5 }, () => DEFAULT_ROW()),
+  previewBg: '#0a254e',
+};
+function persistState(){
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      count: state.count,
+      title: state.title,
+      subtitle: state.subtitle,
+      rows: state.rows.map(r => ({ left: { school: r.left.school }, right: { school: r.right.school }, date: r.date, time: r.time, network: r.network })),
+      previewBg: state.previewBg,
+    }));
+  } catch (_) {}
+}
+function restoreState(){
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (typeof s.count === 'number' && s.count >= 1 && s.count <= 5) state.count = s.count;
+    if (typeof s.title === 'string') state.title = s.title;
+    if (typeof s.subtitle === 'string') state.subtitle = s.subtitle;
+    if (Array.isArray(s.rows)) {
+      for (let i = 0; i < Math.min(5, s.rows.length); i++) {
+        const r = s.rows[i] || {};
+        if (r.left?.school)  state.rows[i].left.school = r.left.school;
+        if (r.right?.school) state.rows[i].right.school = r.right.school;
+        if (typeof r.date === 'string') state.rows[i].date = r.date;
+        if (typeof r.time === 'string') state.rows[i].time = r.time;
+        if (typeof r.network === 'string') state.rows[i].network = r.network;
+      }
+    }
+    if (typeof s.previewBg === 'string') state.previewBg = s.previewBg;
+  } catch (_) {}
+}
+
+// Image cache so each school's primary + KO loads once and is reused per row.
+const IMG_CACHE = {};
+function loadImage(src){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+async function getImage(path){
+  if (IMG_CACHE[path]) return IMG_CACHE[path];
+  const p = loadImage(encodeURI(path));
+  IMG_CACHE[path] = p;
+  try { return await p; } catch (_) { delete IMG_CACHE[path]; throw _; }
+}
+let OVERLAY_IMG = null;
+async function ensureOverlay(){
+  if (OVERLAY_IMG) return OVERLAY_IMG;
+  try { OVERLAY_IMG = await getImage(LAYER_OVERLAY); } catch (_) {}
+  return OVERLAY_IMG;
+}
+
+// ─── Row drawing (copy of matchup.html geometry, simplified — defaults) ───
+const LOGO_BOX = { w: 100, h: 100, leftX: 14, rightX: ROW_BASE_W - 14 - 100, y: 10 };
+const BAR     = { x: 60, y: 10, w: ROW_BASE_W - 120, h: 95, mid: 540 };
+const NAME_FS = 14;
+const NICK_FS = 52;
+const NAME_CY = 38;
+const NICK_CY = 78;
+const LEFT_TEXT_X  = 512;
+const RIGHT_TEXT_X = 571;
+
+function drawContainFit(rctx, img, x, y, w, h){
+  const ar = img.naturalWidth / img.naturalHeight;
+  const tar = w / h;
+  let dw, dh;
+  if (ar > tar) { dw = w; dh = w / ar; } else { dh = h; dw = h * ar; }
+  rctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+function drawKoTexture(rctx, img, x, y, w, h, alpha = 0.22, scale = 1.3, side = 'left'){
+  rctx.save();
+  rctx.beginPath();
+  rctx.rect(x, y, w, h);
+  rctx.clip();
+  const targetH = h * scale;
+  const ar = img.naturalWidth / img.naturalHeight;
+  const targetW = targetH * ar;
+  const ox = side === 'left' ? x + (w - targetW) * 0.25 : x + (w - targetW) * 0.75;
+  const oy = y + (h - targetH) / 2;
+  rctx.globalAlpha = alpha;
+  rctx.globalCompositeOperation = 'screen';
+  rctx.drawImage(img, ox, oy, targetW, targetH);
+  rctx.restore();
+}
+
+function drawSideText(rctx, conf, anchorX, align){
+  rctx.fillStyle = '#FFFFFF';
+  rctx.textAlign = align;
+  rctx.textBaseline = 'middle';
+  rctx.shadowColor = 'rgba(0,0,0,0.6)';
+  rctx.shadowBlur = 3;
+  rctx.shadowOffsetX = 2;
+  rctx.shadowOffsetY = 2;
+  rctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  rctx.fillText((conf.name || '').toUpperCase(), anchorX, NAME_CY);
+  rctx.font = `700 ${NICK_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  rctx.fillText(schoolNickname(conf), anchorX, NICK_CY);
+  rctx.shadowColor = 'rgba(0,0,0,0)';
+  rctx.shadowBlur = rctx.shadowOffsetX = rctx.shadowOffsetY = 0;
+}
+
+async function drawRow(rctx, rowState){
+  rctx.clearRect(0, 0, ROW_BASE_W, ROW_BASE_H);
+  const leftConf  = SCHOOLS.find(s => s.name === rowState.left.school);
+  const rightConf = SCHOOLS.find(s => s.name === rowState.right.school);
+
+  // Color blocks (team primary across each half of the bar).
+  if (leftConf)  { rctx.fillStyle = schoolColor(leftConf);  rctx.fillRect(BAR.x,  BAR.y, BAR.mid - BAR.x, BAR.h); }
+  if (rightConf) { rctx.fillStyle = schoolColor(rightConf); rctx.fillRect(BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h); }
+
+  // Knockout textures per side.
+  const leftKoImg  = leftConf  && leftConf.ko  ? await getImage(ASSET_DIR_KO + leftConf.ko).catch(()=>null)  : null;
+  const rightKoImg = rightConf && rightConf.ko ? await getImage(ASSET_DIR_KO + rightConf.ko).catch(()=>null) : null;
+  if (leftKoImg)  drawKoTexture(rctx, leftKoImg,  BAR.x,  BAR.y, BAR.mid - BAR.x, BAR.h, 0.22, 1.3, 'left');
+  if (rightKoImg) drawKoTexture(rctx, rightKoImg, BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h, 0.22, 1.3, 'right');
+
+  // Gradient overlay (logo box edges + AT badge + date/time/network pill).
+  const overlay = await ensureOverlay();
+  if (overlay) rctx.drawImage(overlay, 0, 0, ROW_BASE_W, ROW_BASE_H);
+
+  // School primary logos in the corner boxes.
+  if (leftConf && leftConf.primary) {
+    const img = await getImage(ASSET_DIR_PRIMARY + leftConf.primary).catch(()=>null);
+    if (img) drawContainFit(rctx, img, LOGO_BOX.leftX, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h);
+  }
+  if (rightConf && rightConf.primary) {
+    const img = await getImage(ASSET_DIR_PRIMARY + rightConf.primary).catch(()=>null);
+    if (img) drawContainFit(rctx, img, LOGO_BOX.rightX, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h);
+  }
+
+  // Name + nickname per side, locked to the strip-divider anchors.
+  if (leftConf)  drawSideText(rctx, leftConf,  LEFT_TEXT_X,  'right');
+  if (rightConf) drawSideText(rctx, rightConf, RIGHT_TEXT_X, 'left');
+
+  // Date / Time / Network strip (light weight, navy text).
+  rctx.fillStyle = '#0A254E';
+  rctx.textAlign = 'center';
+  rctx.textBaseline = 'middle';
+  rctx.font = `400 11px "Proxima Nova","Barlow Condensed",sans-serif`;
+  rctx.fillText(rowState.date,    487, 120);
+  rctx.fillText(rowState.time,    540, 120);
+  rctx.fillText(rowState.network, 593, 120);
+}
+
+// ─── Layout & main draw ───────────────────────────────────────────────────
+function rowLayout(n){
+  const titleH = TITLE_BAND_H;
+  const maxRowW = CANVAS_W - SIDE_MARGIN * 2;
+  const maxRowH = maxRowW / 8;
+  const availH = CANVAS_H - titleH - ROW_GAP * (n - 1) - 30;
+  let rowH = Math.min(maxRowH, Math.floor(availH / n));
+  let rowW = Math.round(rowH * 8);
+  const x = Math.round((CANVAS_W - rowW) / 2);
+  const totalH = n * rowH + (n - 1) * ROW_GAP;
+  const yStart = titleH + Math.round((CANVAS_H - titleH - totalH) / 2);
+  return { x, yStart, rowW, rowH, gap: ROW_GAP };
+}
+
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+
+async function draw(){
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Background fill.
+  ctx.fillStyle = state.previewBg || '#0a254e';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Title band.
+  if (state.title) {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `900 56px "Proxima Nova","Barlow Condensed",sans-serif`;
+    ctx.fillText(state.title.toUpperCase(), CANVAS_W / 2, 50);
+  }
+  if (state.subtitle) {
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.font = `400 22px "Proxima Nova","Barlow Condensed",sans-serif`;
+    ctx.fillText(state.subtitle, CANVAS_W / 2, 88);
+  }
+
+  // Render each row to an offscreen 1080×135 canvas, then drawImage onto
+  // the main canvas at the layout position.
+  const layout = rowLayout(state.count);
+  for (let i = 0; i < state.count; i++) {
+    const off = document.createElement('canvas');
+    off.width = ROW_BASE_W;
+    off.height = ROW_BASE_H;
+    const rctx = off.getContext('2d');
+    await drawRow(rctx, state.rows[i]);
+    const y = layout.yStart + i * (layout.rowH + layout.gap);
+    ctx.drawImage(off, layout.x, y, layout.rowW, layout.rowH);
+  }
+}
+
+// ─── UI: count picker, row cards, inputs ──────────────────────────────────
+function escapeAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+function schoolOptionsHtml(selected){
+  const cusa  = SCHOOLS.filter(s => CUSA_PRIORITY_NAMES.has(s.name));
+  const other = SCHOOLS.filter(s => !CUSA_PRIORITY_NAMES.has(s.name));
+  const opt = s => `<option value="${escapeAttr(s.name)}"${s.name === selected ? ' selected' : ''}>${escapeAttr(s.name)}${s.tricode ? ' · ' + s.tricode : ''}</option>`;
+  const sep = '<option disabled>──────────</option>';
+  return (cusa.length ? cusa.map(opt).join('') + sep : '') + other.map(opt).join('');
+}
+
+function renderRowCards(){
+  const wrap = document.getElementById('rowCards');
+  let html = '';
+  for (let i = 0; i < state.count; i++) {
+    const r = state.rows[i];
+    html += `
+      <div class="team-card">
+        <div class="team-card-title">Matchup #${i + 1}</div>
+        <div class="row-2">
+          <div class="field"><label class="field-label">Left Team</label><select data-row="${i}" data-key="leftSchool">${schoolOptionsHtml(r.left.school)}</select></div>
+          <div class="field"><label class="field-label">Right Team</label><select data-row="${i}" data-key="rightSchool">${schoolOptionsHtml(r.right.school)}</select></div>
+        </div>
+        <div class="row-2">
+          <div class="field"><label class="field-label">Date</label><input data-row="${i}" data-key="date" type="text" maxlength="12" value="${escapeAttr(r.date)}"></div>
+          <div class="field"><label class="field-label">Time</label><input data-row="${i}" data-key="time" type="text" maxlength="12" value="${escapeAttr(r.time)}"></div>
+        </div>
+        <div class="field"><label class="field-label">Network</label><input data-row="${i}" data-key="network" type="text" maxlength="12" value="${escapeAttr(r.network)}"></div>
+      </div>`;
+  }
+  wrap.innerHTML = html;
+  // Wire each row card's inputs.
+  wrap.querySelectorAll('select[data-row], input[data-row]').forEach(el => {
+    el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', e => {
+      const i = +el.dataset.row;
+      const k = el.dataset.key;
+      if (k === 'leftSchool')       state.rows[i].left.school  = el.value;
+      else if (k === 'rightSchool') state.rows[i].right.school = el.value;
+      else                          state.rows[i][k]           = el.value;
+      persistState();
+      draw();
+    });
+  });
+}
+
+document.querySelectorAll('.count-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    const n = +b.dataset.count;
+    state.count = n;
+    document.querySelectorAll('.count-btn').forEach(btn => btn.classList.toggle('active', +btn.dataset.count === n));
+    renderRowCards();
+    persistState();
+    draw();
+  });
+});
+
+document.getElementById('titleText').addEventListener('input', e => { state.title = e.target.value; persistState(); draw(); });
+document.getElementById('subtitleText').addEventListener('input', e => { state.subtitle = e.target.value; persistState(); draw(); });
+
+document.getElementById('downloadBtn').addEventListener('click', async () => {
+  await draw();
+  const dataUrl = cvs.toDataURL('image/png');
+  const safe = (s) => (s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'') || 'GRID';
+  const fname = `CUSA_Matchup_Grid_${state.count}up_${safe(state.title)}.png`;
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = fname;
+  a.click();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+(async () => {
+  restoreState();
+  await loadSchoolsJson();
+  // Sync UI from restored state.
+  document.getElementById('titleText').value    = state.title;
+  document.getElementById('subtitleText').value = state.subtitle;
+  document.querySelectorAll('.count-btn').forEach(b => b.classList.toggle('active', +b.dataset.count === state.count));
+  renderRowCards();
+  if (document.fonts && document.fonts.load) {
+    try { await document.fonts.load(`400 22px "Proxima Nova"`); } catch (_) {}
+    try { await document.fonts.load(`700 ${NICK_FS}px "Proxima Nova"`); } catch (_) {}
+    try { await document.fonts.load(`900 56px "Proxima Nova"`); } catch (_) {}
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

@@ -823,7 +823,12 @@ function drawKoTexture(img, x, y, w, h, alpha, scale, side, nudge, shadowCfg){
 }
 
 // ─── Persistence ──────────────────────────────────────────────────────────
-const STATE_KEY = 'cusa_matchup_v1';
+// Allow the grid page to instantiate matchup.html N times with isolated
+// localStorage state per row. ?rowid=N or ?key=... overrides the default key
+// so each iframe persists independently. Default behavior unchanged.
+const _MURL = new URLSearchParams(location.search);
+const STATE_KEY = _MURL.get('key')
+  || (_MURL.get('rowid') ? `cusa_matchup_grid_row${_MURL.get('rowid')}_v1` : 'cusa_matchup_v1');
 function persistState(){
   try {
     localStorage.setItem(STATE_KEY, JSON.stringify({
