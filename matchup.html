@@ -128,6 +128,10 @@ body.embedded .tabs{display:none !important}
         <div class="field"><label class="field-label">Right X <span class="nudge-readout" id="rightLogoDxR">0px</span></label><input id="rightLogoDx" type="range" min="-50" max="50" step="1" value="0"></div>
         <div class="field"><label class="field-label">Right Y <span class="nudge-readout" id="rightLogoDyR">0px</span></label><input id="rightLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Left Size <span class="nudge-readout" id="leftLogoScaleR">100%</span></label><input id="leftLogoScale" type="range" min="30" max="200" step="1" value="100"></div>
+        <div class="field"><label class="field-label">Right Size <span class="nudge-readout" id="rightLogoScaleR">100%</span></label><input id="rightLogoScale" type="range" min="30" max="200" step="1" value="100"></div>
+      </div>
     </div>
     <div class="team-card">
       <div class="team-card-title">Text · Left</div>
@@ -461,12 +465,12 @@ const NAME_FS = 14;    // Proxima Nova Bold (700) for school name
 const NICK_FS = 52;    // Proxima Nova Bold (700) for nickname
 const NAME_CY = 38;    // small label near top of bar
 const NICK_CY = 78;    // big nickname mid-bar
-// Each side's text anchor — text aligns INWARD toward the centered AT badge:
-// left team is right-aligned (right edge anchored just left of AT), right
-// team is left-aligned (left edge anchored just right of AT). Names of any
-// length share the same inner edge near the AT badge.
-const LEFT_TEXT_RIGHT = 510;
-const RIGHT_TEXT_LEFT = 570;
+// Each side's text anchor — text aligns OUTWARD, anchored near each team's
+// own logo box: left team left-aligned starting just right of the left logo,
+// right team right-aligned ending just left of the right logo. Names of any
+// length share the same edge near their team's logo.
+const LEFT_TEXT_X  = 130;   // left edge for left team text (just right of left logo box)
+const RIGHT_TEXT_X = 950;   // right edge for right team text (just left of right logo box)
 
 // ─── State ────────────────────────────────────────────────────────────────
 const state = {
@@ -477,8 +481,8 @@ const state = {
   network: 'ESPN+',
   layerImgs: {},
   adj: {
-    leftLogo:  { dx: 0, dy: 0 },
-    rightLogo: { dx: 0, dy: 0 },
+    leftLogo:  { dx: 0, dy: 0, scale: 100 },
+    rightLogo: { dx: 0, dy: 0, scale: 100 },
     leftName:  { dx: 0, dy: 0 },
     leftNick:  { dx: 0, dy: 0 },
     rightName: { dx: 0, dy: 0 },
@@ -580,12 +584,16 @@ async function ensureSchoolImages(side){
 
 // ─── Render helpers ───────────────────────────────────────────────────────
 // Cover-fit: scale image to fill (w,h) preserving aspect, cropping overflow.
-function drawContainFit(img, x, y, w, h, dx, dy){
+// scale (percent, default 100) lets the operator grow or shrink the rendered
+// logo around its centered anchor without changing the box position.
+function drawContainFit(img, x, y, w, h, dx, dy, scale){
   const ar = img.naturalWidth / img.naturalHeight;
   const tar = w / h;
   let dw, dh, ox, oy;
   if (ar > tar) { dw = w; dh = w / ar; }
   else          { dh = h; dw = h * ar; }
+  const s = (scale ?? 100) / 100;
+  dw *= s; dh *= s;
   ox = x + (w - dw) / 2 + (dx || 0);
   oy = y + (h - dh) / 2 + (dy || 0);
   ctx.drawImage(img, ox, oy, dw, dh);
@@ -659,24 +667,24 @@ async function draw(forExport = false){
     ctx.save();
     if (ls.leftOn) applyShadowFrom(ls);
     drawContainFit(state.left.primaryImg, LOGO_BOX.leftX, LOGO_BOX.y,
-      LOGO_BOX.w, LOGO_BOX.h, state.adj.leftLogo.dx, state.adj.leftLogo.dy);
+      LOGO_BOX.w, LOGO_BOX.h, state.adj.leftLogo.dx, state.adj.leftLogo.dy, state.adj.leftLogo.scale);
     ctx.restore();
   }
   if (state.right.primaryImg) {
     ctx.save();
     if (ls.rightOn) applyShadowFrom(ls);
     drawContainFit(state.right.primaryImg, LOGO_BOX.rightX, LOGO_BOX.y,
-      LOGO_BOX.w, LOGO_BOX.h, state.adj.rightLogo.dx, state.adj.rightLogo.dy);
+      LOGO_BOX.w, LOGO_BOX.h, state.adj.rightLogo.dx, state.adj.rightLogo.dy, state.adj.rightLogo.scale);
     ctx.restore();
   }
 
   // 7. Text — school name + nickname per side, with optional drop shadow.
   ctx.textBaseline = 'middle';
   if (leftConf) {
-    drawSideText(leftConf, LEFT_TEXT_RIGHT, state.adj.leftName, state.adj.leftNick, !!state.adj.leftShadow, 'right');
+    drawSideText(leftConf, LEFT_TEXT_X, state.adj.leftName, state.adj.leftNick, !!state.adj.leftShadow, 'left');
   }
   if (rightConf) {
-    drawSideText(rightConf, RIGHT_TEXT_LEFT, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow, 'left');
+    drawSideText(rightConf, RIGHT_TEXT_X, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow, 'right');
   }
 
   // 8. Date / Time / Network strip text — group nudge applied to all three,
@@ -845,6 +853,15 @@ function restoreState(){
       if (typeof s.adj.textureBlend === 'string') state.adj.textureBlend = s.adj.textureBlend;
       if (typeof s.adj.shadowColor  === 'string') state.adj.shadowColor  = s.adj.shadowColor;
     }
+    // One-time migration: drop legacy persisted square colors so the new
+    // SECONDARY-color default takes effect for existing users. Mark it done
+    // via a flag so subsequent custom picks are honored. Custom picks made
+    // AFTER the migration are persisted normally.
+    if (!localStorage.getItem('cusa_matchup_squarecolor_migrated_v1')) {
+      state.adj.leftSquare.color  = '';
+      state.adj.rightSquare.color = '';
+      try { localStorage.setItem('cusa_matchup_squarecolor_migrated_v1', '1'); } catch (_) {}
+    }
   } catch (_) {}
 }
 
@@ -898,13 +915,19 @@ function populateBlendModes(){
 
 document.getElementById('leftSchool').addEventListener('change', async e => {
   state.left.school = e.target.value;
+  // Clear any custom logo-square color so the new team's SECONDARY color
+  // takes effect by default (operator can still override via the picker).
+  state.adj.leftSquare.color = '';
   await ensureSchoolImages('left');
+  syncSlidersFromState();
   persistState();
   draw();
 });
 document.getElementById('rightSchool').addEventListener('change', async e => {
   state.right.school = e.target.value;
+  state.adj.rightSquare.color = '';
   await ensureSchoolImages('right');
+  syncSlidersFromState();
   persistState();
   draw();
 });
@@ -919,8 +942,10 @@ document.getElementById('rightSchool').addEventListener('change', async e => {
 const ADJ_BINDINGS = [
   ['leftLogoDx',     v => state.adj.leftLogo.dx     = v, 'px'],
   ['leftLogoDy',     v => state.adj.leftLogo.dy     = v, 'px'],
+  ['leftLogoScale',  v => state.adj.leftLogo.scale  = v, '%'],
   ['rightLogoDx',    v => state.adj.rightLogo.dx    = v, 'px'],
   ['rightLogoDy',    v => state.adj.rightLogo.dy    = v, 'px'],
+  ['rightLogoScale', v => state.adj.rightLogo.scale = v, '%'],
   ['leftNameDx',     v => state.adj.leftName.dx     = v, 'px'],
   ['leftNameDy',     v => state.adj.leftName.dy     = v, 'px'],
   ['leftNickDx',     v => state.adj.leftNick.dx     = v, 'px'],
@@ -981,7 +1006,9 @@ const ADJ_BINDINGS = [
 function syncSlidersFromState(){
   const m = {
     leftLogoDx:      state.adj.leftLogo.dx,  leftLogoDy:  state.adj.leftLogo.dy,
+    leftLogoScale:   state.adj.leftLogo.scale ?? 100,
     rightLogoDx:     state.adj.rightLogo.dx, rightLogoDy: state.adj.rightLogo.dy,
+    rightLogoScale:  state.adj.rightLogo.scale ?? 100,
     leftNameDx:      state.adj.leftName.dx,  leftNameDy:  state.adj.leftName.dy,
     leftNickDx:      state.adj.leftNick.dx,  leftNickDy:  state.adj.leftNick.dy,
     rightNameDx:     state.adj.rightName.dx, rightNameDy: state.adj.rightName.dy,
@@ -1174,7 +1201,7 @@ document.getElementById('stripShadowColor').addEventListener('input',  e => { st
 
 document.getElementById('resetPositions').addEventListener('click', () => {
   state.adj = {
-    leftLogo:  { dx: 0, dy: 0 }, rightLogo: { dx: 0, dy: 0 },
+    leftLogo:  { dx: 0, dy: 0, scale: 100 }, rightLogo: { dx: 0, dy: 0, scale: 100 },
     leftName:  { dx: 0, dy: 0 }, leftNick:  { dx: 0, dy: 0 },
     rightName: { dx: 0, dy: 0 }, rightNick: { dx: 0, dy: 0 },
     leftBlock:  { dx: 0, dy: 0, sw: 100, sh: 100 },
