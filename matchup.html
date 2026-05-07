@@ -148,15 +148,24 @@ body.embedded .tabs{display:none !important}
       </div>
     </div>
     <div class="team-card">
-      <div class="team-card-title">Template Blending</div>
+      <div class="team-card-title">Custom Texture</div>
       <div class="field">
-        <label class="field-label" for="templateBlend">Blend Mode</label>
-        <select id="templateBlend"></select>
+        <label class="upload-zone" id="textureZone" style="padding:14px">
+          <input type="file" accept="image/*" onchange="onTextureUpload(event)" style="display:none">
+          <span id="textureZoneText">+ Upload texture image</span>
+        </label>
       </div>
-      <div class="field">
-        <label class="field-label">Template Opacity <span class="nudge-readout" id="templateOpacityR">100%</span></label>
-        <input id="templateOpacity" type="range" min="0" max="100" step="1" value="100">
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label" for="textureBlend">Blend Mode</label>
+          <select id="textureBlend"></select>
+        </div>
+        <div class="field">
+          <label class="field-label">Opacity <span class="nudge-readout" id="textureOpacityR">60%</span></label>
+          <input id="textureOpacity" type="range" min="0" max="100" step="1" value="60">
+        </div>
       </div>
+      <button class="btn secondary" id="clearTextureBtn" style="font-size:10px;padding:6px 10px">Clear texture</button>
     </div>
     <div class="team-card">
       <div class="team-card-title">Knockout Texture (per side)</div>
@@ -197,10 +206,64 @@ body.embedded .tabs{display:none !important}
       </div>
     </div>
     <div class="team-card">
-      <div class="team-card-title">Logo Squares</div>
+      <div class="team-card-title">Logo Square · Left</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Size <span class="nudge-readout" id="logoSqSizeR">110px</span></label><input id="logoSqSize" type="range" min="80" max="135" step="1" value="110"></div>
-        <div class="field"><label class="field-label">Color</label><input id="logoSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="leftSqDxR">0px</span></label><input id="leftSqDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="leftSqDyR">0px</span></label><input id="leftSqDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="leftSqWR">76px</span></label><input id="leftSqW" type="range" min="40" max="180" step="1" value="76"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="leftSqHR">67px</span></label><input id="leftSqH" type="range" min="40" max="135" step="1" value="67"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="leftSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+        <div class="field"><label class="field-label" for="leftSqBlend">Blend</label><select id="leftSqBlend"></select></div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Logo Square · Right</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="rightSqDxR">0px</span></label><input id="rightSqDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="rightSqDyR">0px</span></label><input id="rightSqDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Width <span class="nudge-readout" id="rightSqWR">76px</span></label><input id="rightSqW" type="range" min="40" max="180" step="1" value="76"></div>
+        <div class="field"><label class="field-label">Height <span class="nudge-readout" id="rightSqHR">67px</span></label><input id="rightSqH" type="range" min="40" max="135" step="1" value="67"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="rightSqColor" type="color" value="#FFFFFF" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+        <div class="field"><label class="field-label" for="rightSqBlend">Blend</label><select id="rightSqBlend"></select></div>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Drop Shadow (name + nickname)</div>
+      <div class="row-2">
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="leftShadow" checked style="width:auto;margin:0">
+          <label class="field-label" for="leftShadow" style="margin:0">Left side on</label>
+        </div>
+        <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+          <input type="checkbox" id="rightShadow" checked style="width:auto;margin:0">
+          <label class="field-label" for="rightShadow" style="margin:0">Right side on</label>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="shadowDxR">2px</span></label><input id="shadowDx" type="range" min="-10" max="10" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="shadowDyR">2px</span></label><input id="shadowDy" type="range" min="-10" max="10" step="1" value="2"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="shadowBlurR">3px</span></label><input id="shadowBlur" type="range" min="0" max="20" step="1" value="3"></div>
+        <div class="field"><label class="field-label">Opacity <span class="nudge-readout" id="shadowAlphaR">60%</span></label><input id="shadowAlpha" type="range" min="0" max="100" step="1" value="60"></div>
+      </div>
+      <div class="field"><label class="field-label">Color</label><input id="shadowColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Date / Time / Network (group)</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="stripDxR">0px</span></label><input id="stripDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="stripDyR">0px</span></label><input id="stripDy" type="range" min="-50" max="50" step="1" value="0"></div>
       </div>
     </div>
     <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
@@ -243,13 +306,13 @@ const SCHOOLS = [
   { id: 'Western Kentucky',  nickname: 'HILLTOPPERS',   color: '#E13A3E', primary: 'WESTERN_KENTUCKY.PNG', ko: 'WESTERN_KENTUCKY.PNG' },
 ];
 
-// Layer assets
+// Layer assets — Image #10 (Empty Matchup Template) is gone; the team color
+// blocks alone now provide the matchup background. Image #11 (the gradient
+// overlay with logo box outlines + AT badge + Date/Time/Network pill strip)
+// becomes the top fixture layer; the operator-controlled "logo squares"
+// draw on top of #11's logo boxes to recolor them per-team.
 const LAYERS = {
-  template:    ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Empty Matchup Template.png',
-  // "Element Only" is just the AT badge + the small Date/Time/Network pill
-  // strip — 178×101 with content from (0,0). Drawn ON TOP after the blendable
-  // template + logo squares so AT/Date/Time/Network always render crisp.
-  elementOnly: ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Gradient Overlay - Small Logo Placeholders - At, Date, Network Placeholder - Element Only.png',
+  gradientOverlay: ASSET_DIR_TEMPLATE + '25 FB Week 1 Where to Watch (Saturday Slate) - Gradient Overlay - Small Logo Placeholders - At, Date, Network Placeholder.png',
 };
 
 // Canvas-supported blend modes. The empty matchup template can be rendered
@@ -314,11 +377,28 @@ const state = {
     rightKo:   { dx: 0, dy: 0 },
     koOpacity: 22,
     koScale:   130,
-    templateBlend:   'overlay',
-    templateOpacity: 100,
-    logoSqSize:      110,
-    logoSqColor:     '#FFFFFF',
+    // Custom uploaded texture (data URL persisted separately) — overlay over
+    // the team color boxes with operator-selected blend + opacity.
+    textureBlend:   'overlay',
+    textureOpacity: 60,
+    // Per-side logo squares — independent dx/dy/size/color/blend. Default
+    // color comes from the school primary; default blend = overlay.
+    leftSquare:  { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    rightSquare: { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    // Drop shadow shared by name + nickname text (per-side toggle).
+    leftShadow:  true,
+    rightShadow: true,
+    shadowDx:     2,
+    shadowDy:     2,
+    shadowBlur:   3,
+    shadowColor: '#000000',
+    shadowAlpha:  60,
+    // Date/Time/Network strip text — group X/Y nudge applied to all 3.
+    stripDx: 0,
+    stripDy: 0,
   },
+  texture: null,      // data URL of uploaded texture, if any
+  textureImg: null,   // decoded Image instance
 };
 
 const cvs = document.getElementById('cvs');
@@ -396,28 +476,34 @@ async function draw(){
   if (state.left.koImg)  drawKoTexture(state.left.koImg,  BAR.x  + lb.dx, BAR.y + lb.dy, lW, lH, koAlpha, koScale, 'left',  state.adj.leftKo);
   if (state.right.koImg) drawKoTexture(state.right.koImg, BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH, koAlpha, koScale, 'right', state.adj.rightKo);
 
-  // 3. Empty Matchup Template — drawn with operator-selected blend mode so
-  //    the template's gradient + logo-box edges interact with the team colors
-  //    below. Default 'overlay' mixes the template texture with the colors
-  //    rather than painting opaque white over them.
-  let tplImg;
-  try { tplImg = await ensureLayer('template'); }
-  catch (e) { console.error(e); }
-  if (tplImg) {
+  // 3. Custom user-uploaded texture — overlay over the team color boxes,
+  //    operator-selected blend mode + opacity. Clipped to the bar bounds
+  //    so it doesn't bleed past the colored area.
+  if (state.textureImg) {
     ctx.save();
-    ctx.globalCompositeOperation = state.adj.templateBlend || 'overlay';
-    ctx.globalAlpha = (state.adj.templateOpacity ?? 100) / 100;
-    ctx.drawImage(tplImg, 0, 0, CANVAS_W, CANVAS_H);
+    ctx.beginPath();
+    ctx.rect(BAR.x, BAR.y, BAR.w, BAR.h);
+    ctx.clip();
+    ctx.globalCompositeOperation = state.adj.textureBlend || 'overlay';
+    ctx.globalAlpha = (state.adj.textureOpacity ?? 60) / 100;
+    // Stretch texture to fill the bar area
+    ctx.drawImage(state.textureImg, BAR.x, BAR.y, BAR.w, BAR.h);
     ctx.restore();
   }
 
-  // 4. Small clean squares behind each school logo. The blended template's
-  //    logo-box outlines may pick up the team-color hue underneath; these
-  //    squares ensure a crisp, neutral backdrop for the logo PNGs.
-  drawLogoSquare(LOGO_BOX.leftX, LOGO_BOX.y);
-  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y);
+  // 4. Image #11 — Gradient overlay (logo box edges + AT badge + Date/Time/
+  //    Network pill strip). Drawn opaque on top of color blocks + texture.
+  let overlayImg;
+  try { overlayImg = await ensureLayer('gradientOverlay'); } catch (_) {}
+  if (overlayImg) ctx.drawImage(overlayImg, 0, 0, CANVAS_W, CANVAS_H);
 
-  // 5. School primary logos in the left + right boxes
+  // 5. Per-side logo squares — recolor / resize / reposition the logo box
+  //    backdrops with the operator's choice. Default color = school primary,
+  //    blend mode = overlay (so the box keeps the depth from Image #11).
+  drawLogoSquare(LOGO_BOX.leftX,  LOGO_BOX.y, state.adj.leftSquare,  leftConf?.color);
+  drawLogoSquare(LOGO_BOX.rightX, LOGO_BOX.y, state.adj.rightSquare, rightConf?.color);
+
+  // 6. School primary logos
   if (state.left.primaryImg) {
     drawContainFit(state.left.primaryImg, LOGO_BOX.leftX, LOGO_BOX.y,
       LOGO_BOX.w, LOGO_BOX.h, state.adj.leftLogo.dx, state.adj.leftLogo.dy);
@@ -427,67 +513,69 @@ async function draw(){
       LOGO_BOX.w, LOGO_BOX.h, state.adj.rightLogo.dx, state.adj.rightLogo.dy);
   }
 
-  // 6. "Element Only" — AT badge + Date/Time/Network pill strip. Drawn LAST
-  //    over everything so the AT/strip read crisp regardless of the template
-  //    blend mode chosen above.
-  let elemImg;
-  try { elemImg = await ensureLayer('elementOnly'); } catch (_) {}
-  if (elemImg) {
-    const eW = elemImg.naturalWidth, eH = elemImg.naturalHeight;
-    const eX = (CANVAS_W - eW) / 2;
-    const eY = 15;  // top of the AT badge area in the source template
-    ctx.drawImage(elemImg, eX, eY, eW, eH);
-  }
-
-  // 7. Text — school name (small) + nickname (large) per side
-  ctx.fillStyle = '#FFFFFF';
+  // 7. Text — school name + nickname per side, with optional drop shadow.
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
   if (leftConf) {
-    ctx.font = `900 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-    ctx.fillText(leftConf.id.toUpperCase(),
-      LEFT_TEXT_CX + state.adj.leftName.dx,
-      NAME_CY + state.adj.leftName.dy);
-    ctx.font = `700 ${NICK_FS}px "Gazzetta ExtraBold","Proxima Nova",sans-serif`;
-    ctx.fillText(leftConf.nickname,
-      LEFT_TEXT_CX + state.adj.leftNick.dx,
-      NICK_CY + state.adj.leftNick.dy);
+    drawSideText(leftConf, LEFT_TEXT_CX, state.adj.leftName, state.adj.leftNick, !!state.adj.leftShadow);
   }
   if (rightConf) {
-    ctx.font = `900 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-    ctx.fillText(rightConf.id.toUpperCase(),
-      RIGHT_TEXT_CX + state.adj.rightName.dx,
-      NAME_CY + state.adj.rightName.dy);
-    ctx.font = `700 ${NICK_FS}px "Gazzetta ExtraBold","Proxima Nova",sans-serif`;
-    ctx.fillText(rightConf.nickname,
-      RIGHT_TEXT_CX + state.adj.rightNick.dx,
-      NICK_CY + state.adj.rightNick.dy);
+    drawSideText(rightConf, RIGHT_TEXT_CX, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow);
   }
 
-  // 8. Date / Time / Network text inside the Element Only's pill strip.
+  // 8. Date / Time / Network strip text — group X/Y nudge.
+  const sx = state.adj.stripDx || 0;
+  const sy = state.adj.stripDy || 0;
   ctx.fillStyle = '#0A254E';
   ctx.font = `900 11px "Proxima Nova","Barlow Condensed",sans-serif`;
-  ctx.fillText(state.date,    487, 120);
-  ctx.fillText(state.time,    540, 120);
-  ctx.fillText(state.network, 593, 120);
+  ctx.fillText(state.date,    487 + sx, 120 + sy);
+  ctx.fillText(state.time,    540 + sx, 120 + sy);
+  ctx.fillText(state.network, 593 + sx, 120 + sy);
 }
 
-function drawLogoSquare(boxX, boxY){
-  // Square sized to wrap the logo box with a small inset; centered on the
-  // existing logo-box position so logos line up with the template's design.
-  const size = state.adj.logoSqSize || 110;
-  const cx = boxX + LOGO_BOX.w / 2;
-  const cy = boxY + LOGO_BOX.h / 2;
-  const x = cx - size / 2;
-  const y = cy - size / 2;
+function applyShadow(){
+  ctx.shadowColor   = hexToRgba(state.adj.shadowColor || '#000000', (state.adj.shadowAlpha ?? 60) / 100);
+  ctx.shadowBlur    = state.adj.shadowBlur ?? 3;
+  ctx.shadowOffsetX = state.adj.shadowDx   ?? 2;
+  ctx.shadowOffsetY = state.adj.shadowDy   ?? 2;
+}
+function clearShadow(){
+  ctx.shadowColor = 'rgba(0,0,0,0)';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+}
+function hexToRgba(hex, a){
+  const m = /^#([0-9a-f]{6})$/i.exec(hex || '#000000');
+  if (!m) return `rgba(0,0,0,${a})`;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+function drawSideText(conf, cx, nameAdj, nickAdj, shadowOn){
+  ctx.fillStyle = '#FFFFFF';
+  if (shadowOn) applyShadow(); else clearShadow();
+  ctx.font = `900 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText(conf.id.toUpperCase(), cx + nameAdj.dx, NAME_CY + nameAdj.dy);
+  ctx.font = `700 ${NICK_FS}px "Gazzetta ExtraBold","Proxima Nova",sans-serif`;
+  ctx.fillText(conf.nickname, cx + nickAdj.dx, NICK_CY + nickAdj.dy);
+  clearShadow();
+}
+
+function drawLogoSquare(boxX, boxY, sqAdj, defaultColor){
+  // Operator-controlled square: independent dx/dy/w/h/color/blend per side.
+  // Centered on the existing logo box position, scaled around that center.
+  const w = sqAdj.w || 76;
+  const h = sqAdj.h || 67;
+  const cx = boxX + LOGO_BOX.w / 2 + (sqAdj.dx || 0);
+  const cy = boxY + LOGO_BOX.h / 2 + (sqAdj.dy || 0);
+  const x = cx - w / 2;
+  const y = cy - h / 2;
   ctx.save();
-  ctx.fillStyle = state.adj.logoSqColor || '#FFFFFF';
-  // Soft drop shadow so the square reads as a card on top of the colored bar.
-  ctx.shadowColor = 'rgba(0,0,0,0.18)';
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 2;
-  ctx.fillRect(x, y, size, size);
+  // Use operator color if explicitly set; else fall back to school primary.
+  ctx.fillStyle = sqAdj.color || defaultColor || '#FFFFFF';
+  ctx.globalCompositeOperation = sqAdj.blend || 'overlay';
+  ctx.fillRect(x, y, w, h);
   ctx.restore();
 }
 
@@ -539,14 +627,17 @@ function restoreState(){
     if (s.network != null) state.network = s.network;
     if (s.adj && typeof s.adj === 'object') {
       ['leftLogo','rightLogo','leftName','leftNick','rightName','rightNick',
-       'leftBlock','rightBlock','leftKo','rightKo'].forEach(k => {
+       'leftBlock','rightBlock','leftKo','rightKo','leftSquare','rightSquare'].forEach(k => {
         if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]);
       });
-      ['koOpacity','koScale','templateOpacity','logoSqSize'].forEach(k => {
+      ['koOpacity','koScale','textureOpacity','shadowDx','shadowDy','shadowBlur','shadowAlpha','stripDx','stripDy'].forEach(k => {
         if (typeof s.adj[k] === 'number') state.adj[k] = s.adj[k];
       });
-      if (typeof s.adj.templateBlend === 'string') state.adj.templateBlend = s.adj.templateBlend;
-      if (typeof s.adj.logoSqColor   === 'string') state.adj.logoSqColor   = s.adj.logoSqColor;
+      ['leftShadow','rightShadow'].forEach(k => {
+        if (typeof s.adj[k] === 'boolean') state.adj[k] = s.adj[k];
+      });
+      if (typeof s.adj.textureBlend === 'string') state.adj.textureBlend = s.adj.textureBlend;
+      if (typeof s.adj.shadowColor  === 'string') state.adj.shadowColor  = s.adj.shadowColor;
     }
   } catch (_) {}
 }
@@ -561,9 +652,15 @@ function populateSchools(){
   rSel.value = state.right.school;
 }
 function populateBlendModes(){
-  const sel = document.getElementById('templateBlend');
-  sel.innerHTML = BLEND_MODES.map(b => `<option value="${b.value}">${b.label}</option>`).join('');
-  sel.value = state.adj.templateBlend;
+  const opts = BLEND_MODES.map(b => `<option value="${b.value}">${b.label}</option>`).join('');
+  ['textureBlend', 'leftSqBlend', 'rightSqBlend'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = opts;
+  });
+  document.getElementById('textureBlend').value = state.adj.textureBlend || 'overlay';
+  document.getElementById('leftSqBlend').value  = state.adj.leftSquare.blend  || 'overlay';
+  document.getElementById('rightSqBlend').value = state.adj.rightSquare.blend || 'overlay';
 }
 
 document.getElementById('leftSchool').addEventListener('change', async e => {
@@ -613,8 +710,21 @@ const ADJ_BINDINGS = [
   ['rightKoDy',      v => state.adj.rightKo.dy      = v, 'px'],
   ['koOpacity',      v => state.adj.koOpacity       = v, '%'],
   ['koScale',        v => state.adj.koScale         = v, '%'],
-  ['templateOpacity',v => state.adj.templateOpacity = v, '%'],
-  ['logoSqSize',     v => state.adj.logoSqSize      = v, 'px'],
+  ['textureOpacity', v => state.adj.textureOpacity  = v, '%'],
+  ['leftSqDx',       v => state.adj.leftSquare.dx   = v, 'px'],
+  ['leftSqDy',       v => state.adj.leftSquare.dy   = v, 'px'],
+  ['leftSqW',        v => state.adj.leftSquare.w    = v, 'px'],
+  ['leftSqH',        v => state.adj.leftSquare.h    = v, 'px'],
+  ['rightSqDx',      v => state.adj.rightSquare.dx  = v, 'px'],
+  ['rightSqDy',      v => state.adj.rightSquare.dy  = v, 'px'],
+  ['rightSqW',       v => state.adj.rightSquare.w   = v, 'px'],
+  ['rightSqH',       v => state.adj.rightSquare.h   = v, 'px'],
+  ['shadowDx',       v => state.adj.shadowDx        = v, 'px'],
+  ['shadowDy',       v => state.adj.shadowDy        = v, 'px'],
+  ['shadowBlur',     v => state.adj.shadowBlur      = v, 'px'],
+  ['shadowAlpha',    v => state.adj.shadowAlpha     = v, '%'],
+  ['stripDx',        v => state.adj.stripDx         = v, 'px'],
+  ['stripDy',        v => state.adj.stripDy         = v, 'px'],
 ];
 
 function syncSlidersFromState(){
@@ -632,8 +742,14 @@ function syncSlidersFromState(){
     leftKoDx:        state.adj.leftKo.dx,    leftKoDy:    state.adj.leftKo.dy,
     rightKoDx:       state.adj.rightKo.dx,   rightKoDy:   state.adj.rightKo.dy,
     koOpacity:       state.adj.koOpacity,    koScale:     state.adj.koScale,
-    templateOpacity: state.adj.templateOpacity ?? 100,
-    logoSqSize:      state.adj.logoSqSize    ?? 110,
+    textureOpacity:  state.adj.textureOpacity ?? 60,
+    leftSqDx:        state.adj.leftSquare.dx, leftSqDy: state.adj.leftSquare.dy,
+    leftSqW:         state.adj.leftSquare.w,  leftSqH:  state.adj.leftSquare.h,
+    rightSqDx:       state.adj.rightSquare.dx,rightSqDy:state.adj.rightSquare.dy,
+    rightSqW:        state.adj.rightSquare.w, rightSqH: state.adj.rightSquare.h,
+    shadowDx:        state.adj.shadowDx,      shadowDy: state.adj.shadowDy,
+    shadowBlur:      state.adj.shadowBlur,    shadowAlpha: state.adj.shadowAlpha,
+    stripDx:         state.adj.stripDx,       stripDy:  state.adj.stripDy,
   };
   for (const [id, val] of Object.entries(m)) {
     const inp = document.getElementById(id);
@@ -644,10 +760,21 @@ function syncSlidersFromState(){
       ro.textContent = (val >= 0 && unit === 'px' ? '+' : '') + val + unit;
     }
   }
-  const tb = document.getElementById('templateBlend');
-  if (tb) tb.value = state.adj.templateBlend || 'overlay';
-  const lc = document.getElementById('logoSqColor');
-  if (lc) lc.value = state.adj.logoSqColor || '#FFFFFF';
+  // Dropdowns + color pickers + checkboxes
+  const tb = document.getElementById('textureBlend');
+  if (tb) tb.value = state.adj.textureBlend || 'overlay';
+  const leftBlend = document.getElementById('leftSqBlend');
+  if (leftBlend) leftBlend.value = state.adj.leftSquare.blend || 'overlay';
+  const rightBlend = document.getElementById('rightSqBlend');
+  if (rightBlend) rightBlend.value = state.adj.rightSquare.blend || 'overlay';
+  const leftCol = document.getElementById('leftSqColor');
+  if (leftCol)  leftCol.value  = state.adj.leftSquare.color  || (SCHOOLS.find(s => s.id === state.left.school)?.color  || '#FFFFFF');
+  const rightCol = document.getElementById('rightSqColor');
+  if (rightCol) rightCol.value = state.adj.rightSquare.color || (SCHOOLS.find(s => s.id === state.right.school)?.color || '#FFFFFF');
+  const sc = document.getElementById('shadowColor');
+  if (sc) sc.value = state.adj.shadowColor || '#000000';
+  document.getElementById('leftShadow').checked  = !!state.adj.leftShadow;
+  document.getElementById('rightShadow').checked = !!state.adj.rightShadow;
 }
 
 ADJ_BINDINGS.forEach(([id, setter, unit]) => {
@@ -662,16 +789,55 @@ ADJ_BINDINGS.forEach(([id, setter, unit]) => {
   });
 });
 
-document.getElementById('templateBlend').addEventListener('change', e => {
-  state.adj.templateBlend = e.target.value;
-  persistState();
+// Texture upload
+const TEXTURE_KEY = 'cusa_matchup_texture_v1';
+function onTextureUpload(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = ev => {
+    state.texture = ev.target.result;
+    try { localStorage.setItem(TEXTURE_KEY, state.texture); } catch (_) {}
+    const img = new Image();
+    img.onload = () => { state.textureImg = img; draw(); };
+    img.src = state.texture;
+    document.getElementById('textureZone').classList.add('loaded');
+    document.getElementById('textureZoneText').textContent = '✓ Texture loaded — click to replace';
+  };
+  fr.readAsDataURL(file);
+}
+function restoreTexture(){
+  try {
+    const raw = localStorage.getItem(TEXTURE_KEY);
+    if (!raw) return;
+    state.texture = raw;
+    const img = new Image();
+    img.onload = () => { state.textureImg = img; draw(); };
+    img.src = raw;
+    document.getElementById('textureZone').classList.add('loaded');
+    document.getElementById('textureZoneText').textContent = '✓ Texture loaded — click to replace';
+  } catch (_) {}
+}
+document.getElementById('clearTextureBtn').addEventListener('click', () => {
+  state.texture = null; state.textureImg = null;
+  try { localStorage.removeItem(TEXTURE_KEY); } catch (_) {}
+  document.getElementById('textureZone').classList.remove('loaded');
+  document.getElementById('textureZoneText').textContent = '+ Upload texture image';
+  document.querySelector('#textureZone input').value = '';
   draw();
 });
-document.getElementById('logoSqColor').addEventListener('input', e => {
-  state.adj.logoSqColor = e.target.value;
-  persistState();
-  draw();
-});
+
+// Texture blend mode + per-side square blend
+document.getElementById('textureBlend').addEventListener('change', e => { state.adj.textureBlend = e.target.value; persistState(); draw(); });
+document.getElementById('leftSqBlend').addEventListener('change', e => { state.adj.leftSquare.blend = e.target.value; persistState(); draw(); });
+document.getElementById('rightSqBlend').addEventListener('change', e => { state.adj.rightSquare.blend = e.target.value; persistState(); draw(); });
+// Logo-square colors
+document.getElementById('leftSqColor').addEventListener('input', e => { state.adj.leftSquare.color = e.target.value; persistState(); draw(); });
+document.getElementById('rightSqColor').addEventListener('input', e => { state.adj.rightSquare.color = e.target.value; persistState(); draw(); });
+// Shadow
+document.getElementById('leftShadow').addEventListener('change', e => { state.adj.leftShadow = e.target.checked; persistState(); draw(); });
+document.getElementById('rightShadow').addEventListener('change', e => { state.adj.rightShadow = e.target.checked; persistState(); draw(); });
+document.getElementById('shadowColor').addEventListener('input', e => { state.adj.shadowColor = e.target.value; persistState(); draw(); });
 
 document.getElementById('resetPositions').addEventListener('click', () => {
   state.adj = {
@@ -682,8 +848,12 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     rightBlock: { dx: 0, dy: 0, sw: 100, sh: 100 },
     leftKo:    { dx: 0, dy: 0 }, rightKo:   { dx: 0, dy: 0 },
     koOpacity: 22, koScale: 130,
-    templateBlend: 'overlay', templateOpacity: 100,
-    logoSqSize: 110, logoSqColor: '#FFFFFF',
+    textureBlend: 'overlay', textureOpacity: 60,
+    leftSquare:  { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    rightSquare: { dx: 0, dy: 0, w: 76, h: 67, color: '', blend: 'overlay' },
+    leftShadow: true, rightShadow: true,
+    shadowDx: 2, shadowDy: 2, shadowBlur: 3, shadowColor: '#000000', shadowAlpha: 60,
+    stripDx: 0, stripDy: 0,
   };
   syncSlidersFromState();
   persistState();
@@ -730,9 +900,9 @@ window.addEventListener('storage', e => {
     try { await document.fonts.load(`900 ${NAME_FS}px "Proxima Nova"`); } catch(_) {}
     try { await document.fonts.load(`700 ${NICK_FS}px "Gazzetta ExtraBold"`); } catch(_) {}
   }
+  restoreTexture();
   await Promise.all([
-    ensureLayer('template').catch(()=>null),
-    ensureLayer('elementOnly').catch(()=>null),
+    ensureLayer('gradientOverlay').catch(()=>null),
     ensureSchoolImages('left'),
     ensureSchoolImages('right'),
   ]);
