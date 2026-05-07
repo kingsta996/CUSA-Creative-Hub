@@ -136,22 +136,22 @@ body.embedded .tabs{display:none !important}
     <div class="team-card">
       <div class="team-card-title">Text · Left</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Name X <span class="nudge-readout" id="leftNameDxR">0px</span></label><input id="leftNameDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Name X <span class="nudge-readout" id="leftNameDxR">0px</span></label><input id="leftNameDx" type="range" min="-500" max="500" step="1" value="0"></div>
         <div class="field"><label class="field-label">Name Y <span class="nudge-readout" id="leftNameDyR">0px</span></label><input id="leftNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="leftNickDxR">0px</span></label><input id="leftNickDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="leftNickDxR">0px</span></label><input id="leftNickDx" type="range" min="-500" max="500" step="1" value="0"></div>
         <div class="field"><label class="field-label">Nick Y <span class="nudge-readout" id="leftNickDyR">0px</span></label><input id="leftNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
     </div>
     <div class="team-card">
       <div class="team-card-title">Text · Right</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Name X <span class="nudge-readout" id="rightNameDxR">0px</span></label><input id="rightNameDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Name X <span class="nudge-readout" id="rightNameDxR">0px</span></label><input id="rightNameDx" type="range" min="-500" max="500" step="1" value="0"></div>
         <div class="field"><label class="field-label">Name Y <span class="nudge-readout" id="rightNameDyR">0px</span></label><input id="rightNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="rightNickDxR">0px</span></label><input id="rightNickDx" type="range" min="-200" max="200" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Nick X <span class="nudge-readout" id="rightNickDxR">0px</span></label><input id="rightNickDx" type="range" min="-500" max="500" step="1" value="0"></div>
         <div class="field"><label class="field-label">Nick Y <span class="nudge-readout" id="rightNickDyR">0px</span></label><input id="rightNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
     </div>
@@ -734,12 +734,35 @@ function hexToRgba(hex, a){
 
 function drawSideText(conf, anchorX, nameAdj, nickAdj, shadowOn, align){
   ctx.fillStyle = '#FFFFFF';
-  ctx.textAlign = align || 'center';
   if (shadowOn) applyShadow(); else clearShadow();
-  ctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  ctx.fillText((conf.name || '').toUpperCase(), anchorX + nameAdj.dx, NAME_CY + nameAdj.dy);
+
+  // Measure the nickname width so the small school NAME above can align to
+  // the OPPOSITE edge of the nickname — matching the schedule template:
+  // left team's name sits above the END of the nickname (right edge), right
+  // team's name sits above the START of the nickname (left edge).
   ctx.font = `700 ${NICK_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  ctx.fillText(schoolNickname(conf), anchorX + nickAdj.dx, NICK_CY + nickAdj.dy);
+  const nick = schoolNickname(conf);
+  const nickWidth = ctx.measureText(nick).width;
+
+  // Draw the nickname at its anchor, in the given alignment.
+  ctx.textAlign = align || 'center';
+  ctx.fillText(nick, anchorX + nickAdj.dx, NICK_CY + nickAdj.dy);
+
+  // School name aligns at the OPPOSITE edge of the nickname.
+  let nameX, nameAlign;
+  if (align === 'left') {
+    nameX = anchorX + nickWidth;   // right edge of nickname
+    nameAlign = 'right';
+  } else if (align === 'right') {
+    nameX = anchorX - nickWidth;   // left edge of nickname
+    nameAlign = 'left';
+  } else {
+    nameX = anchorX;
+    nameAlign = 'center';
+  }
+  ctx.textAlign = nameAlign;
+  ctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText((conf.name || '').toUpperCase(), nameX + nameAdj.dx, NAME_CY + nameAdj.dy);
   clearShadow();
 }
 
