@@ -372,13 +372,23 @@ body.embedded .tabs{display:none !important}
     </div>
 
     <div class="team-card">
-      <div class="team-card-title">Winner Arrow</div>
+      <div class="team-card-title">Winner Arrow · Left team won</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="arrowDxR">0px</span></label><input id="arrowDx" type="range" min="-200" max="200" step="1" value="0"></div>
-        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="arrowDyR">0px</span></label><input id="arrowDy" type="range" min="-50" max="50" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="arrowLeftDxR">0px</span></label><input id="arrowLeftDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="arrowLeftDyR">0px</span></label><input id="arrowLeftDy" type="range" min="-50" max="50" step="1" value="0"></div>
       </div>
-      <div class="field"><label class="field-label">Size <span class="nudge-readout" id="arrowSizeR">14px</span></label><input id="arrowSize" type="range" min="6" max="40" step="1" value="14"></div>
-      <div class="field"><label class="field-label">Color</label><input id="arrowColor" type="color" value="#0A254E" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+      <div class="field"><label class="field-label">Size <span class="nudge-readout" id="arrowLeftSizeR">14px</span></label><input id="arrowLeftSize" type="range" min="6" max="40" step="1" value="14"></div>
+      <div class="field"><label class="field-label">Color</label><input id="arrowLeftColor" type="color" value="#0A254E" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-card-title">Winner Arrow · Right team won</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Offset X <span class="nudge-readout" id="arrowRightDxR">0px</span></label><input id="arrowRightDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Offset Y <span class="nudge-readout" id="arrowRightDyR">0px</span></label><input id="arrowRightDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="field"><label class="field-label">Size <span class="nudge-readout" id="arrowRightSizeR">14px</span></label><input id="arrowRightSize" type="range" min="6" max="40" step="1" value="14"></div>
+      <div class="field"><label class="field-label">Color</label><input id="arrowRightColor" type="color" value="#0A254E" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
     </div>
 
     <div class="team-card">
@@ -571,7 +581,11 @@ const state = {
     // PLUS per-element X/Y offsets so each can move independently.
     stripDx: 0,
     stripDy: 0,
-    arrow: { dx: 0, dy: 0, size: 14, color: '#0A254E' },
+    // Two independent arrow configs — one for when the LEFT team won (arrow
+    // points left), one for when the RIGHT team won. Operator can dial in
+    // each direction once and they stick across game switches.
+    arrowLeft:  { dx: 0, dy: 0, size: 14, color: '#0A254E' },
+    arrowRight: { dx: 0, dy: 0, size: 14, color: '#0A254E' },
   },
   // Preview background (color shown BEHIND the matchup row in the editor —
   // not baked into the exported PNG). Lets the operator preview how the
@@ -726,9 +740,11 @@ async function draw(forExport = false){
   ctx.restore();
 
   // Winner arrow — auto from scores (left/right), or operator override.
+  // Each direction has its own saved position/size/color.
   const dir = resolveWinnerDir();
   if (dir === 'left' || dir === 'right') {
-    drawWinnerArrow(dir, state.adj.arrow || {});
+    const cfg = dir === 'left' ? state.adj.arrowLeft : state.adj.arrowRight;
+    drawWinnerArrow(dir, cfg || {});
   }
 }
 
@@ -781,7 +797,9 @@ function drawScoreText(scoreText, boxX, boxY, logoAdj, shadowCfg, shadowOn){
   if (shadowOn && shadowCfg) applyShadowFrom(shadowCfg);
   const baseFs = 86;
   const fs = Math.round(baseFs * ((logoAdj?.scale ?? 100) / 100));
-  ctx.fillStyle = '#FFFFFF';
+  // Black text so the score reads against the white logo-square backdrop
+  // that intentionally encases each score number.
+  ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `900 ${fs}px "Proxima Nova","Barlow Condensed",sans-serif`;
@@ -930,7 +948,7 @@ function restoreState(){
     if (s.adj && typeof s.adj === 'object') {
       ['leftLogo','rightLogo','leftName','leftNick','rightName','rightNick',
        'leftBlock','rightBlock','leftKo','rightKo','leftSquare','rightSquare',
-       'arrow',
+       'arrowLeft','arrowRight',
        'logoShadow','stripShadow','koShadow'].forEach(k => {
         if (s.adj[k] && typeof s.adj[k] === 'object' && state.adj[k]) Object.assign(state.adj[k], s.adj[k]);
       });
@@ -1197,9 +1215,12 @@ const ADJ_BINDINGS = [
   ['stripShadowAlpha', v => state.adj.stripShadow.alpha = v, '%'],
   ['stripDx',        v => state.adj.stripDx         = v, 'px'],
   ['stripDy',        v => state.adj.stripDy         = v, 'px'],
-  ['arrowDx',        v => state.adj.arrow.dx        = v, 'px'],
-  ['arrowDy',        v => state.adj.arrow.dy        = v, 'px'],
-  ['arrowSize',      v => state.adj.arrow.size      = v, 'px'],
+  ['arrowLeftDx',    v => state.adj.arrowLeft.dx    = v, 'px'],
+  ['arrowLeftDy',    v => state.adj.arrowLeft.dy    = v, 'px'],
+  ['arrowLeftSize',  v => state.adj.arrowLeft.size  = v, 'px'],
+  ['arrowRightDx',   v => state.adj.arrowRight.dx   = v, 'px'],
+  ['arrowRightDy',   v => state.adj.arrowRight.dy   = v, 'px'],
+  ['arrowRightSize', v => state.adj.arrowRight.size = v, 'px'],
 ];
 
 function syncSlidersFromState(){
@@ -1235,9 +1256,12 @@ function syncSlidersFromState(){
     stripShadowDx:    state.adj.stripShadow.dx,   stripShadowDy:   state.adj.stripShadow.dy,
     stripShadowBlur:  state.adj.stripShadow.blur, stripShadowAlpha:state.adj.stripShadow.alpha,
     stripDx:         state.adj.stripDx,       stripDy:  state.adj.stripDy,
-    arrowDx:         state.adj.arrow?.dx ?? 0,
-    arrowDy:         state.adj.arrow?.dy ?? 0,
-    arrowSize:       state.adj.arrow?.size ?? 14,
+    arrowLeftDx:     state.adj.arrowLeft?.dx   ?? 0,
+    arrowLeftDy:     state.adj.arrowLeft?.dy   ?? 0,
+    arrowLeftSize:   state.adj.arrowLeft?.size ?? 14,
+    arrowRightDx:    state.adj.arrowRight?.dx   ?? 0,
+    arrowRightDy:    state.adj.arrowRight?.dy   ?? 0,
+    arrowRightSize:  state.adj.arrowRight?.size ?? 14,
   };
   for (const [id, val] of Object.entries(m)) {
     const inp = document.getElementById(id);
@@ -1282,9 +1306,11 @@ function syncSlidersFromState(){
   if (ssc) ssc.value = state.adj.stripShadow?.color || '#000000';
   const ssChk = document.getElementById('stripShadowOn');
   if (ssChk)  ssChk.checked  = !!state.adj.stripShadow?.on;
-  // Winner arrow
-  const ac = document.getElementById('arrowColor');
-  if (ac) ac.value = state.adj.arrow?.color || '#0A254E';
+  // Winner arrow — independent left/right configs
+  const alc = document.getElementById('arrowLeftColor');
+  if (alc) alc.value = state.adj.arrowLeft?.color  || '#0A254E';
+  const arc = document.getElementById('arrowRightColor');
+  if (arc) arc.value = state.adj.arrowRight?.color || '#0A254E';
   const pb = document.getElementById('previewBg');
   if (pb) pb.value = state.previewBg || '#000000';
   applyPreviewBgCss();
@@ -1402,8 +1428,9 @@ document.getElementById('koShadowColor').addEventListener('input',    e => { sta
 // Strip (Date / Time / Network) shadow
 document.getElementById('stripShadowOn').addEventListener('change',    e => { state.adj.stripShadow.on    = e.target.checked; persistState(); draw(); });
 document.getElementById('stripShadowColor').addEventListener('input',  e => { state.adj.stripShadow.color = e.target.value;   persistState(); draw(); });
-// Winner-arrow color
-document.getElementById('arrowColor').addEventListener('input', e => { state.adj.arrow.color = e.target.value; persistState(); draw(); });
+// Winner-arrow colors (separate per direction)
+document.getElementById('arrowLeftColor').addEventListener('input',  e => { state.adj.arrowLeft.color  = e.target.value; persistState(); draw(); });
+document.getElementById('arrowRightColor').addEventListener('input', e => { state.adj.arrowRight.color = e.target.value; persistState(); draw(); });
 
 document.getElementById('resetPositions').addEventListener('click', () => {
   state.adj = {
@@ -1423,7 +1450,8 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     koShadow:   { leftOn: false, rightOn: false, dx: 2, dy: 2, blur: 4, color: '#000000', alpha: 60 },
     stripShadow: { on: false, dx: 1, dy: 1, blur: 2, color: '#000000', alpha: 60 },
     stripDx: 0, stripDy: 0,
-    arrow: { dx: 0, dy: 0, size: 14, color: '#0A254E' },
+    arrowLeft:  { dx: 0, dy: 0, size: 14, color: '#0A254E' },
+    arrowRight: { dx: 0, dy: 0, size: 14, color: '#0A254E' },
   };
   syncSlidersFromState();
   persistState();
