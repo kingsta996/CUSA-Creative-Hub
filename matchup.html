@@ -465,12 +465,14 @@ const NAME_FS = 14;    // Proxima Nova Bold (700) for school name
 const NICK_FS = 52;    // Proxima Nova Bold (700) for nickname
 const NAME_CY = 38;    // small label near top of bar
 const NICK_CY = 78;    // big nickname mid-bar
-// Each side's text anchor — text aligns OUTWARD, anchored near each team's
-// own logo box: left team left-aligned starting just right of the left logo,
-// right team right-aligned ending just left of the right logo. Names of any
-// length share the same edge near their team's logo.
-const LEFT_TEXT_X  = 130;   // left edge for left team text (just right of left logo box)
-const RIGHT_TEXT_X = 950;   // right edge for right team text (just left of right logo box)
+// Each side's text anchor LOCKS to the divider lines in the strip's
+// Date/Time/Network pill so school names of any length stay aligned with
+// the template — measured directly from the gradient overlay PNG:
+//   - Date / Time divider:  x = 512  → left team text right-aligned here
+//   - Time / Network divider: x = 571 → right team text left-aligned here
+// Both name AND nickname share the same anchor for each side.
+const LEFT_TEXT_X  = 512;
+const RIGHT_TEXT_X = 571;
 
 // ─── State ────────────────────────────────────────────────────────────────
 const state = {
@@ -681,10 +683,10 @@ async function draw(forExport = false){
   // 7. Text — school name + nickname per side, with optional drop shadow.
   ctx.textBaseline = 'middle';
   if (leftConf) {
-    drawSideText(leftConf, LEFT_TEXT_X, state.adj.leftName, state.adj.leftNick, !!state.adj.leftShadow, 'left');
+    drawSideText(leftConf, LEFT_TEXT_X, state.adj.leftName, state.adj.leftNick, !!state.adj.leftShadow, 'right');
   }
   if (rightConf) {
-    drawSideText(rightConf, RIGHT_TEXT_X, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow, 'right');
+    drawSideText(rightConf, RIGHT_TEXT_X, state.adj.rightName, state.adj.rightNick, !!state.adj.rightShadow, 'left');
   }
 
   // 8. Date / Time / Network strip text — group nudge applied to all three,
@@ -698,7 +700,11 @@ async function draw(forExport = false){
   ctx.save();
   if (ss.on) applyShadowFrom(ss);
   ctx.fillStyle = '#0A254E';
-  ctx.font = `900 11px "Proxima Nova","Barlow Condensed",sans-serif`;
+  // Strip text is intentionally light-weight (Regular 400) so the pill reads
+  // as a small label, not a heavy banner. Explicit center align so this draw
+  // is independent of whatever alignment the school-name pass left behind.
+  ctx.textAlign = 'center';
+  ctx.font = `400 11px "Proxima Nova","Barlow Condensed",sans-serif`;
   ctx.fillText(state.date,    487 + sx + dN.dx, 120 + sy + dN.dy);
   ctx.fillText(state.time,    540 + sx + tN.dx, 120 + sy + tN.dy);
   ctx.fillText(state.network, 593 + sx + nN.dx, 120 + sy + nN.dy);
@@ -734,35 +740,14 @@ function hexToRgba(hex, a){
 
 function drawSideText(conf, anchorX, nameAdj, nickAdj, shadowOn, align){
   ctx.fillStyle = '#FFFFFF';
-  if (shadowOn) applyShadow(); else clearShadow();
-
-  // Measure the nickname width so the small school NAME above can align to
-  // the OPPOSITE edge of the nickname — matching the schedule template:
-  // left team's name sits above the END of the nickname (right edge), right
-  // team's name sits above the START of the nickname (left edge).
-  ctx.font = `700 ${NICK_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  const nick = schoolNickname(conf);
-  const nickWidth = ctx.measureText(nick).width;
-
-  // Draw the nickname at its anchor, in the given alignment.
   ctx.textAlign = align || 'center';
-  ctx.fillText(nick, anchorX + nickAdj.dx, NICK_CY + nickAdj.dy);
-
-  // School name aligns at the OPPOSITE edge of the nickname.
-  let nameX, nameAlign;
-  if (align === 'left') {
-    nameX = anchorX + nickWidth;   // right edge of nickname
-    nameAlign = 'right';
-  } else if (align === 'right') {
-    nameX = anchorX - nickWidth;   // left edge of nickname
-    nameAlign = 'left';
-  } else {
-    nameX = anchorX;
-    nameAlign = 'center';
-  }
-  ctx.textAlign = nameAlign;
+  if (shadowOn) applyShadow(); else clearShadow();
+  // Both name AND nickname share the same anchor so they line up vertically.
+  // Anchor is the strip divider line for the team's side.
   ctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  ctx.fillText((conf.name || '').toUpperCase(), nameX + nameAdj.dx, NAME_CY + nameAdj.dy);
+  ctx.fillText((conf.name || '').toUpperCase(), anchorX + nameAdj.dx, NAME_CY + nameAdj.dy);
+  ctx.font = `700 ${NICK_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  ctx.fillText(schoolNickname(conf), anchorX + nickAdj.dx, NICK_CY + nickAdj.dy);
   clearShadow();
 }
 
@@ -1292,6 +1277,7 @@ window.addEventListener('storage', e => {
   document.getElementById('timeText').value    = state.time;
   document.getElementById('networkText').value = state.network;
   if (document.fonts && document.fonts.load) {
+    try { await document.fonts.load(`400 11px "Proxima Nova"`); } catch(_) {}
     try { await document.fonts.load(`700 ${NAME_FS}px "Proxima Nova"`); } catch(_) {}
     try { await document.fonts.load(`700 ${NICK_FS}px "Proxima Nova"`); } catch(_) {}
   }
