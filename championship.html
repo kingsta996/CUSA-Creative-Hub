@@ -247,10 +247,15 @@ const LAYERS = {
 };
 
 // Geometry (1080×1350 source coords; measured from the reference PNGs).
-// Photo borders match the Score Box bbox (measured from the Score Box PNG:
-// x=19..1060). Photo bottom flushes against the Score Box top (y=697) so
-// the photo edge lines up with the FINAL SCORE banner with no gap.
-const PHOTO_AREA = { x: 19, y: 15, w: 1042, h: 682 };
+// The Score Box PNG has an 11-pixel anti-aliased drop shadow above its
+// solid body (alpha ramps y=697..707, then full-opaque body at y=708).
+// Stopping the photo at y=697 left that shadow ramp visible as a thin
+// gap against the photo bottom. Extending the photo down to y=708 puts
+// the shadow ON the photo so the transition reads as a single continuous
+// edge against the gray FINAL SCORE banner — no gap.
+//   - Score Box outer bbox: x=19..1060, y=697..1330 (incl. shadow)
+//   - Score Box solid body: x=30..1049, y=708..1319
+const PHOTO_AREA = { x: 19, y: 15, w: 1042, h: 693 };
 const TEAM_LOGO  = { w: 251, h: 166, x: 36, topY: 924, botY: 1093 };  // top-left corners
 const SEED_CY    = { top: 1007, bot: 1176 };
 const SEED_CX    = 56;
