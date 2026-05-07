@@ -144,6 +144,7 @@ body.embedded .tabs{display:none !important}
         </select>
       </div>
     </div>
+    <div class="field"><label class="field-label">Score Text Color</label><input id="scoreColor" type="color" value="#000000" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
 
     <button class="btn secondary" id="toggleAdvanced" style="font-size:11px;padding:9px 12px;margin-top:6px">✏️ Edit · Show Advanced Controls</button>
 
@@ -502,6 +503,7 @@ const state = {
   rightScore: '0',
   finalLabel: 'FINAL',
   winnerDir:  'auto',  // 'auto' | 'left' | 'right' | 'off'
+  scoreColor: '#000000',  // operator-selectable, defaults to black
   espn: { sport: 'basketball/mens-college-basketball', date: '', eventId: '' },
   layerImgs: {},
   adj: {
@@ -773,7 +775,7 @@ function drawScoreText(scoreText, boxX, boxY, logoAdj, shadowCfg, shadowOn){
   if (shadowOn && shadowCfg) applyShadowFrom(shadowCfg);
   const baseFs = 86;
   const fs = Math.round(baseFs * ((logoAdj?.scale ?? 100) / 100));
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = state.scoreColor || '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   // Regular weight (400) — score reads as a clean numeric, not a heavy banner.
@@ -901,6 +903,7 @@ function persistState(){
       rightScore: state.rightScore,
       finalLabel: state.finalLabel,
       winnerDir:  state.winnerDir,
+      scoreColor: state.scoreColor,
       espn:       state.espn,
       adj:        state.adj,
       previewBg:  state.previewBg,
@@ -918,6 +921,7 @@ function restoreState(){
     if (typeof s.rightScore === 'string') state.rightScore = s.rightScore;
     if (typeof s.finalLabel === 'string') state.finalLabel = s.finalLabel;
     if (typeof s.winnerDir  === 'string') state.winnerDir  = s.winnerDir;
+    if (typeof s.scoreColor === 'string') state.scoreColor = s.scoreColor;
     if (s.espn && typeof s.espn === 'object') Object.assign(state.espn, s.espn);
     if (typeof s.previewBg === 'string') state.previewBg = s.previewBg;
     if (s.adj && typeof s.adj === 'object') {
@@ -1033,6 +1037,9 @@ document.getElementById('finalText').addEventListener('input', e => {
 });
 document.getElementById('winnerDir').addEventListener('change', e => {
   state.winnerDir = e.target.value; persistState(); draw();
+});
+document.getElementById('scoreColor').addEventListener('input', e => {
+  state.scoreColor = e.target.value; persistState(); draw();
 });
 
 // ESPN game picker
@@ -1456,6 +1463,7 @@ function refreshFinalInputs(){
   document.getElementById('rightScoreText').value = state.rightScore ?? '0';
   document.getElementById('finalText').value      = state.finalLabel ?? 'FINAL';
   document.getElementById('winnerDir').value      = state.winnerDir  ?? 'auto';
+  document.getElementById('scoreColor').value     = state.scoreColor ?? '#000000';
   document.getElementById('espnSport').value      = state.espn.sport || 'basketball/mens-college-basketball';
   // Default the date picker to today if no prior selection.
   const dInput = document.getElementById('espnDate');
