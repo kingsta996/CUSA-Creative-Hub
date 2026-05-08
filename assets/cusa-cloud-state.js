@@ -101,5 +101,76 @@
   window.addEventListener('pagehide', flushPending);
   window.addEventListener('beforeunload', flushPending);
 
-  window.cusaCloudState = { saveState, loadState, saveStateNow };
+  // ── Global (shared) state — one row per page in creative_hub_global_state.
+  //    Used by users whose permission matrix entry says mode='global' for
+  //    the page. All clients READ from this table on page load so they see
+  //    the team-canonical version regardless of their own save mode.
+  const _globalTimers = {};
+  const _globalQueue  = {};
+
+  async function saveGlobalStateNow(pageKey, state) {
+    const d = db();
+    const u = window.cusaAuth && window.cusaAuth.currentUser();
+    if (!d || !u) return false;
+    try {
+      const { error } = await d.from('creative_hub_global_state').upsert({
+        page_key: pageKey,
+        state: state,
+        updated_at: new Date().toISOString(),
+        updated_by_email: u.email,
+      }, { onConflict: 'page_key' });
+      if (error) { console.warn('global save failed:', error.message || error); return false; }
+      return true;
+    } catch (e) { console.warn('global save error:', e && e.message ? e.message : e); return false; }
+  }
+
+  function saveGlobalState(pageKey, state) {
+    _globalQueue[pageKey] = state;
+    if (_globalTimers[pageKey]) clearTimeout(_globalTimers[pageKey]);
+    _globalTimers[pageKey] = setTimeout(async () => {
+      const s = _globalQueue[pageKey];
+      delete _globalQueue[pageKey];
+      delete _globalTimers[pageKey];
+      await saveGlobalStateNow(pageKey, s);
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  async function loadGlobalState(pageKey) {
+    const d = db();
+    if (!d) return null;
+    try {
+      const { data, error } = await d.from('creative_hub_global_state')
+        .select('state, updated_at, updated_by_email')
+        .eq('page_key', pageKey)
+        .maybeSingle();
+      if (error) { console.warn('global load failed:', error.message || error); return null; }
+      if (!data) return null;
+      return { state: data.state, updatedAt: data.updated_at, updatedBy: data.updated_by_email };
+    } catch (e) { console.warn('global load error:', e && e.message ? e.message : e); return null; }
+  }
+
+  // ── Save promotion request — for users in 'request-global' mode (Josh on
+  //    Championship). Submits a snapshot of their local state for Keith to
+  //    review + promote in the override tool.
+  async function submitSaveRequest(pageKey, state, note) {
+    const d = db();
+    const u = window.cusaAuth && window.cusaAuth.currentUser();
+    if (!d || !u) return { ok: false, error: 'Not signed in.' };
+    try {
+      const { error } = await d.from('creative_hub_save_requests').insert({
+        page_key: pageKey,
+        requester_email: u.email,
+        state: state,
+        note: note || null,
+      });
+      if (error) return { ok: false, error: error.message || String(error) };
+      return { ok: true };
+    } catch (e) { return { ok: false, error: e && e.message ? e.message : String(e) }; }
+  }
+
+  window.cusaCloudState = {
+    saveState, loadState, saveStateNow,
+    saveGlobalState, loadGlobalState, saveGlobalStateNow,
+    submitSaveRequest,
+  };
 })();

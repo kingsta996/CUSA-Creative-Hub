@@ -44,14 +44,27 @@
     const e = (email || '').trim().toLowerCase();
     const h = await hashPw(password || '');
     const { data, error } = await d.from('creative_hub_users')
-      .select('email, pw_hash, display_name, is_active')
+      .select('email, pw_hash, display_name, is_active, role')
       .eq('email', e)
       .maybeSingle();
     if (error) throw error;
     if (!data || !data.is_active || data.pw_hash !== h) {
       throw new Error('Incorrect email or password.');
     }
-    _user = { email: data.email, display_name: data.display_name || data.email };
+    _user = {
+      email: data.email,
+      display_name: data.display_name || data.email,
+      role: data.role || 'editor',
+    };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(_user)); } catch (_) {}
+    return _user;
+  }
+
+  // Sign in as a generic guest. Stays in-browser only — no Supabase user
+  // is created. Pages will treat this user as 'guest' mode → localStorage
+  // saves only, no cloud sync, with a warning banner.
+  function signInAsGuest() {
+    _user = { email: 'guest', display_name: 'Guest', role: 'guest' };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(_user)); } catch (_) {}
     return _user;
   }
@@ -69,6 +82,9 @@
         '<input id="cusa-login-pw" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;font-size:13px;margin-bottom:8px;font-family:inherit"/>' +
         '<div id="cusa-login-err" style="display:none;color:#c00;font-size:12px;margin-bottom:8px"></div>' +
         '<button id="cusa-login-submit" style="width:100%;padding:10px;background:#00263A;color:#fff;border:none;border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">Sign in</button>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;color:#999;font-size:11px"><div style="flex:1;height:1px;background:#eee"></div>or<div style="flex:1;height:1px;background:#eee"></div></div>' +
+        '<button id="cusa-login-guest" style="width:100%;padding:9px;background:#fff;color:#00263A;border:1px solid #00263A;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;font-family:inherit">Continue as Guest</button>' +
+        '<div style="font-size:10px;color:#888;margin-top:6px;line-height:1.4">Guest mode saves edits to <strong>this browser only</strong>. They will not sync to the team and will be lost if you clear your cache.</div>' +
       '</div>';
     document.body.appendChild(overlay);
 
@@ -96,6 +112,15 @@
     document.getElementById('cusa-login-submit').addEventListener('click', onSubmit);
     document.getElementById('cusa-login-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') onSubmit(); });
     document.getElementById('cusa-login-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('cusa-login-pw').focus(); });
+    document.getElementById('cusa-login-guest').addEventListener('click', () => {
+      signInAsGuest();
+      overlay.remove();
+      if (typeof window.__cusaLoginResolve === 'function') {
+        const r = window.__cusaLoginResolve;
+        delete window.__cusaLoginResolve;
+        r(_user);
+      }
+    });
     setTimeout(() => document.getElementById('cusa-login-email').focus(), 80);
   }
 
@@ -129,5 +154,5 @@
     document.getElementById('cusa-signout').addEventListener('click', (e) => { e.preventDefault(); signOut(); });
   }
 
-  window.cusaAuth = { currentUser, signOut, requireLogin, renderUserBadge };
+  window.cusaAuth = { currentUser, signOut, requireLogin, renderUserBadge, signInAsGuest };
 })();
