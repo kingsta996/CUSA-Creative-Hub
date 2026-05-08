@@ -1,8 +1,565 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.location.href="index.html";</script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CUSA Standings Builder</title>
+<link rel="icon" type="image/png" href="assets/cusa-favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;700&display=swap">
+<style>
+@font-face{font-family:'Proxima Nova';font-weight:400;src:url('fonts/ProximaNovaRegular.woff') format('woff'),url('fonts/ProximaNovaRegular.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:700;src:url('fonts/ProximaNovaBold.woff') format('woff'),url('fonts/ProximaNovaBold.ttf') format('truetype');font-display:swap}
+@font-face{font-family:'Proxima Nova';font-weight:900;src:url('fonts/ProximaNovaBlack.woff') format('woff'),url('fonts/ProximaNovaBlack.ttf') format('truetype');font-display:swap}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Barlow',sans-serif;background:#060f1a;color:#fff}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#0a1624;border-bottom:1px solid rgba(255,255,255,0.08)}
+.topbar-left{display:flex;align-items:center;gap:18px}
+.topbar-logo{height:30px;width:auto;display:block}
+.topbar-sep{width:1px;height:22px;background:rgba(255,255,255,0.18)}
+.topbar-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:2px;color:#fff}
+.back{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.6);text-decoration:none;border:1px solid rgba(255,255,255,0.18);padding:7px 12px;border-radius:4px}
+
+.main{display:flex;gap:14px;padding:14px;height:calc(100vh - 56px)}
+.panel{flex:0 0 360px;background:#0a1624;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.panel-head{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:3px;color:rgba(235,25,70,0.85);text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid rgba(235,25,70,0.18)}
+.field{display:flex;flex-direction:column;gap:4px}
+.field-label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.55);text-transform:uppercase}
+.field input[type=text],.field input[type=number],.field select,.field input[type=color]{font-family:'Barlow',sans-serif;font-size:13px;background:#0a1624;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:7px 9px;width:100%}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.row-4{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:6px;align-items:end}
+.team-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px 9px;display:flex;flex-direction:column;gap:6px}
+.btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;color:#fff;background:#EB1946;border:none;padding:11px 16px;border-radius:4px;cursor:pointer;text-transform:uppercase;width:100%}
+.btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.25)}
+.btn.secondary:hover{background:rgba(255,255,255,0.06)}
+.count-btn{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;background:transparent;color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:8px 0;cursor:pointer}
+.count-btn.active{background:#EB1946;color:#fff;border-color:#EB1946}
+.nudge-readout{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(235,25,70,0.85);margin-left:6px}
+
+.canvas-area{flex:1;display:flex;align-items:center;justify-content:center;background:#000;border-radius:6px;overflow:hidden;position:relative}
+.canvas-wrap{width:100%;max-width:1920px;aspect-ratio:16/9;background:#0a254e;position:relative}
+canvas#cvs{display:block;width:100%;height:100%}
+.preview-meta{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);pointer-events:none}
+
+/* Scope-gated UI: when ?scope=positioning is in effect, content sections
+   collapse; when ?scope=content, advanced sections collapse. JS toggles
+   data-section attributes — these CSS rules do the actual hiding. */
+body[data-scope="positioning"] [data-section="content"] { display: none !important; }
+body[data-scope="content"]     [data-section="positioning"] { display: none !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js" onerror="console.warn('config.js not generated — run bash build.sh')"></script>
+<script src="assets/cusa-auth.js"></script>
+<script src="assets/cusa-cloud-state.js"></script>
+<script src="assets/cusa-page.js"></script>
 </head>
-<body></body>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" aria-label="CUSA Creative Hub"><img class="topbar-logo" src="assets/cusa-primary-white.png" alt="Conference USA"></a>
+    <div class="topbar-sep"></div>
+    <div class="topbar-title">STANDINGS</div>
+  </div>
+  <div>
+    <a class="back" href="index.html">← HUB</a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="panel">
+
+    <!-- ── Header section: visible to everyone ──────────────────────── -->
+    <div class="panel-head" data-section="content">Standings Header</div>
+    <div class="field" data-section="content"><label class="field-label">Aspect Ratio</label>
+      <div class="row-2" id="orientButtons">
+        <button class="count-btn active" data-orient="landscape">16:9 · 1920×1080</button>
+        <button class="count-btn"        data-orient="portrait">9:16 · 1080×1920</button>
+      </div>
+    </div>
+    <div class="field" data-section="content"><label class="field-label">Title</label><input id="titleText" type="text" maxlength="40" value="FOOTBALL STANDINGS"></div>
+    <div class="field" data-section="content"><label class="field-label">Subtitle</label><input id="subtitleText" type="text" maxlength="40" value="WEEK 5"></div>
+
+    <div class="field" data-section="content"><label class="field-label">Number of teams</label>
+      <div class="row-3" id="countButtons">
+        <button class="count-btn" data-count="6">6</button>
+        <button class="count-btn" data-count="8">8</button>
+        <button class="count-btn active" data-count="10">10</button>
+        <button class="count-btn" data-count="12">12</button>
+      </div>
+    </div>
+
+    <!-- Background: positioning scope (Addison) -->
+    <div class="panel-head" data-section="positioning" style="margin-top:6px">Background</div>
+    <div class="field" data-section="positioning">
+      <div class="row-3" style="margin-bottom:6px">
+        <button class="btn secondary" id="bgPatternBtn"     style="font-size:10px;padding:6px 8px">CUSA pattern</button>
+        <button class="btn secondary" id="bgTransparentBtn" style="font-size:10px;padding:6px 8px">Transparent</button>
+        <button class="btn secondary" id="clearBgBtn"       style="font-size:10px;padding:6px 8px">Solid</button>
+      </div>
+    </div>
+    <div class="field" data-section="positioning"><label class="field-label">Background Color</label><input id="bgColor" type="color" value="#0a254e" style="height:30px"></div>
+
+    <!-- Teams list: content scope (Dane) -->
+    <div class="panel-head" data-section="content" style="margin-top:6px">Teams</div>
+    <div id="teamCards" data-section="content"></div>
+
+    <!-- Layout: positioning scope (Addison) -->
+    <div class="panel-head" data-section="positioning" style="margin-top:6px">Layout · Group Transform</div>
+    <div class="field" data-section="positioning"><label class="field-label">Scale <span class="nudge-readout" id="grpScaleVal">1.00×</span></label><input id="grpScale" type="range" min="0.5" max="1.5" step="0.01" value="1"></div>
+    <div class="row-2" data-section="positioning">
+      <div class="field"><label class="field-label">Nudge X <span class="nudge-readout" id="grpDxVal">0</span></label><input id="grpDx" type="range" min="-300" max="300" step="1" value="0"></div>
+      <div class="field"><label class="field-label">Nudge Y <span class="nudge-readout" id="grpDyVal">0</span></label><input id="grpDy" type="range" min="-300" max="300" step="1" value="0"></div>
+    </div>
+    <div class="field" data-section="positioning"><label class="field-label">Row Gap <span class="nudge-readout" id="rowGapVal">10</span></label><input id="rowGap" type="range" min="0" max="40" step="1" value="10"></div>
+    <div class="field" data-section="positioning"><label class="field-label">Row Height <span class="nudge-readout" id="rowHeightVal">68</span></label><input id="rowHeight" type="range" min="40" max="120" step="1" value="68"></div>
+    <div class="field" data-section="positioning"><label class="field-label">Logo Scale <span class="nudge-readout" id="logoScaleVal">1.00×</span></label><input id="logoScale" type="range" min="0.5" max="1.6" step="0.01" value="1"></div>
+    <div class="field" data-section="positioning"><label class="field-label">Logo Nudge X <span class="nudge-readout" id="logoDxVal">0</span></label><input id="logoDx" type="range" min="-50" max="50" step="1" value="0"></div>
+    <div class="row-2" data-section="positioning">
+      <div class="field"><label class="field-label">Name Nudge X <span class="nudge-readout" id="nameDxVal">0</span></label><input id="nameDx" type="range" min="-50" max="50" step="1" value="0"></div>
+      <div class="field"><label class="field-label">Record Nudge X <span class="nudge-readout" id="recDxVal">0</span></label><input id="recDx" type="range" min="-50" max="50" step="1" value="0"></div>
+    </div>
+    <div class="row-2" data-section="positioning">
+      <div class="field"><label class="field-label">Row BG Color</label><input id="rowBgColor" type="color" value="#0a1f3a" style="height:30px"></div>
+      <div class="field"><label class="field-label">Row BG Alt</label><input id="rowBgColorAlt" type="color" value="#13294b" style="height:30px"></div>
+    </div>
+
+    <button id="downloadBtn" class="btn">⬇ Download PNG</button>
+  </div>
+
+  <div class="canvas-area">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="cvs" width="1920" height="1080"></canvas>
+      <div class="preview-meta">1920 × 1080 · Standings</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Constants ────────────────────────────────────────────────────────────
+let CANVAS_W = 1920;
+let CANVAS_H = 1080;
+const TITLE_BAND_H = 130;
+const SIDE_MARGIN = 80;
+const ASSET_DIR_PRIMARY = 'matchup/primary/';
+
+// ─── Schools ──────────────────────────────────────────────────────────────
+let SCHOOLS = [];
+async function loadSchoolsJson(){
+  try {
+    const r = await fetch('matchup/schools.json', { cache: 'no-cache' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (Array.isArray(data) && data.length) SCHOOLS = data;
+  } catch (e) { console.warn('schools.json fetch failed:', e); }
+}
+function schoolColor(s){
+  if (!s) return '#666666';
+  const sw = (s.swatch || '').trim();
+  if (sw && /^#?[0-9a-f]+/i.test(sw)) return sw[0] === '#' ? sw : '#' + sw;
+  return '#666666';
+}
+
+const CUSA_PRIORITY_NAMES = new Set([
+  'Liberty','Middle Tennessee','Delaware','FIU','Florida International',
+  'Jacksonville State','Kennesaw State','Louisiana Tech','Missouri State',
+  'New Mexico State','Sam Houston','UTEP','Western Kentucky','Dallas Baptist',
+]);
+
+const IMG_CACHE = {};
+function loadImage(src){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+async function getImage(path){
+  if (IMG_CACHE[path]) return IMG_CACHE[path];
+  const p = loadImage(encodeURI(path));
+  IMG_CACHE[path] = p;
+  try { return await p; } catch (_) { delete IMG_CACHE[path]; throw _; }
+}
+let PATTERN_BG_IMG = null;
+async function ensurePatternBg(){
+  if (PATTERN_BG_IMG) return PATTERN_BG_IMG;
+  try { PATTERN_BG_IMG = await getImage('assets/stark-strips.png'); }
+  catch (_) { PATTERN_BG_IMG = null; }
+  return PATTERN_BG_IMG;
+}
+
+// ─── State ────────────────────────────────────────────────────────────────
+const STATE_KEY = 'cusa_standings_v1';
+const DEFAULT_TEAM = (i) => ({ school: SCHOOLS[i] ? SCHOOLS[i].name : 'Liberty', w: 0, l: 0 });
+const state = {
+  orientation: 'landscape',
+  count: 10,
+  title:    'FOOTBALL STANDINGS',
+  subtitle: 'WEEK 5',
+  teams: Array.from({ length: 12 }, (_, i) => DEFAULT_TEAM(i)),
+  previewBg: '#0a254e',
+  bgImage:    null,
+  bgImageData: null,
+  bgPreset:   null,
+  rowBgColor:    '#0a1f3a',
+  rowBgColorAlt: '#13294b',
+  adj: {
+    groupScale: 1, groupDx: 0, groupDy: 0,
+    rowGap: 10,
+    rowHeight: 68,
+    logoScale: 1, logoDx: 0, logoDy: 0,
+    nameDx: 0, recDx: 0,
+  },
+};
+
+function persistState(){
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      orientation: state.orientation,
+      count: state.count,
+      title: state.title,
+      subtitle: state.subtitle,
+      teams: state.teams.map(t => ({ school: t.school, w: t.w, l: t.l })),
+      previewBg: state.previewBg,
+      bgImageData: state.bgImageData,
+      bgPreset: state.bgPreset,
+      rowBgColor: state.rowBgColor,
+      rowBgColorAlt: state.rowBgColorAlt,
+      adj: state.adj,
+    }));
+  } catch (_) {}
+}
+if (window.cusaPage) window.cusaPage.hookPersist({ pageKey: 'standings', stateKey: STATE_KEY });
+
+function restoreState(){
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.orientation === 'landscape' || s.orientation === 'portrait') state.orientation = s.orientation;
+    if (typeof s.count === 'number' && s.count >= 4 && s.count <= 14) state.count = s.count;
+    if (typeof s.title    === 'string') state.title = s.title;
+    if (typeof s.subtitle === 'string') state.subtitle = s.subtitle;
+    if (Array.isArray(s.teams)) {
+      for (let i = 0; i < s.teams.length && i < state.teams.length; i++) {
+        const t = s.teams[i] || {};
+        if (typeof t.school === 'string') state.teams[i].school = t.school;
+        if (typeof t.w === 'number')      state.teams[i].w = t.w;
+        if (typeof t.l === 'number')      state.teams[i].l = t.l;
+      }
+    }
+    if (typeof s.previewBg     === 'string') state.previewBg     = s.previewBg;
+    if (typeof s.rowBgColor    === 'string') state.rowBgColor    = s.rowBgColor;
+    if (typeof s.rowBgColorAlt === 'string') state.rowBgColorAlt = s.rowBgColorAlt;
+    if (s.bgPreset === 'pattern' || s.bgPreset === 'transparent') state.bgPreset = s.bgPreset;
+    if (typeof s.bgImageData === 'string' && s.bgImageData) {
+      state.bgImageData = s.bgImageData;
+      const img = new Image();
+      img.onload = () => { state.bgImage = img; draw(); };
+      img.src = s.bgImageData;
+    }
+    if (s.adj && typeof s.adj === 'object') {
+      ['groupScale','groupDx','groupDy','rowGap','rowHeight','logoScale','logoDx','logoDy','nameDx','recDx'].forEach(k => {
+        if (typeof s.adj[k] === 'number') state.adj[k] = s.adj[k];
+      });
+    }
+  } catch (_) {}
+}
+
+// ─── Layout + draw ────────────────────────────────────────────────────────
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+
+function applyOrientation(){
+  if (state.orientation === 'portrait') { CANVAS_W = 1080; CANVAS_H = 1920; }
+  else                                   { CANVAS_W = 1920; CANVAS_H = 1080; }
+  cvs.width = CANVAS_W; cvs.height = CANVAS_H;
+  const wrap = document.getElementById('canvasWrap');
+  if (wrap) {
+    if (state.orientation === 'portrait') {
+      wrap.style.aspectRatio = '9/16'; wrap.style.width='auto'; wrap.style.height='100%';
+      wrap.style.maxWidth='100%'; wrap.style.maxHeight='100%';
+    } else {
+      wrap.style.aspectRatio = '16/9'; wrap.style.width='100%'; wrap.style.height='auto';
+      wrap.style.maxWidth='1920px'; wrap.style.maxHeight='100%';
+    }
+  }
+  const meta = document.querySelector('.preview-meta');
+  if (meta) meta.textContent = `${CANVAS_W} × ${CANVAS_H}  ·  Standings  ·  ${state.orientation === 'portrait' ? '9:16' : '16:9'}`;
+  document.querySelectorAll('#orientButtons .count-btn').forEach(b => b.classList.toggle('active', b.dataset.orient === state.orientation));
+}
+
+function drawCoverFit(rctx, img, x, y, w, h){
+  const ar = img.naturalWidth / img.naturalHeight;
+  const tar = w / h;
+  let dw, dh;
+  if (ar > tar) { dh = h; dw = h * ar; } else { dw = w; dh = w / ar; }
+  rctx.drawImage(img, x - (dw - w) / 2, y - (dh - h) / 2, dw, dh);
+}
+function drawContainFit(rctx, img, x, y, w, h){
+  const ar = img.naturalWidth / img.naturalHeight;
+  const tar = w / h;
+  let dw, dh;
+  if (ar > tar) { dw = w; dh = w / ar; } else { dh = h; dw = h * ar; }
+  rctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+
+async function draw(){
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  // Background
+  const drawBg = (img) => {
+    if (state.orientation === 'portrait') {
+      ctx.save();
+      ctx.translate(CANVAS_W/2, CANVAS_H/2);
+      ctx.rotate(Math.PI/2);
+      drawCoverFit(ctx, img, -CANVAS_H/2, -CANVAS_W/2, CANVAS_H, CANVAS_W);
+      ctx.restore();
+    } else {
+      drawCoverFit(ctx, img, 0, 0, CANVAS_W, CANVAS_H);
+    }
+  };
+  if (state.bgPreset === 'transparent') { /* leave transparent */ }
+  else if (state.bgPreset === 'pattern') {
+    const img = await ensurePatternBg();
+    if (img) drawBg(img);
+    else { ctx.fillStyle = state.previewBg || '#0a254e'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H); }
+  } else if (state.bgImage) {
+    drawBg(state.bgImage);
+  } else {
+    ctx.fillStyle = state.previewBg || '#0a254e';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  }
+
+  // Title band
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `900 64px "Proxima Nova","Barlow Condensed",sans-serif`;
+  if (state.title) ctx.fillText(state.title.toUpperCase(), CANVAS_W / 2, 60);
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.font = `400 24px "Proxima Nova","Barlow Condensed",sans-serif`;
+  if (state.subtitle) ctx.fillText(state.subtitle, CANVAS_W / 2, 100);
+
+  // Rows
+  const adj = state.adj;
+  const rowH = adj.rowHeight;
+  const gap  = adj.rowGap;
+  const rowsY = TITLE_BAND_H;
+  const rowW = CANVAS_W - SIDE_MARGIN * 2;
+  const totalH = state.count * rowH + (state.count - 1) * gap;
+  const blockX = SIDE_MARGIN;
+  const blockYStart = rowsY + Math.max(20, Math.floor((CANVAS_H - rowsY - totalH) / 2));
+
+  // Apply group transform
+  const cx = blockX + rowW/2;
+  const cy = blockYStart + totalH/2;
+  ctx.save();
+  ctx.translate(cx + adj.groupDx, cy + adj.groupDy);
+  ctx.scale(adj.groupScale, adj.groupScale);
+  ctx.translate(-cx, -cy);
+
+  for (let i = 0; i < state.count; i++) {
+    const team = state.teams[i] || { school: '', w: 0, l: 0 };
+    const conf = SCHOOLS.find(s => s.name === team.school);
+    const y = blockYStart + i * (rowH + gap);
+
+    // Row background — alternate the two colors
+    ctx.fillStyle = i % 2 === 0 ? (state.rowBgColor || '#0a1f3a') : (state.rowBgColorAlt || '#13294b');
+    ctx.fillRect(blockX, y, rowW, rowH);
+
+    // Position number column
+    const posX = blockX + 30;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = `900 ${Math.round(rowH*0.55)}px "Proxima Nova",sans-serif`;
+    ctx.fillText(String(i+1), posX, y + rowH/2);
+
+    // Logo
+    const logoW = rowH * 0.85 * adj.logoScale;
+    const logoX = blockX + 90 + adj.logoDx;
+    if (conf && conf.primary) {
+      try {
+        const img = await getImage(ASSET_DIR_PRIMARY + conf.primary);
+        drawContainFit(ctx, img, logoX, y + (rowH - logoW)/2, logoW, logoW);
+      } catch (_) {}
+    }
+
+    // Team color bar (subtle accent)
+    if (conf) {
+      ctx.fillStyle = schoolColor(conf);
+      ctx.fillRect(blockX, y, 8, rowH);
+    }
+
+    // School name
+    const nameX = logoX + logoW + 22 + adj.nameDx;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.font = `700 ${Math.round(rowH*0.42)}px "Proxima Nova",sans-serif`;
+    ctx.fillText(team.school || '', nameX, y + rowH/2);
+
+    // Record (W-L) on the right
+    const recX = blockX + rowW - 60 + adj.recDx;
+    ctx.textAlign = 'right';
+    ctx.font = `900 ${Math.round(rowH*0.5)}px "Proxima Nova",sans-serif`;
+    ctx.fillText((team.w|0) + '-' + (team.l|0), recX, y + rowH/2);
+  }
+
+  ctx.restore();
+}
+
+// ─── UI: team cards ───────────────────────────────────────────────────────
+function escapeAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function schoolOptionsHtml(selected){
+  const cusa  = SCHOOLS.filter(s => CUSA_PRIORITY_NAMES.has(s.name));
+  const other = SCHOOLS.filter(s => !CUSA_PRIORITY_NAMES.has(s.name));
+  const opt = s => `<option value="${escapeAttr(s.name)}"${s.name === selected ? ' selected' : ''}>${escapeAttr(s.name)}${s.tricode ? ' · ' + s.tricode : ''}</option>`;
+  return (cusa.length ? cusa.map(opt).join('') + '<option disabled>──────────</option>' : '') + other.map(opt).join('');
+}
+function renderTeamCards(){
+  const wrap = document.getElementById('teamCards');
+  let html = '';
+  for (let i = 0; i < state.count; i++) {
+    const t = state.teams[i];
+    html += `<div class="team-card">
+      <div class="row-4">
+        <div class="field" style="grid-column:1/2"><label class="field-label">#</label><div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;color:#fff;font-size:13px;padding:7px 0">${i+1}</div></div>
+        <div class="field" style="grid-column:2/3"><label class="field-label">School</label><select data-i="${i}" data-k="school">${schoolOptionsHtml(t.school)}</select></div>
+        <div class="field" style="grid-column:3/4"><label class="field-label">W</label><input data-i="${i}" data-k="w" type="number" min="0" max="99" value="${t.w}"></div>
+        <div class="field" style="grid-column:4/5"><label class="field-label">L</label><input data-i="${i}" data-k="l" type="number" min="0" max="99" value="${t.l}"></div>
+      </div>
+    </div>`;
+  }
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('select[data-i], input[data-i]').forEach(el => {
+    el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+      const i = +el.dataset.i;
+      const k = el.dataset.k;
+      if (k === 'school') state.teams[i].school = el.value;
+      else state.teams[i][k] = parseInt(el.value, 10) || 0;
+      persistState();
+      draw();
+    });
+  });
+}
+
+// ─── Wire panel ───────────────────────────────────────────────────────────
+document.querySelectorAll('#orientButtons .count-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    state.orientation = b.dataset.orient;
+    applyOrientation();
+    persistState();
+    draw();
+  });
+});
+document.querySelectorAll('#countButtons .count-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    state.count = +b.dataset.count;
+    document.querySelectorAll('#countButtons .count-btn').forEach(x => x.classList.toggle('active', +x.dataset.count === state.count));
+    renderTeamCards();
+    persistState();
+    draw();
+  });
+});
+document.getElementById('titleText').addEventListener('input',    e => { state.title = e.target.value; persistState(); draw(); });
+document.getElementById('subtitleText').addEventListener('input', e => { state.subtitle = e.target.value; persistState(); draw(); });
+document.getElementById('bgColor').addEventListener('input',      e => { state.previewBg = e.target.value; persistState(); draw(); });
+document.getElementById('rowBgColor').addEventListener('input',   e => { state.rowBgColor = e.target.value; persistState(); draw(); });
+document.getElementById('rowBgColorAlt').addEventListener('input',e => { state.rowBgColorAlt = e.target.value; persistState(); draw(); });
+document.getElementById('bgPatternBtn').addEventListener('click', () => { state.bgPreset = 'pattern';     persistState(); draw(); });
+document.getElementById('bgTransparentBtn').addEventListener('click', () => { state.bgPreset = 'transparent'; persistState(); draw(); });
+document.getElementById('clearBgBtn').addEventListener('click',   () => { state.bgImage = null; state.bgImageData = null; state.bgPreset = null; persistState(); draw(); });
+
+function bindRange(id, path, valId, fmt){
+  const el = document.getElementById(id);
+  const valEl = valId ? document.getElementById(valId) : null;
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const v = +el.value;
+    state.adj[path] = v;
+    if (valEl) valEl.textContent = fmt ? fmt(v) : String(v);
+    persistState();
+    draw();
+  });
+}
+bindRange('grpScale',   'groupScale', 'grpScaleVal',   v => v.toFixed(2) + '×');
+bindRange('grpDx',      'groupDx',    'grpDxVal');
+bindRange('grpDy',      'groupDy',    'grpDyVal');
+bindRange('rowGap',     'rowGap',     'rowGapVal');
+bindRange('rowHeight',  'rowHeight',  'rowHeightVal');
+bindRange('logoScale',  'logoScale',  'logoScaleVal',  v => v.toFixed(2) + '×');
+bindRange('logoDx',     'logoDx',     'logoDxVal');
+bindRange('nameDx',     'nameDx',     'nameDxVal');
+bindRange('recDx',      'recDx',      'recDxVal');
+
+document.getElementById('downloadBtn').addEventListener('click', async () => {
+  await draw();
+  const dataUrl = cvs.toDataURL('image/png');
+  const safe = (s) => (s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'') || 'STANDINGS';
+  const ratio = state.orientation === 'portrait' ? '9x16' : '16x9';
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `CUSA_Standings_${ratio}_${safe(state.title)}.png`;
+  a.click();
+});
+
+function syncUiFromState() {
+  document.getElementById('titleText').value      = state.title;
+  document.getElementById('subtitleText').value   = state.subtitle;
+  document.getElementById('bgColor').value        = state.previewBg || '#0a254e';
+  document.getElementById('rowBgColor').value     = state.rowBgColor;
+  document.getElementById('rowBgColorAlt').value  = state.rowBgColorAlt;
+  document.querySelectorAll('#countButtons .count-btn').forEach(x => x.classList.toggle('active', +x.dataset.count === state.count));
+  const a = state.adj;
+  const set = (id, v, fmt) => {
+    const el = document.getElementById(id); if (el) el.value = v;
+    const ve = document.getElementById(id + 'Val'); if (ve) ve.textContent = fmt ? fmt(v) : String(v);
+  };
+  set('grpScale',  a.groupScale, v => (+v).toFixed(2) + '×');
+  set('grpDx',     a.groupDx);
+  set('grpDy',     a.groupDy);
+  set('rowGap',    a.rowGap);
+  set('rowHeight', a.rowHeight);
+  set('logoScale', a.logoScale, v => (+v).toFixed(2) + '×');
+  set('logoDx',    a.logoDx);
+  set('nameDx',    a.nameDx);
+  set('recDx',     a.recDx);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+(async () => {
+  await loadSchoolsJson();
+  // Populate default team list now that SCHOOLS is real (only if no save).
+  if (!localStorage.getItem(STATE_KEY)) {
+    const cusa = SCHOOLS.filter(s => CUSA_PRIORITY_NAMES.has(s.name)).slice(0, 12);
+    cusa.forEach((s, i) => { if (state.teams[i]) state.teams[i].school = s.name; });
+  }
+  restoreState();
+  applyOrientation();
+  renderTeamCards();
+  syncUiFromState();
+  if (document.fonts && document.fonts.load) {
+    try { await document.fonts.load(`900 64px "Proxima Nova"`); } catch (_) {}
+    try { await document.fonts.load(`700 28px "Proxima Nova"`); } catch (_) {}
+  }
+  draw();
+
+  if (window.cusaPage) {
+    await window.cusaPage.boot({ pageKey: 'standings', stateKey: STATE_KEY });
+    // Apply scope-based UI gating: positioning hides content; content
+    // hides positioning. 'all' scope shows everything.
+    const perm = window.__cusaPagePerm;
+    if (perm && (perm.scope === 'positioning' || perm.scope === 'content')) {
+      document.body.setAttribute('data-scope', perm.scope);
+    }
+    syncUiFromState();
+    draw();
+  }
+})();
+</script>
+</body>
 </html>

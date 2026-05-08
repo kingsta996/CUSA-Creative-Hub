@@ -109,6 +109,12 @@ canvas{display:block;width:100%;height:100%}
 .override-btn.active{border-color:#EB1946;color:#EB1946}
 select option.has-bg::after{content:' ✓'}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js" onerror="console.warn('config.js not generated — run bash build.sh')"></script>
+<script src="assets/cusa-auth.js"></script>
+<script src="assets/cusa-cloud-state.js"></script>
+<script src="assets/cusa-page.js"></script>
+<script>if (window.cusaPage) window.cusaPage.gateOnly({ pageKey: 'potw' });</script>
 </head>
 <body>
 

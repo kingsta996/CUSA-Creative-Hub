@@ -232,5 +232,18 @@
     };
   }
 
-  window.cusaPage = { boot, hookPersist, resolvePerm, pageGroupOf };
+  // Lighter-weight variant of boot() for pages that don't have any
+  // persistent editor state to sync — they still need the login modal
+  // and the mode banner so users see who they are + their save scope.
+  // Used by potw.html / award.html.
+  async function gateOnly({ pageKey }) {
+    if (isEmbedded()) return;
+    await window.cusaAuth.requireLogin();
+    const u = window.cusaAuth.currentUser();
+    const perm = resolvePerm(pageKey, u);
+    window.__cusaPagePerm = perm;
+    renderModeBanner(pageKey, perm);
+  }
+
+  window.cusaPage = { boot, hookPersist, resolvePerm, pageGroupOf, gateOnly };
 })();
