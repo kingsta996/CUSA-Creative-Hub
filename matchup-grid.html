@@ -91,9 +91,10 @@ canvas#cvs{display:block;width:100%;height:100%}
 
     <div class="field" style="margin-top:4px">
       <label class="field-label">Background</label>
-      <div class="row-2" style="margin-bottom:6px">
-        <button class="btn secondary" id="bgPatternBtn" style="font-size:10px;padding:6px 10px">Use CUSA pattern</button>
-        <button class="btn secondary" id="clearBgBtn" style="font-size:10px;padding:6px 10px">Remove background</button>
+      <div class="row-3" style="margin-bottom:6px">
+        <button class="btn secondary" id="bgPatternBtn"     style="font-size:10px;padding:6px 8px">CUSA pattern</button>
+        <button class="btn secondary" id="bgTransparentBtn" style="font-size:10px;padding:6px 8px">Transparent</button>
+        <button class="btn secondary" id="clearBgBtn"       style="font-size:10px;padding:6px 8px">Solid color</button>
       </div>
       <label class="upload-zone" id="bgZone" style="display:block;border:1px dashed rgba(255,255,255,0.18);border-radius:4px;padding:14px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.55);cursor:pointer">
         <input type="file" accept="image/*" id="bgUpload" style="display:none">
@@ -149,6 +150,7 @@ canvas#cvs{display:block;width:100%;height:100%}
 
       <!-- Text nudges -->
       <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Text Position</div>
+      <div class="field"><label class="field-label">Nickname Zoom <span class="nudge-readout" id="nickScaleVal">1.00×</span></label><input id="nickScale" type="range" min="0.5" max="1.6" step="0.01" value="1"></div>
       <div class="row-2">
         <div class="field"><label class="field-label">L Name dX <span class="nudge-readout" id="leftNameDxVal">0</span></label><input id="leftNameDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">L Name dY <span class="nudge-readout" id="leftNameDyVal">0</span></label><input id="leftNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
@@ -379,6 +381,7 @@ const DEFAULT_ADJ = () => ({
   // Globals.
   koOpacity:    0.22,
   koScale:      1.3,
+  nickScale:    1.0,    // Shared L/R nickname font-size multiplier.
   textureBlend: 'screen',
   // Logo-square backdrops behind the corner logos. dx/dy nudge the square
   // within its row, w/h crop or expand it; default size 76×67 matches the
@@ -448,14 +451,14 @@ function restoreState(){
       img.onload = () => { state.bgImage = img; draw(); };
       img.src = s.bgImageData;
     }
-    if (s.bgPreset === 'pattern') state.bgPreset = 'pattern';
+    if (s.bgPreset === 'pattern' || s.bgPreset === 'transparent') state.bgPreset = s.bgPreset;
     // Merge persisted adj over the defaults so removed/new fields stay sane.
     if (s.adj && typeof s.adj === 'object') {
       ['leftBlock','rightBlock','leftLogo','rightLogo','leftName','rightName','leftNick','rightNick',
        'leftKo','rightKo','dateNudge','timeNudge','networkNudge',
        'leftSquare','rightSquare','logoShadow','stripShadow','koShadow'
       ].forEach(k => { if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]); });
-      ['groupScale','groupDx','groupDy','koOpacity','koScale'].forEach(k => {
+      ['groupScale','groupDx','groupDy','koOpacity','koScale','nickScale'].forEach(k => {
         if (typeof s.adj[k] === 'number') state.adj[k] = s.adj[k];
       });
       if (typeof s.adj.textureBlend === 'string') state.adj.textureBlend = s.adj.textureBlend;
@@ -522,21 +525,46 @@ function drawKoTexture(rctx, img, x, y, w, h, alpha, scale, side, nudge, shadow)
   const targetH = h * scale;
   const ar = img.naturalWidth / img.naturalHeight;
   const targetW = targetH * ar;
-  const ox = (side === 'left' ? x + (w - targetW) * 0.25 : x + (w - targetW) * 0.75) + (nudge?.dx || 0);
-  const oy = y + (h - targetH) / 2 + (nudge?.dy || 0);
+  const baseOx = side === 'left' ? x + (w - targetW) * 0.25 : x + (w - targetW) * 0.75;
+  const baseOy = y + (h - targetH) / 2;
+  const ox = baseOx + (nudge?.dx || 0);
+  const oy = baseOy + (nudge?.dy || 0);
+
+  // Standard ctx.shadowColor on the screen-blended drawImage below is
+  // invisible (black-on-color is a no-op in screen). Two-pass: render the
+  // image with a shadow into an offscreen canvas, subtract the image with
+  // destination-out so only the shadow remains, then stamp that onto the
+  // main canvas in normal blend BEFORE the screen-blend KO. Mirrors the
+  // technique in matchup.html.
   if (shadow && shadow.on) {
-    rctx.shadowColor   = hexToRgba(shadow.color || '#000000', shadow.alpha != null ? shadow.alpha : 0.5);
-    rctx.shadowBlur    = shadow.blur || 0;
-    rctx.shadowOffsetX = shadow.dx   || 0;
-    rctx.shadowOffsetY = shadow.dy   || 0;
+    const blur = shadow.blur || 0;
+    const sdx  = shadow.dx   || 0;
+    const sdy  = shadow.dy   || 0;
+    const padX = Math.ceil(Math.abs(sdx) + blur * 3 + 8);
+    const padY = Math.ceil(Math.abs(sdy) + blur * 3 + 8);
+    const off = document.createElement('canvas');
+    off.width  = Math.ceil(targetW) + padX * 2;
+    off.height = Math.ceil(targetH) + padY * 2;
+    const oc = off.getContext('2d');
+    oc.shadowColor   = hexToRgba(shadow.color || '#000000', shadow.alpha != null ? shadow.alpha : 0.5);
+    oc.shadowBlur    = blur;
+    oc.shadowOffsetX = sdx;
+    oc.shadowOffsetY = sdy;
+    oc.drawImage(img, padX, padY, targetW, targetH);
+    oc.shadowColor = 'rgba(0,0,0,0)';
+    oc.shadowBlur = oc.shadowOffsetX = oc.shadowOffsetY = 0;
+    oc.globalCompositeOperation = 'destination-out';
+    oc.drawImage(img, padX, padY, targetW, targetH);
+    rctx.drawImage(off, ox - padX, oy - padY);
   }
+
   rctx.globalAlpha = alpha;
   rctx.globalCompositeOperation = 'screen';
   rctx.drawImage(img, ox, oy, targetW, targetH);
   rctx.restore();
 }
 
-function drawSideText(rctx, conf, anchorX, align, nameNudge, nickNudge, stripShadow){
+function drawSideText(rctx, conf, anchorX, align, nameNudge, nickNudge, stripShadow, nickScale){
   rctx.fillStyle = '#FFFFFF';
   rctx.textAlign = align;
   rctx.textBaseline = 'middle';
@@ -555,7 +583,8 @@ function drawSideText(rctx, conf, anchorX, align, nameNudge, nickNudge, stripSha
   }
   rctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
   rctx.fillText((conf.name || '').toUpperCase(), anchorX + (nameNudge?.dx || 0), NAME_CY + (nameNudge?.dy || 0));
-  rctx.font = `700 ${NICK_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
+  const nickFs = NICK_FS * (nickScale || 1);
+  rctx.font = `700 ${nickFs}px "Proxima Nova","Barlow Condensed",sans-serif`;
   rctx.fillText(schoolNickname(conf), anchorX + (nickNudge?.dx || 0), NICK_CY + (nickNudge?.dy || 0));
   rctx.shadowColor = 'rgba(0,0,0,0)';
   rctx.shadowBlur = rctx.shadowOffsetX = rctx.shadowOffsetY = 0;
@@ -656,8 +685,8 @@ async function drawRow(rctx, rowState){
 
   // Name + nickname per side, locked to the strip-divider anchors. Strip
   // shadow controls the per-team nameplate drop (left+right share one config).
-  if (leftConf)  drawSideText(rctx, leftConf,  LEFT_TEXT_X,  'right', adj.leftName,  adj.leftNick,  adj.stripShadow);
-  if (rightConf) drawSideText(rctx, rightConf, RIGHT_TEXT_X, 'left',  adj.rightName, adj.rightNick, adj.stripShadow);
+  if (leftConf)  drawSideText(rctx, leftConf,  LEFT_TEXT_X,  'right', adj.leftName,  adj.leftNick,  adj.stripShadow, adj.nickScale);
+  if (rightConf) drawSideText(rctx, rightConf, RIGHT_TEXT_X, 'left',  adj.rightName, adj.rightNick, adj.stripShadow, adj.nickScale);
 
   // Date / Time / Network strip — navy text on the gradient pill. Per-element
   // nudges let the operator dial the strip text into a shifted pill.
@@ -734,13 +763,33 @@ async function ensurePatternBg(){
 async function draw(){
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Background priority: pattern preset > uploaded image > solid color.
-  if (state.bgPreset === 'pattern') {
+  // In portrait (9:16) orientation, draw the background image rotated 90°
+  // so a 16:9 source (CUSA pattern, typical uploads) reads naturally
+  // instead of getting stretched + cropped vertically.
+  const drawBgImageMaybeRotated = (img) => {
+    if (state.orientation === 'portrait') {
+      ctx.save();
+      ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
+      ctx.rotate(Math.PI / 2);
+      // After 90° rotation the canvas axes are swapped, so the rect we
+      // pass into drawCoverFit needs swapped dimensions.
+      drawCoverFit(ctx, img, -CANVAS_H / 2, -CANVAS_W / 2, CANVAS_H, CANVAS_W);
+      ctx.restore();
+    } else {
+      drawCoverFit(ctx, img, 0, 0, CANVAS_W, CANVAS_H);
+    }
+  };
+
+  // Background priority: transparent > pattern > uploaded image > solid.
+  if (state.bgPreset === 'transparent') {
+    // Skip the fill entirely — the canvas stays cleared so the PNG export
+    // carries alpha through.
+  } else if (state.bgPreset === 'pattern') {
     const img = await ensurePatternBg();
-    if (img) drawCoverFit(ctx, img, 0, 0, CANVAS_W, CANVAS_H);
+    if (img) drawBgImageMaybeRotated(img);
     else { ctx.fillStyle = state.previewBg || '#0a254e'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H); }
   } else if (state.bgImage) {
-    drawCoverFit(ctx, state.bgImage, 0, 0, CANVAS_W, CANVAS_H);
+    drawBgImageMaybeRotated(state.bgImage);
   } else {
     ctx.fillStyle = state.previewBg || '#0a254e';
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -877,6 +926,8 @@ document.getElementById('bgUpload').addEventListener('change', e => {
   fr.readAsDataURL(file);
 });
 document.getElementById('clearBgBtn').addEventListener('click', () => {
+  // "Solid color" — clear preset + uploaded image so draw() falls back to
+  // the bgColor picker value.
   state.bgImage = null;
   state.bgImageData = null;
   state.bgPreset = null;
@@ -890,6 +941,15 @@ document.getElementById('bgPatternBtn').addEventListener('click', () => {
   // case the user toggles back, but draw() prefers bgPreset='pattern'.
   state.bgPreset = 'pattern';
   document.getElementById('bgZoneText').textContent = 'CUSA stark pattern (clear to upload your own)';
+  persistState();
+  draw();
+});
+document.getElementById('bgTransparentBtn').addEventListener('click', () => {
+  // Transparent — draw() skips the background fill entirely so the PNG
+  // export carries alpha through. Useful for layering the grid over
+  // existing footage / templates downstream.
+  state.bgPreset = 'transparent';
+  document.getElementById('bgZoneText').textContent = 'Transparent (no background painted)';
   persistState();
   draw();
 });
@@ -948,6 +1008,7 @@ bindAdj('rightBlockSh', 'rightBlock.sh', 'rightBlockShVal', v => v + '%');
 // KO + per-side logo geometry.
 bindAdj('koOpacity', 'koOpacity', 'koOpacityVal', v => (+v).toFixed(2));
 bindAdj('koScale',   'koScale',   'koScaleVal',   v => (+v).toFixed(2) + '×');
+bindAdj('nickScale', 'nickScale', 'nickScaleVal', v => (+v).toFixed(2) + '×');
 bindAdj('leftLogoScale',  'leftLogo.scale',  'leftLogoScaleVal',  v => (+v).toFixed(2) + '×');
 bindAdj('leftLogoDx',     'leftLogo.dx',     'leftLogoDxVal');
 bindAdj('leftLogoDy',     'leftLogo.dy',     'leftLogoDyVal');
@@ -1070,6 +1131,7 @@ function syncAdjUiFromState(){
   });
   setVal('koOpacity', a.koOpacity); setText('koOpacityVal', (+a.koOpacity).toFixed(2));
   setVal('koScale',   a.koScale);   setText('koScaleVal',   (+a.koScale).toFixed(2) + '×');
+  setVal('nickScale', a.nickScale); setText('nickScaleVal', (+a.nickScale).toFixed(2) + '×');
   ['leftLogo','rightLogo'].forEach(side => {
     const v = a[side];
     setVal(side + 'Scale', v.scale); setText(side + 'ScaleVal', (+v.scale).toFixed(2) + '×');
@@ -1145,6 +1207,8 @@ if (IS_EMBEDDED) document.body.classList.add('embedded');
   document.getElementById('bgColor').value      = state.previewBg || '#0a254e';
   if (state.bgPreset === 'pattern') {
     document.getElementById('bgZoneText').textContent = 'CUSA stark pattern (clear to upload your own)';
+  } else if (state.bgPreset === 'transparent') {
+    document.getElementById('bgZoneText').textContent = 'Transparent (no background painted)';
   } else if (state.bgImageData) {
     document.getElementById('bgZoneText').textContent = '✓ Background loaded — click to replace';
   }
