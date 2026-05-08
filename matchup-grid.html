@@ -65,13 +65,6 @@ canvas#cvs{display:block;width:100%;height:100%}
   <div class="panel">
     <div class="panel-head">Grid Settings</div>
     <div class="field">
-      <label class="field-label">Aspect Ratio</label>
-      <div class="row-2" id="orientButtons">
-        <button class="count-btn active" data-orient="landscape">16:9 · 1920×1080</button>
-        <button class="count-btn" data-orient="portrait">9:16 · 1080×1920</button>
-      </div>
-    </div>
-    <div class="field">
       <label class="field-label">How many matchups?</label>
       <div class="row-5" id="countButtons">
         <button class="count-btn" data-count="1">1</button>
@@ -84,20 +77,10 @@ canvas#cvs{display:block;width:100%;height:100%}
     <div class="field"><label class="field-label">Title</label><input id="titleText" type="text" maxlength="40" value="WHERE TO WATCH"></div>
     <div class="field"><label class="field-label">Subtitle / Date Range</label><input id="subtitleText" type="text" maxlength="40" value="WEEK 5 · SATURDAY"></div>
 
-    <div class="field" style="margin-top:4px">
-      <label class="field-label">Background Image</label>
-      <label class="upload-zone" id="bgZone" style="display:block;border:1px dashed rgba(255,255,255,0.18);border-radius:4px;padding:14px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.55);cursor:pointer">
-        <input type="file" accept="image/*" id="bgUpload" style="display:none">
-        <span id="bgZoneText">+ Upload background image</span>
-      </label>
-      <button class="btn secondary" id="clearBgBtn" style="font-size:10px;padding:6px 10px;margin-top:6px">Remove background</button>
-    </div>
-    <div class="field"><label class="field-label">Background Color (when no image)</label><input id="bgColor" type="color" value="#0a254e" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
-
     <div class="panel-head" style="margin-top:8px">Matchups</div>
     <div id="rowCards"></div>
 
-    <button id="downloadBtn" class="btn">⬇ Download PNG</button>
+    <button id="downloadBtn" class="btn">⬇ Download PNG (1920×1080)</button>
   </div>
 
   <div class="canvas-area">
@@ -110,11 +93,8 @@ canvas#cvs{display:block;width:100%;height:100%}
 
 <script>
 // ─── Constants ────────────────────────────────────────────────────────────
-// Canvas dimensions are mutable so the operator can switch between 16:9
-// (landscape) and 9:16 (portrait). Other geometry follows the row-base
-// aspect (8:1 from the underlying matchup template).
-let CANVAS_W = 1920;
-let CANVAS_H = 1080;
+const CANVAS_W = 1920;
+const CANVAS_H = 1080;
 const ROW_BASE_W = 1080;
 const ROW_BASE_H = 135;
 const TITLE_BAND_H = 110;
@@ -153,23 +133,11 @@ function schoolColor(s){
   if (sw && sw !== 'N/A' && sw !== 'None' && /^#?[0-9a-f]+/i.test(sw)) return sw[0] === '#' ? sw : '#' + sw;
   return '#666666';
 }
-function schoolSecondaryColor(s){
-  if (!s) return schoolColor(s);
-  const sec = (s.secondary || '').trim();
-  if (sec && /^#?[0-9a-f]+/i.test(sec)) return sec[0] === '#' ? sec : '#' + sec;
-  return schoolColor(s);
-}
 function schoolNickname(s){
   if (!s) return '';
   if (s.mascot) return s.mascot.toUpperCase();
   const parts = (s.name || '').split(/\s+/);
   return (parts[parts.length - 1] || '').toUpperCase();
-}
-function hexToRgba(hex, a){
-  const m = /^#([0-9a-f]{6})$/i.exec(hex || '#000000');
-  if (!m) return `rgba(0,0,0,${a})`;
-  const n = parseInt(m[1], 16);
-  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
 }
 
 // ─── State ────────────────────────────────────────────────────────────────
@@ -182,25 +150,20 @@ const DEFAULT_ROW = () => ({
   network: 'ESPN+',
 });
 const state = {
-  orientation: 'landscape',  // 'landscape' (16:9) | 'portrait' (9:16)
   count: 5,
   title:    'WHERE TO WATCH',
   subtitle: 'WEEK 5 · SATURDAY',
   rows: Array.from({ length: 5 }, () => DEFAULT_ROW()),
   previewBg: '#0a254e',
-  bgImage:    null,    // Image object (in-memory)
-  bgImageData: null,   // data URL persisted to localStorage
 };
 function persistState(){
   try {
     localStorage.setItem(STATE_KEY, JSON.stringify({
-      orientation: state.orientation,
       count: state.count,
       title: state.title,
       subtitle: state.subtitle,
       rows: state.rows.map(r => ({ left: { school: r.left.school }, right: { school: r.right.school }, date: r.date, time: r.time, network: r.network })),
       previewBg: state.previewBg,
-      bgImageData: state.bgImageData,
     }));
   } catch (_) {}
 }
@@ -209,7 +172,6 @@ function restoreState(){
     const raw = localStorage.getItem(STATE_KEY);
     if (!raw) return;
     const s = JSON.parse(raw);
-    if (s.orientation === 'portrait' || s.orientation === 'landscape') state.orientation = s.orientation;
     if (typeof s.count === 'number' && s.count >= 1 && s.count <= 5) state.count = s.count;
     if (typeof s.title === 'string') state.title = s.title;
     if (typeof s.subtitle === 'string') state.subtitle = s.subtitle;
@@ -224,12 +186,6 @@ function restoreState(){
       }
     }
     if (typeof s.previewBg === 'string') state.previewBg = s.previewBg;
-    if (typeof s.bgImageData === 'string' && s.bgImageData) {
-      state.bgImageData = s.bgImageData;
-      const img = new Image();
-      img.onload = () => { state.bgImage = img; draw(); };
-      img.src = s.bgImageData;
-    }
   } catch (_) {}
 }
 
@@ -307,20 +263,6 @@ function drawSideText(rctx, conf, anchorX, align){
   rctx.shadowBlur = rctx.shadowOffsetX = rctx.shadowOffsetY = 0;
 }
 
-// Draw a colored square backdrop in the LOGO_BOX area — same as matchup.html
-// (default: school SECONDARY color, overlay blend so the box keeps the
-// gradient-overlay's depth on top).
-function drawLogoSquare(rctx, boxX, boxY, color){
-  const w = 76, h = 67;
-  const cx = boxX + LOGO_BOX.w / 2;
-  const cy = boxY + LOGO_BOX.h / 2;
-  rctx.save();
-  rctx.fillStyle = color || '#FFFFFF';
-  rctx.globalCompositeOperation = 'overlay';
-  rctx.fillRect(cx - w/2, cy - h/2, w, h);
-  rctx.restore();
-}
-
 async function drawRow(rctx, rowState){
   rctx.clearRect(0, 0, ROW_BASE_W, ROW_BASE_H);
   const leftConf  = SCHOOLS.find(s => s.name === rowState.left.school);
@@ -340,37 +282,14 @@ async function drawRow(rctx, rowState){
   const overlay = await ensureOverlay();
   if (overlay) rctx.drawImage(overlay, 0, 0, ROW_BASE_W, ROW_BASE_H);
 
-  // Logo-square backdrops behind the corner logos — secondary color, overlay
-  // blend. Matches matchup.html so each row has the same colored frame
-  // around the school logos.
-  drawLogoSquare(rctx, LOGO_BOX.leftX,  LOGO_BOX.y, schoolSecondaryColor(leftConf));
-  drawLogoSquare(rctx, LOGO_BOX.rightX, LOGO_BOX.y, schoolSecondaryColor(rightConf));
-
-  // School primary logos in the corner boxes — with drop shadow (default
-  // matches matchup.html: 2/2 offset, 4 blur, 50% black).
-  const applyLogoShadow = () => {
-    rctx.shadowColor = hexToRgba('#000000', 0.5);
-    rctx.shadowBlur = 4;
-    rctx.shadowOffsetX = 2;
-    rctx.shadowOffsetY = 2;
-  };
+  // School primary logos in the corner boxes.
   if (leftConf && leftConf.primary) {
     const img = await getImage(ASSET_DIR_PRIMARY + leftConf.primary).catch(()=>null);
-    if (img) {
-      rctx.save();
-      applyLogoShadow();
-      drawContainFit(rctx, img, LOGO_BOX.leftX, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h);
-      rctx.restore();
-    }
+    if (img) drawContainFit(rctx, img, LOGO_BOX.leftX, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h);
   }
   if (rightConf && rightConf.primary) {
     const img = await getImage(ASSET_DIR_PRIMARY + rightConf.primary).catch(()=>null);
-    if (img) {
-      rctx.save();
-      applyLogoShadow();
-      drawContainFit(rctx, img, LOGO_BOX.rightX, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h);
-      rctx.restore();
-    }
+    if (img) drawContainFit(rctx, img, LOGO_BOX.rightX, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h);
   }
 
   // Name + nickname per side, locked to the strip-divider anchors.
@@ -391,7 +310,7 @@ async function drawRow(rctx, rowState){
 function rowLayout(n){
   const titleH = TITLE_BAND_H;
   const maxRowW = CANVAS_W - SIDE_MARGIN * 2;
-  const maxRowH = maxRowW / 8;  // matchup-row aspect is 8:1
+  const maxRowH = maxRowW / 8;
   const availH = CANVAS_H - titleH - ROW_GAP * (n - 1) - 30;
   let rowH = Math.min(maxRowH, Math.floor(availH / n));
   let rowW = Math.round(rowH * 8);
@@ -404,51 +323,12 @@ function rowLayout(n){
 const cvs = document.getElementById('cvs');
 const ctx = cvs.getContext('2d');
 
-// Apply the canvas size + DOM aspect ratio when the operator toggles
-// orientation. Called on init + on every orient-button click.
-function applyOrientation(){
-  if (state.orientation === 'portrait') {
-    CANVAS_W = 1080; CANVAS_H = 1920;
-  } else {
-    CANVAS_W = 1920; CANVAS_H = 1080;
-  }
-  cvs.width = CANVAS_W;
-  cvs.height = CANVAS_H;
-  const wrap = document.getElementById('canvasWrap');
-  if (wrap) wrap.style.aspectRatio = state.orientation === 'portrait' ? '9/16' : '16/9';
-  const meta = document.querySelector('.preview-meta');
-  if (meta) {
-    const ratio = state.orientation === 'portrait' ? '9:16' : '16:9';
-    meta.textContent = `${CANVAS_W} × ${CANVAS_H}  ·  Matchup Grid  ·  ${ratio}`;
-  }
-  document.querySelectorAll('#orientButtons .count-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.orient === state.orientation);
-  });
-}
-
-// Cover-fit a source image into a target rect (used for the background
-// image option). Crops symmetrically; preserves aspect ratio.
-function drawCoverFit(rctx, img, x, y, w, h){
-  const ar = img.naturalWidth / img.naturalHeight;
-  const tar = w / h;
-  let dw, dh;
-  if (ar > tar) { dh = h; dw = h * ar; }
-  else          { dw = w; dh = w / ar; }
-  const dx = x - (dw - w) / 2;
-  const dy = y - (dh - h) / 2;
-  rctx.drawImage(img, dx, dy, dw, dh);
-}
-
 async function draw(){
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Background — image if uploaded, otherwise the operator's chosen color.
-  if (state.bgImage) {
-    drawCoverFit(ctx, state.bgImage, 0, 0, CANVAS_W, CANVAS_H);
-  } else {
-    ctx.fillStyle = state.previewBg || '#0a254e';
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-  }
+  // Background fill.
+  ctx.fillStyle = state.previewBg || '#0a254e';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // Title band.
   if (state.title) {
@@ -523,23 +403,12 @@ function renderRowCards(){
   });
 }
 
-// Count buttons live inside #countButtons; orientation buttons inside
-// #orientButtons. Scope each handler so the wrong group doesn't fire.
-document.querySelectorAll('#countButtons .count-btn').forEach(b => {
+document.querySelectorAll('.count-btn').forEach(b => {
   b.addEventListener('click', () => {
     const n = +b.dataset.count;
     state.count = n;
-    document.querySelectorAll('#countButtons .count-btn').forEach(btn => btn.classList.toggle('active', +btn.dataset.count === n));
+    document.querySelectorAll('.count-btn').forEach(btn => btn.classList.toggle('active', +btn.dataset.count === n));
     renderRowCards();
-    persistState();
-    draw();
-  });
-});
-
-document.querySelectorAll('#orientButtons .count-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    state.orientation = b.dataset.orient;
-    applyOrientation();
     persistState();
     draw();
   });
@@ -548,44 +417,11 @@ document.querySelectorAll('#orientButtons .count-btn').forEach(b => {
 document.getElementById('titleText').addEventListener('input', e => { state.title = e.target.value; persistState(); draw(); });
 document.getElementById('subtitleText').addEventListener('input', e => { state.subtitle = e.target.value; persistState(); draw(); });
 
-// Background image upload + remove.
-document.getElementById('bgUpload').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const fr = new FileReader();
-  fr.onload = ev => {
-    const img = new Image();
-    img.onload = () => {
-      state.bgImage = img;
-      state.bgImageData = ev.target.result;
-      document.getElementById('bgZoneText').textContent = '✓ Background loaded — click to replace';
-      persistState();
-      draw();
-    };
-    img.src = ev.target.result;
-  };
-  fr.readAsDataURL(file);
-});
-document.getElementById('clearBgBtn').addEventListener('click', () => {
-  state.bgImage = null;
-  state.bgImageData = null;
-  document.getElementById('bgZoneText').textContent = '+ Upload background image';
-  document.getElementById('bgUpload').value = '';
-  persistState();
-  draw();
-});
-document.getElementById('bgColor').addEventListener('input', e => {
-  state.previewBg = e.target.value;
-  persistState();
-  draw();
-});
-
 document.getElementById('downloadBtn').addEventListener('click', async () => {
   await draw();
   const dataUrl = cvs.toDataURL('image/png');
   const safe = (s) => (s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'') || 'GRID';
-  const ratio = state.orientation === 'portrait' ? '9x16' : '16x9';
-  const fname = `CUSA_Matchup_Grid_${ratio}_${state.count}up_${safe(state.title)}.png`;
+  const fname = `CUSA_Matchup_Grid_${state.count}up_${safe(state.title)}.png`;
   const a = document.createElement('a');
   a.href = dataUrl;
   a.download = fname;
@@ -598,14 +434,11 @@ if (IS_EMBEDDED) document.body.classList.add('embedded');
 
 (async () => {
   restoreState();
-  applyOrientation();
   await loadSchoolsJson();
   // Sync UI from restored state.
   document.getElementById('titleText').value    = state.title;
   document.getElementById('subtitleText').value = state.subtitle;
-  document.getElementById('bgColor').value      = state.previewBg || '#0a254e';
-  if (state.bgImageData) document.getElementById('bgZoneText').textContent = '✓ Background loaded — click to replace';
-  document.querySelectorAll('#countButtons .count-btn').forEach(b => b.classList.toggle('active', +b.dataset.count === state.count));
+  document.querySelectorAll('.count-btn').forEach(b => b.classList.toggle('active', +b.dataset.count === state.count));
   renderRowCards();
   if (document.fonts && document.fonts.load) {
     try { await document.fonts.load(`400 22px "Proxima Nova"`); } catch (_) {}
