@@ -105,60 +105,79 @@ canvas#cvs{display:block;width:100%;height:100%}
     <div class="panel-head" style="margin-top:8px">Group Transform</div>
     <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="grpScaleVal">1.00×</span></label><input id="grpScale" type="range" min="0.5" max="1.5" step="0.01" value="1"></div>
     <div class="row-2">
-      <div class="field"><label class="field-label">Nudge X <span class="nudge-readout" id="grpDxVal">0</span></label><input id="grpDx" type="range" min="-250" max="250" step="1" value="0"></div>
+      <div class="field"><label class="field-label">Nudge X <span class="nudge-readout" id="grpDxVal">0</span></label><input id="grpDx" type="range" min="-375" max="375" step="1" value="0"></div>
       <div class="field"><label class="field-label">Nudge Y <span class="nudge-readout" id="grpDyVal">0</span></label><input id="grpDy" type="range" min="-200" max="200" step="1" value="0"></div>
     </div>
 
     <button class="btn secondary" id="advToggle" style="margin-top:8px;font-size:10px;padding:8px 10px">▶ Advanced Adjustments (per-row, applied to all)</button>
     <div id="advPanel" style="display:none;flex-direction:column;gap:10px;margin-top:6px;padding:10px;border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(0,0,0,0.18)">
+      <!-- Color Blocks (the colored bar fills behind each team) -->
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55)">Color Blocks (per-side bar fill)</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">L Block dX <span class="nudge-readout" id="leftBlockDxVal">0</span></label><input id="leftBlockDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">L Block dY <span class="nudge-readout" id="leftBlockDyVal">0</span></label><input id="leftBlockDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">L Block W <span class="nudge-readout" id="leftBlockSwVal">100%</span></label><input id="leftBlockSw" type="range" min="40" max="180" step="1" value="100"></div>
+        <div class="field"><label class="field-label">L Block H <span class="nudge-readout" id="leftBlockShVal">100%</span></label><input id="leftBlockSh" type="range" min="40" max="160" step="1" value="100"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">R Block dX <span class="nudge-readout" id="rightBlockDxVal">0</span></label><input id="rightBlockDx" type="range" min="-500" max="500" step="1" value="0"></div>
+        <div class="field"><label class="field-label">R Block dY <span class="nudge-readout" id="rightBlockDyVal">0</span></label><input id="rightBlockDy" type="range" min="-50" max="50" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">R Block W <span class="nudge-readout" id="rightBlockSwVal">100%</span></label><input id="rightBlockSw" type="range" min="40" max="180" step="1" value="100"></div>
+        <div class="field"><label class="field-label">R Block H <span class="nudge-readout" id="rightBlockShVal">100%</span></label><input id="rightBlockSh" type="range" min="40" max="160" step="1" value="100"></div>
+      </div>
+
       <!-- KO + Logo Scale -->
-      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55)">Knockouts &amp; Logos</div>
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Knockouts &amp; Logos</div>
       <div class="row-2">
         <div class="field"><label class="field-label">KO Opacity <span class="nudge-readout" id="koOpacityVal">0.22</span></label><input id="koOpacity" type="range" min="0" max="1" step="0.01" value="0.22"></div>
         <div class="field"><label class="field-label">KO Scale <span class="nudge-readout" id="koScaleVal">1.30×</span></label><input id="koScale" type="range" min="0.6" max="2.5" step="0.01" value="1.3"></div>
       </div>
       <div class="row-3">
         <div class="field"><label class="field-label">L Logo Scale <span class="nudge-readout" id="leftLogoScaleVal">1.00×</span></label><input id="leftLogoScale" type="range" min="0.5" max="1.6" step="0.01" value="1"></div>
-        <div class="field"><label class="field-label">L Logo dX <span class="nudge-readout" id="leftLogoDxVal">0</span></label><input id="leftLogoDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">L Logo dX <span class="nudge-readout" id="leftLogoDxVal">0</span></label><input id="leftLogoDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">L Logo dY <span class="nudge-readout" id="leftLogoDyVal">0</span></label><input id="leftLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
       <div class="row-3">
         <div class="field"><label class="field-label">R Logo Scale <span class="nudge-readout" id="rightLogoScaleVal">1.00×</span></label><input id="rightLogoScale" type="range" min="0.5" max="1.6" step="0.01" value="1"></div>
-        <div class="field"><label class="field-label">R Logo dX <span class="nudge-readout" id="rightLogoDxVal">0</span></label><input id="rightLogoDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">R Logo dX <span class="nudge-readout" id="rightLogoDxVal">0</span></label><input id="rightLogoDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">R Logo dY <span class="nudge-readout" id="rightLogoDyVal">0</span></label><input id="rightLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
 
       <!-- Text nudges -->
       <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Text Position</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">L Name dX <span class="nudge-readout" id="leftNameDxVal">0</span></label><input id="leftNameDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">L Name dX <span class="nudge-readout" id="leftNameDxVal">0</span></label><input id="leftNameDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">L Name dY <span class="nudge-readout" id="leftNameDyVal">0</span></label><input id="leftNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">L Nick dX <span class="nudge-readout" id="leftNickDxVal">0</span></label><input id="leftNickDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">L Nick dX <span class="nudge-readout" id="leftNickDxVal">0</span></label><input id="leftNickDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">L Nick dY <span class="nudge-readout" id="leftNickDyVal">0</span></label><input id="leftNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">R Name dX <span class="nudge-readout" id="rightNameDxVal">0</span></label><input id="rightNameDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">R Name dX <span class="nudge-readout" id="rightNameDxVal">0</span></label><input id="rightNameDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">R Name dY <span class="nudge-readout" id="rightNameDyVal">0</span></label><input id="rightNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">R Nick dX <span class="nudge-readout" id="rightNickDxVal">0</span></label><input id="rightNickDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">R Nick dX <span class="nudge-readout" id="rightNickDxVal">0</span></label><input id="rightNickDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">R Nick dY <span class="nudge-readout" id="rightNickDyVal">0</span></label><input id="rightNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
 
       <!-- Date / Time / Network strip -->
       <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Strip Text (Date / Time / Network)</div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Date dX <span class="nudge-readout" id="dateDxVal">0</span></label><input id="dateDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Date dX <span class="nudge-readout" id="dateDxVal">0</span></label><input id="dateDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">Date dY <span class="nudge-readout" id="dateDyVal">0</span></label><input id="dateDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Time dX <span class="nudge-readout" id="timeDxVal">0</span></label><input id="timeDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Time dX <span class="nudge-readout" id="timeDxVal">0</span></label><input id="timeDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">Time dY <span class="nudge-readout" id="timeDyVal">0</span></label><input id="timeDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label class="field-label">Net dX <span class="nudge-readout" id="netDxVal">0</span></label><input id="netDx" type="range" min="-38" max="38" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Net dX <span class="nudge-readout" id="netDxVal">0</span></label><input id="netDx" type="range" min="-57" max="57" step="1" value="0"></div>
         <div class="field"><label class="field-label">Net dY <span class="nudge-readout" id="netDyVal">0</span></label><input id="netDy" type="range" min="-30" max="30" step="1" value="0"></div>
       </div>
 
@@ -173,7 +192,7 @@ canvas#cvs{display:block;width:100%;height:100%}
         <div class="field"><label class="field-label">Alpha <span class="nudge-readout" id="logoShadowAVal">0.50</span></label><input id="logoShadowA" type="range" min="0" max="1" step="0.01" value="0.5"></div>
       </div>
       <div class="row-3">
-        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="logoShadowDxVal">2</span></label><input id="logoShadowDx" type="range" min="-25" max="25" step="1" value="2"></div>
+        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="logoShadowDxVal">2</span></label><input id="logoShadowDx" type="range" min="-38" max="38" step="1" value="2"></div>
         <div class="field"><label class="field-label">dY <span class="nudge-readout" id="logoShadowDyVal">2</span></label><input id="logoShadowDy" type="range" min="-20" max="20" step="1" value="2"></div>
         <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="logoShadowBVal">4</span></label><input id="logoShadowB" type="range" min="0" max="40" step="1" value="4"></div>
       </div>
@@ -185,7 +204,7 @@ canvas#cvs{display:block;width:100%;height:100%}
         <div class="field"><label class="field-label">Alpha <span class="nudge-readout" id="stripShadowAVal">0.50</span></label><input id="stripShadowA" type="range" min="0" max="1" step="0.01" value="0.5"></div>
       </div>
       <div class="row-3">
-        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="stripShadowDxVal">0</span></label><input id="stripShadowDx" type="range" min="-25" max="25" step="1" value="0"></div>
+        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="stripShadowDxVal">0</span></label><input id="stripShadowDx" type="range" min="-38" max="38" step="1" value="0"></div>
         <div class="field"><label class="field-label">dY <span class="nudge-readout" id="stripShadowDyVal">2</span></label><input id="stripShadowDy" type="range" min="-20" max="20" step="1" value="2"></div>
         <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="stripShadowBVal">4</span></label><input id="stripShadowB" type="range" min="0" max="40" step="1" value="4"></div>
       </div>
@@ -200,7 +219,7 @@ canvas#cvs{display:block;width:100%;height:100%}
         <div class="field"><label class="field-label">Alpha <span class="nudge-readout" id="koShadowAVal">0.50</span></label><input id="koShadowA" type="range" min="0" max="1" step="0.01" value="0.5"></div>
       </div>
       <div class="row-3">
-        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="koShadowDxVal">0</span></label><input id="koShadowDx" type="range" min="-25" max="25" step="1" value="0"></div>
+        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="koShadowDxVal">0</span></label><input id="koShadowDx" type="range" min="-38" max="38" step="1" value="0"></div>
         <div class="field"><label class="field-label">dY <span class="nudge-readout" id="koShadowDyVal">2</span></label><input id="koShadowDy" type="range" min="-20" max="20" step="1" value="2"></div>
         <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="koShadowBVal">6</span></label><input id="koShadowB" type="range" min="0" max="40" step="1" value="6"></div>
       </div>
@@ -320,6 +339,11 @@ const DEFAULT_ADJ = () => ({
   groupScale: 1.0,
   groupDx:    0,
   groupDy:    0,
+  // Color-block fills (the colored bar behind each team) — dx/dy nudges
+  // and width/height % so the operator can stretch or shift the colored
+  // area independently per side. Mirrors matchup.html.
+  leftBlock:  { dx: 0, dy: 0, sw: 100, sh: 100 },
+  rightBlock: { dx: 0, dy: 0, sw: 100, sh: 100 },
   // Per-element nudges/scale (applied to every row).
   leftLogo:   { dx: 0, dy: 0, scale: 1 },
   rightLogo:  { dx: 0, dy: 0, scale: 1 },
@@ -403,7 +427,7 @@ function restoreState(){
     if (s.bgPreset === 'pattern') state.bgPreset = 'pattern';
     // Merge persisted adj over the defaults so removed/new fields stay sane.
     if (s.adj && typeof s.adj === 'object') {
-      ['leftLogo','rightLogo','leftName','rightName','leftNick','rightNick',
+      ['leftBlock','rightBlock','leftLogo','rightLogo','leftName','rightName','leftNick','rightNick',
        'leftKo','rightKo','dateNudge','timeNudge','networkNudge',
        'leftSquare','rightSquare','logoShadow','stripShadow','koShadow'
       ].forEach(k => { if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]); });
@@ -545,23 +569,32 @@ async function drawRow(rctx, rowState){
   const rightConf = SCHOOLS.find(s => s.name === rowState.right.school);
   const adj = state.adj;
 
-  // Color blocks (team primary across each half of the bar).
-  if (leftConf)  { rctx.fillStyle = schoolColor(leftConf);  rctx.fillRect(BAR.x,  BAR.y, BAR.mid - BAR.x, BAR.h); }
-  if (rightConf) { rctx.fillStyle = schoolColor(rightConf); rctx.fillRect(BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h); }
+  // Color blocks (team primary across each half of the bar). leftBlock /
+  // rightBlock supply dx/dy nudges + width/height % so the operator can
+  // stretch or shift the colored area independently per side. KO textures
+  // below are clipped to the same (possibly resized) block.
+  const leftBaseW  = BAR.mid - BAR.x;
+  const rightBaseW = BAR.x + BAR.w - BAR.mid;
+  const lb = adj.leftBlock;
+  const rb = adj.rightBlock;
+  const lW = leftBaseW  * (lb.sw / 100);
+  const lH = BAR.h      * (lb.sh / 100);
+  const rW = rightBaseW * (rb.sw / 100);
+  const rH = BAR.h      * (rb.sh / 100);
+  if (leftConf)  { rctx.fillStyle = schoolColor(leftConf);  rctx.fillRect(BAR.x   + lb.dx, BAR.y + lb.dy, lW, lH); }
+  if (rightConf) { rctx.fillStyle = schoolColor(rightConf); rctx.fillRect(BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH); }
 
-  // Knockout textures per side. Honor adj.koOpacity / koScale / textureBlend
-  // (the blend mode is applied on top of the screen blend by saving + setting
-  // globalCompositeOperation in the helper). koShadow.leftOn/rightOn gate
-  // per-side shadow.
+  // Knockout textures per side — clipped to the (possibly-resized) block.
+  // Honors adj.koOpacity / koScale + per-side koShadow.
   const leftKoImg  = leftConf  && leftConf.ko  ? await getImage(ASSET_DIR_KO + leftConf.ko).catch(()=>null)  : null;
   const rightKoImg = rightConf && rightConf.ko ? await getImage(ASSET_DIR_KO + rightConf.ko).catch(()=>null) : null;
   if (leftKoImg) {
     const sideShadow = adj.koShadow.leftOn ? adj.koShadow : null;
-    drawKoTexture(rctx, leftKoImg,  BAR.x,  BAR.y, BAR.mid - BAR.x, BAR.h, adj.koOpacity, adj.koScale, 'left',  adj.leftKo,  sideShadow ? { ...adj.koShadow, on: true } : null);
+    drawKoTexture(rctx, leftKoImg,  BAR.x   + lb.dx, BAR.y + lb.dy, lW, lH, adj.koOpacity, adj.koScale, 'left',  adj.leftKo,  sideShadow ? { ...adj.koShadow, on: true } : null);
   }
   if (rightKoImg) {
     const sideShadow = adj.koShadow.rightOn ? adj.koShadow : null;
-    drawKoTexture(rctx, rightKoImg, BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h, adj.koOpacity, adj.koScale, 'right', adj.rightKo, sideShadow ? { ...adj.koShadow, on: true } : null);
+    drawKoTexture(rctx, rightKoImg, BAR.mid + rb.dx, BAR.y + rb.dy, rW, rH, adj.koOpacity, adj.koScale, 'right', adj.rightKo, sideShadow ? { ...adj.koShadow, on: true } : null);
   }
 
   // Gradient overlay (logo box edges + AT badge + date/time/network pill).
@@ -866,6 +899,16 @@ bindAdj('grpScale', 'groupScale', 'grpScaleVal', v => (+v).toFixed(2) + '×');
 bindAdj('grpDx',    'groupDx',    'grpDxVal');
 bindAdj('grpDy',    'groupDy',    'grpDyVal');
 
+// Color-block fills.
+bindAdj('leftBlockDx',  'leftBlock.dx',  'leftBlockDxVal');
+bindAdj('leftBlockDy',  'leftBlock.dy',  'leftBlockDyVal');
+bindAdj('leftBlockSw',  'leftBlock.sw',  'leftBlockSwVal', v => v + '%');
+bindAdj('leftBlockSh',  'leftBlock.sh',  'leftBlockShVal', v => v + '%');
+bindAdj('rightBlockDx', 'rightBlock.dx', 'rightBlockDxVal');
+bindAdj('rightBlockDy', 'rightBlock.dy', 'rightBlockDyVal');
+bindAdj('rightBlockSw', 'rightBlock.sw', 'rightBlockSwVal', v => v + '%');
+bindAdj('rightBlockSh', 'rightBlock.sh', 'rightBlockShVal', v => v + '%');
+
 // KO + per-side logo geometry.
 bindAdj('koOpacity', 'koOpacity', 'koOpacityVal', v => (+v).toFixed(2));
 bindAdj('koScale',   'koScale',   'koScaleVal',   v => (+v).toFixed(2) + '×');
@@ -972,6 +1015,14 @@ function syncAdjUiFromState(){
   setVal('grpScale', a.groupScale); setText('grpScaleVal', (+a.groupScale).toFixed(2) + '×');
   setVal('grpDx',    a.groupDx);    setText('grpDxVal',    String(a.groupDx));
   setVal('grpDy',    a.groupDy);    setText('grpDyVal',    String(a.groupDy));
+  ['leftBlock','rightBlock'].forEach(side => {
+    const v = a[side];
+    const idPrefix = side; // 'leftBlock' / 'rightBlock'
+    setVal(idPrefix + 'Dx', v.dx); setText(idPrefix + 'DxVal', String(v.dx));
+    setVal(idPrefix + 'Dy', v.dy); setText(idPrefix + 'DyVal', String(v.dy));
+    setVal(idPrefix + 'Sw', v.sw); setText(idPrefix + 'SwVal', v.sw + '%');
+    setVal(idPrefix + 'Sh', v.sh); setText(idPrefix + 'ShVal', v.sh + '%');
+  });
   setVal('koOpacity', a.koOpacity); setText('koOpacityVal', (+a.koOpacity).toFixed(2));
   setVal('koScale',   a.koScale);   setText('koScaleVal',   (+a.koScale).toFixed(2) + '×');
   ['leftLogo','rightLogo'].forEach(side => {
