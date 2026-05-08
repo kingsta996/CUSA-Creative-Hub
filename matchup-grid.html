@@ -726,8 +726,28 @@ function applyOrientation(){
   }
   cvs.width = CANVAS_W;
   cvs.height = CANVAS_H;
+  // Switch which dimension drives the wrap's size:
+  // - landscape: width:100% (max 1920) so a wide canvas fills the area;
+  // - portrait:  height:100% so a tall canvas fits vertically without
+  //   overflowing the row + getting clipped (the previous CSS held
+  //   width:100% and the wrap's computed height ran past the visible
+  //   area, making it look zoomed in).
   const wrap = document.getElementById('canvasWrap');
-  if (wrap) wrap.style.aspectRatio = state.orientation === 'portrait' ? '9/16' : '16/9';
+  if (wrap) {
+    if (state.orientation === 'portrait') {
+      wrap.style.aspectRatio = '9/16';
+      wrap.style.width       = 'auto';
+      wrap.style.height      = '100%';
+      wrap.style.maxWidth    = '100%';
+      wrap.style.maxHeight   = '100%';
+    } else {
+      wrap.style.aspectRatio = '16/9';
+      wrap.style.width       = '100%';
+      wrap.style.height      = 'auto';
+      wrap.style.maxWidth    = '1920px';
+      wrap.style.maxHeight   = '100%';
+    }
+  }
   const meta = document.querySelector('.preview-meta');
   if (meta) {
     const ratio = state.orientation === 'portrait' ? '9:16' : '16:9';
