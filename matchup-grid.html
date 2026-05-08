@@ -90,14 +90,138 @@ canvas#cvs{display:block;width:100%;height:100%}
     <div class="field"><label class="field-label">Subtitle / Date Range</label><input id="subtitleText" type="text" maxlength="40" value="WEEK 5 · SATURDAY"></div>
 
     <div class="field" style="margin-top:4px">
-      <label class="field-label">Background Image</label>
+      <label class="field-label">Background</label>
+      <div class="row-2" style="margin-bottom:6px">
+        <button class="btn secondary" id="bgPatternBtn" style="font-size:10px;padding:6px 10px">Use CUSA pattern</button>
+        <button class="btn secondary" id="clearBgBtn" style="font-size:10px;padding:6px 10px">Remove background</button>
+      </div>
       <label class="upload-zone" id="bgZone" style="display:block;border:1px dashed rgba(255,255,255,0.18);border-radius:4px;padding:14px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;color:rgba(255,255,255,0.55);cursor:pointer">
         <input type="file" accept="image/*" id="bgUpload" style="display:none">
         <span id="bgZoneText">+ Upload background image</span>
       </label>
-      <button class="btn secondary" id="clearBgBtn" style="font-size:10px;padding:6px 10px;margin-top:6px">Remove background</button>
     </div>
     <div class="field"><label class="field-label">Background Color (when no image)</label><input id="bgColor" type="color" value="#0a254e" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%"></div>
+
+    <div class="panel-head" style="margin-top:8px">Group Transform</div>
+    <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="grpScaleVal">1.00×</span></label><input id="grpScale" type="range" min="0.5" max="1.5" step="0.01" value="1"></div>
+    <div class="row-2">
+      <div class="field"><label class="field-label">Nudge X <span class="nudge-readout" id="grpDxVal">0</span></label><input id="grpDx" type="range" min="-200" max="200" step="1" value="0"></div>
+      <div class="field"><label class="field-label">Nudge Y <span class="nudge-readout" id="grpDyVal">0</span></label><input id="grpDy" type="range" min="-200" max="200" step="1" value="0"></div>
+    </div>
+
+    <button class="btn secondary" id="advToggle" style="margin-top:8px;font-size:10px;padding:8px 10px">▶ Advanced Adjustments (per-row, applied to all)</button>
+    <div id="advPanel" style="display:none;flex-direction:column;gap:10px;margin-top:6px;padding:10px;border:1px solid rgba(255,255,255,0.08);border-radius:4px;background:rgba(0,0,0,0.18)">
+      <!-- KO + Logo Scale -->
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55)">Knockouts &amp; Logos</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">KO Opacity <span class="nudge-readout" id="koOpacityVal">0.22</span></label><input id="koOpacity" type="range" min="0" max="1" step="0.01" value="0.22"></div>
+        <div class="field"><label class="field-label">KO Scale <span class="nudge-readout" id="koScaleVal">1.30×</span></label><input id="koScale" type="range" min="0.6" max="2.5" step="0.01" value="1.3"></div>
+      </div>
+      <div class="row-3">
+        <div class="field"><label class="field-label">L Logo Scale <span class="nudge-readout" id="leftLogoScaleVal">1.00×</span></label><input id="leftLogoScale" type="range" min="0.5" max="1.6" step="0.01" value="1"></div>
+        <div class="field"><label class="field-label">L Logo dX <span class="nudge-readout" id="leftLogoDxVal">0</span></label><input id="leftLogoDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">L Logo dY <span class="nudge-readout" id="leftLogoDyVal">0</span></label><input id="leftLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-3">
+        <div class="field"><label class="field-label">R Logo Scale <span class="nudge-readout" id="rightLogoScaleVal">1.00×</span></label><input id="rightLogoScale" type="range" min="0.5" max="1.6" step="0.01" value="1"></div>
+        <div class="field"><label class="field-label">R Logo dX <span class="nudge-readout" id="rightLogoDxVal">0</span></label><input id="rightLogoDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">R Logo dY <span class="nudge-readout" id="rightLogoDyVal">0</span></label><input id="rightLogoDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+
+      <!-- Text nudges -->
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Text Position</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">L Name dX <span class="nudge-readout" id="leftNameDxVal">0</span></label><input id="leftNameDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">L Name dY <span class="nudge-readout" id="leftNameDyVal">0</span></label><input id="leftNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">L Nick dX <span class="nudge-readout" id="leftNickDxVal">0</span></label><input id="leftNickDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">L Nick dY <span class="nudge-readout" id="leftNickDyVal">0</span></label><input id="leftNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">R Name dX <span class="nudge-readout" id="rightNameDxVal">0</span></label><input id="rightNameDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">R Name dY <span class="nudge-readout" id="rightNameDyVal">0</span></label><input id="rightNameDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">R Nick dX <span class="nudge-readout" id="rightNickDxVal">0</span></label><input id="rightNickDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">R Nick dY <span class="nudge-readout" id="rightNickDyVal">0</span></label><input id="rightNickDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+
+      <!-- Date / Time / Network strip -->
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Strip Text (Date / Time / Network)</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Date dX <span class="nudge-readout" id="dateDxVal">0</span></label><input id="dateDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Date dY <span class="nudge-readout" id="dateDyVal">0</span></label><input id="dateDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Time dX <span class="nudge-readout" id="timeDxVal">0</span></label><input id="timeDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Time dY <span class="nudge-readout" id="timeDyVal">0</span></label><input id="timeDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Net dX <span class="nudge-readout" id="netDxVal">0</span></label><input id="netDx" type="range" min="-30" max="30" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Net dY <span class="nudge-readout" id="netDyVal">0</span></label><input id="netDy" type="range" min="-30" max="30" step="1" value="0"></div>
+      </div>
+
+      <!-- Drop shadows -->
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Logo Shadow</div>
+      <div class="row-2">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px"><input id="logoShadowL" type="checkbox" checked> Left</label>
+        <label class="field-label" style="display:flex;align-items:center;gap:6px"><input id="logoShadowR" type="checkbox" checked> Right</label>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="logoShadowColor" type="color" value="#000000" style="height:30px"></div>
+        <div class="field"><label class="field-label">Alpha <span class="nudge-readout" id="logoShadowAVal">0.50</span></label><input id="logoShadowA" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+      </div>
+      <div class="row-3">
+        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="logoShadowDxVal">2</span></label><input id="logoShadowDx" type="range" min="-20" max="20" step="1" value="2"></div>
+        <div class="field"><label class="field-label">dY <span class="nudge-readout" id="logoShadowDyVal">2</span></label><input id="logoShadowDy" type="range" min="-20" max="20" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="logoShadowBVal">4</span></label><input id="logoShadowB" type="range" min="0" max="40" step="1" value="4"></div>
+      </div>
+
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Strip Shadow (nameplate text)</div>
+      <label class="field-label" style="display:flex;align-items:center;gap:6px"><input id="stripShadowOn" type="checkbox"> Enable custom shadow (off uses default 2/2/3 black 60%)</label>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="stripShadowColor" type="color" value="#000000" style="height:30px"></div>
+        <div class="field"><label class="field-label">Alpha <span class="nudge-readout" id="stripShadowAVal">0.50</span></label><input id="stripShadowA" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+      </div>
+      <div class="row-3">
+        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="stripShadowDxVal">0</span></label><input id="stripShadowDx" type="range" min="-20" max="20" step="1" value="0"></div>
+        <div class="field"><label class="field-label">dY <span class="nudge-readout" id="stripShadowDyVal">2</span></label><input id="stripShadowDy" type="range" min="-20" max="20" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="stripShadowBVal">4</span></label><input id="stripShadowB" type="range" min="0" max="40" step="1" value="4"></div>
+      </div>
+
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">KO Texture Shadow</div>
+      <div class="row-2">
+        <label class="field-label" style="display:flex;align-items:center;gap:6px"><input id="koShadowL" type="checkbox"> Left</label>
+        <label class="field-label" style="display:flex;align-items:center;gap:6px"><input id="koShadowR" type="checkbox"> Right</label>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Color</label><input id="koShadowColor" type="color" value="#000000" style="height:30px"></div>
+        <div class="field"><label class="field-label">Alpha <span class="nudge-readout" id="koShadowAVal">0.50</span></label><input id="koShadowA" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+      </div>
+      <div class="row-3">
+        <div class="field"><label class="field-label">dX <span class="nudge-readout" id="koShadowDxVal">0</span></label><input id="koShadowDx" type="range" min="-20" max="20" step="1" value="0"></div>
+        <div class="field"><label class="field-label">dY <span class="nudge-readout" id="koShadowDyVal">2</span></label><input id="koShadowDy" type="range" min="-20" max="20" step="1" value="2"></div>
+        <div class="field"><label class="field-label">Blur <span class="nudge-readout" id="koShadowBVal">6</span></label><input id="koShadowB" type="range" min="0" max="40" step="1" value="6"></div>
+      </div>
+
+      <!-- Blend modes + square colors -->
+      <div class="panel-head" style="font-size:9px;letter-spacing:2px;border-bottom-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);margin-top:4px">Blending &amp; Square Color</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">L Square Blend</label><select id="leftSqBlend"></select></div>
+        <div class="field"><label class="field-label">R Square Blend</label><select id="rightSqBlend"></select></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">L Square Color (empty = secondary)</label><input id="leftSqColor" type="color" value="#000000" style="height:30px"></div>
+        <div class="field"><label class="field-label">R Square Color (empty = secondary)</label><input id="rightSqColor" type="color" value="#000000" style="height:30px"></div>
+      </div>
+      <div class="row-2">
+        <button class="btn secondary" id="leftSqColorClear" style="font-size:10px;padding:6px 10px">L Use secondary</button>
+        <button class="btn secondary" id="rightSqColorClear" style="font-size:10px;padding:6px 10px">R Use secondary</button>
+      </div>
+
+      <button class="btn secondary" id="resetAdjBtn" style="margin-top:6px;font-size:10px;padding:8px 10px">Reset all adjustments to defaults</button>
+    </div>
 
     <div class="panel-head" style="margin-top:8px">Matchups</div>
     <div id="rowCards"></div>
@@ -186,6 +310,41 @@ const DEFAULT_ROW = () => ({
   time:    '6:30 PM',
   network: 'ESPN+',
 });
+// Default adj (applies to every row identically — there is no per-row tuning
+// in the grid; the operator dials in once and all rows match). Mirrors the
+// matchup.html structure so a future "import settings from Where to Watch"
+// would map 1:1.
+const DEFAULT_ADJ = () => ({
+  // Group-level transform — moves & resizes the whole rows block on the
+  // main canvas (does NOT affect the title band or the background).
+  groupScale: 1.0,
+  groupDx:    0,
+  groupDy:    0,
+  // Per-element nudges/scale (applied to every row).
+  leftLogo:   { dx: 0, dy: 0, scale: 1 },
+  rightLogo:  { dx: 0, dy: 0, scale: 1 },
+  leftName:   { dx: 0, dy: 0 },
+  rightName:  { dx: 0, dy: 0 },
+  leftNick:   { dx: 0, dy: 0 },
+  rightNick:  { dx: 0, dy: 0 },
+  leftKo:     { dx: 0, dy: 0 },
+  rightKo:    { dx: 0, dy: 0 },
+  dateNudge:    { dx: 0, dy: 0 },
+  timeNudge:    { dx: 0, dy: 0 },
+  networkNudge: { dx: 0, dy: 0 },
+  // Globals.
+  koOpacity:    0.22,
+  koScale:      1.3,
+  textureBlend: 'screen',
+  // Logo-square backdrops behind the corner logos.
+  leftSquare:  { color: '', blend: 'overlay' },
+  rightSquare: { color: '', blend: 'overlay' },
+  // Drop shadows.
+  logoShadow:  { leftOn: true,  rightOn: true,  color: '#000000', dx: 2, dy: 2, blur: 4, alpha: 0.5 },
+  stripShadow: { on: false,                     color: '#000000', dx: 0, dy: 2, blur: 4, alpha: 0.5 },
+  koShadow:    { leftOn: false, rightOn: false, color: '#000000', dx: 0, dy: 2, blur: 6, alpha: 0.5 },
+});
+
 const state = {
   orientation: 'landscape',  // 'landscape' (16:9) | 'portrait' (9:16)
   count: 5,
@@ -195,6 +354,8 @@ const state = {
   previewBg: '#0a254e',
   bgImage:    null,    // Image object (in-memory)
   bgImageData: null,   // data URL persisted to localStorage
+  bgPreset:   null,    // 'pattern' | null — when set, draw() uses the canned CUSA pattern instead of bgImage/previewBg
+  adj:        DEFAULT_ADJ(),
 };
 function persistState(){
   try {
@@ -206,6 +367,8 @@ function persistState(){
       rows: state.rows.map(r => ({ left: { school: r.left.school }, right: { school: r.right.school }, date: r.date, time: r.time, network: r.network })),
       previewBg: state.previewBg,
       bgImageData: state.bgImageData,
+      bgPreset: state.bgPreset,
+      adj: state.adj,
     }));
   } catch (_) {}
 }
@@ -236,6 +399,18 @@ function restoreState(){
       const img = new Image();
       img.onload = () => { state.bgImage = img; draw(); };
       img.src = s.bgImageData;
+    }
+    if (s.bgPreset === 'pattern') state.bgPreset = 'pattern';
+    // Merge persisted adj over the defaults so removed/new fields stay sane.
+    if (s.adj && typeof s.adj === 'object') {
+      ['leftLogo','rightLogo','leftName','rightName','leftNick','rightNick',
+       'leftKo','rightKo','dateNudge','timeNudge','networkNudge',
+       'leftSquare','rightSquare','logoShadow','stripShadow','koShadow'
+      ].forEach(k => { if (s.adj[k] && typeof s.adj[k] === 'object') Object.assign(state.adj[k], s.adj[k]); });
+      ['groupScale','groupDx','groupDy','koOpacity','koScale'].forEach(k => {
+        if (typeof s.adj[k] === 'number') state.adj[k] = s.adj[k];
+      });
+      if (typeof s.adj.textureBlend === 'string') state.adj.textureBlend = s.adj.textureBlend;
     }
   } catch (_) {}
 }
@@ -282,7 +457,7 @@ function drawContainFit(rctx, img, x, y, w, h){
   rctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
-function drawKoTexture(rctx, img, x, y, w, h, alpha = 0.22, scale = 1.3, side = 'left'){
+function drawKoTexture(rctx, img, x, y, w, h, alpha, scale, side, nudge, shadow){
   rctx.save();
   rctx.beginPath();
   rctx.rect(x, y, w, h);
@@ -290,26 +465,41 @@ function drawKoTexture(rctx, img, x, y, w, h, alpha = 0.22, scale = 1.3, side = 
   const targetH = h * scale;
   const ar = img.naturalWidth / img.naturalHeight;
   const targetW = targetH * ar;
-  const ox = side === 'left' ? x + (w - targetW) * 0.25 : x + (w - targetW) * 0.75;
-  const oy = y + (h - targetH) / 2;
+  const ox = (side === 'left' ? x + (w - targetW) * 0.25 : x + (w - targetW) * 0.75) + (nudge?.dx || 0);
+  const oy = y + (h - targetH) / 2 + (nudge?.dy || 0);
+  if (shadow && shadow.on) {
+    rctx.shadowColor   = hexToRgba(shadow.color || '#000000', shadow.alpha != null ? shadow.alpha : 0.5);
+    rctx.shadowBlur    = shadow.blur || 0;
+    rctx.shadowOffsetX = shadow.dx   || 0;
+    rctx.shadowOffsetY = shadow.dy   || 0;
+  }
   rctx.globalAlpha = alpha;
   rctx.globalCompositeOperation = 'screen';
   rctx.drawImage(img, ox, oy, targetW, targetH);
   rctx.restore();
 }
 
-function drawSideText(rctx, conf, anchorX, align){
+function drawSideText(rctx, conf, anchorX, align, nameNudge, nickNudge, stripShadow){
   rctx.fillStyle = '#FFFFFF';
   rctx.textAlign = align;
   rctx.textBaseline = 'middle';
-  rctx.shadowColor = 'rgba(0,0,0,0.6)';
-  rctx.shadowBlur = 3;
-  rctx.shadowOffsetX = 2;
-  rctx.shadowOffsetY = 2;
+  // Strip shadow on nameplate text — operator-tunable. Default keeps the
+  // existing 2/2/3 black-60% drop so legacy renders look the same.
+  if (stripShadow && stripShadow.on) {
+    rctx.shadowColor   = hexToRgba(stripShadow.color || '#000000', stripShadow.alpha != null ? stripShadow.alpha : 0.5);
+    rctx.shadowBlur    = stripShadow.blur || 0;
+    rctx.shadowOffsetX = stripShadow.dx   || 0;
+    rctx.shadowOffsetY = stripShadow.dy   || 0;
+  } else {
+    rctx.shadowColor   = 'rgba(0,0,0,0.6)';
+    rctx.shadowBlur    = 3;
+    rctx.shadowOffsetX = 2;
+    rctx.shadowOffsetY = 2;
+  }
   rctx.font = `700 ${NAME_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  rctx.fillText((conf.name || '').toUpperCase(), anchorX, NAME_CY);
+  rctx.fillText((conf.name || '').toUpperCase(), anchorX + (nameNudge?.dx || 0), NAME_CY + (nameNudge?.dy || 0));
   rctx.font = `700 ${NICK_FS}px "Proxima Nova","Barlow Condensed",sans-serif`;
-  rctx.fillText(schoolNickname(conf), anchorX, NICK_CY);
+  rctx.fillText(schoolNickname(conf), anchorX + (nickNudge?.dx || 0), NICK_CY + (nickNudge?.dy || 0));
   rctx.shadowColor = 'rgba(0,0,0,0)';
   rctx.shadowBlur = rctx.shadowOffsetX = rctx.shadowOffsetY = 0;
 }
@@ -317,14 +507,35 @@ function drawSideText(rctx, conf, anchorX, align){
 // Draw a colored square backdrop in the LOGO_BOX area — same as matchup.html
 // (default: school SECONDARY color, overlay blend so the box keeps the
 // gradient-overlay's depth on top).
-function drawLogoSquare(rctx, boxX, boxY, color){
+function drawLogoSquare(rctx, boxX, boxY, color, blend){
   const w = 76, h = 67;
   const cx = boxX + LOGO_BOX.w / 2;
   const cy = boxY + LOGO_BOX.h / 2;
   rctx.save();
   rctx.fillStyle = color || '#FFFFFF';
-  rctx.globalCompositeOperation = 'overlay';
+  rctx.globalCompositeOperation = blend || 'overlay';
   rctx.fillRect(cx - w/2, cy - h/2, w, h);
+  rctx.restore();
+}
+
+// drawLogoWithShadow — primary logo at corner box, honoring per-side
+// shadow toggle/color/dx/dy/blur/alpha + per-side scale/dx/dy nudges.
+function drawLogoWithShadow(rctx, img, boxX, boxY, nudge, shadow, sideOn){
+  const dx = (nudge?.dx) || 0;
+  const dy = (nudge?.dy) || 0;
+  const scale = (nudge?.scale) || 1;
+  const w = LOGO_BOX.w * scale;
+  const h = LOGO_BOX.h * scale;
+  const x = boxX + dx + (LOGO_BOX.w - w) / 2;
+  const y = boxY + dy + (LOGO_BOX.h - h) / 2;
+  rctx.save();
+  if (sideOn && shadow) {
+    rctx.shadowColor   = hexToRgba(shadow.color || '#000000', shadow.alpha != null ? shadow.alpha : 0.5);
+    rctx.shadowBlur    = shadow.blur || 0;
+    rctx.shadowOffsetX = shadow.dx   || 0;
+    rctx.shadowOffsetY = shadow.dy   || 0;
+  }
+  drawContainFit(rctx, img, x, y, w, h);
   rctx.restore();
 }
 
@@ -332,66 +543,62 @@ async function drawRow(rctx, rowState){
   rctx.clearRect(0, 0, ROW_BASE_W, ROW_BASE_H);
   const leftConf  = SCHOOLS.find(s => s.name === rowState.left.school);
   const rightConf = SCHOOLS.find(s => s.name === rowState.right.school);
+  const adj = state.adj;
 
   // Color blocks (team primary across each half of the bar).
   if (leftConf)  { rctx.fillStyle = schoolColor(leftConf);  rctx.fillRect(BAR.x,  BAR.y, BAR.mid - BAR.x, BAR.h); }
   if (rightConf) { rctx.fillStyle = schoolColor(rightConf); rctx.fillRect(BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h); }
 
-  // Knockout textures per side.
+  // Knockout textures per side. Honor adj.koOpacity / koScale / textureBlend
+  // (the blend mode is applied on top of the screen blend by saving + setting
+  // globalCompositeOperation in the helper). koShadow.leftOn/rightOn gate
+  // per-side shadow.
   const leftKoImg  = leftConf  && leftConf.ko  ? await getImage(ASSET_DIR_KO + leftConf.ko).catch(()=>null)  : null;
   const rightKoImg = rightConf && rightConf.ko ? await getImage(ASSET_DIR_KO + rightConf.ko).catch(()=>null) : null;
-  if (leftKoImg)  drawKoTexture(rctx, leftKoImg,  BAR.x,  BAR.y, BAR.mid - BAR.x, BAR.h, 0.22, 1.3, 'left');
-  if (rightKoImg) drawKoTexture(rctx, rightKoImg, BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h, 0.22, 1.3, 'right');
+  if (leftKoImg) {
+    const sideShadow = adj.koShadow.leftOn ? adj.koShadow : null;
+    drawKoTexture(rctx, leftKoImg,  BAR.x,  BAR.y, BAR.mid - BAR.x, BAR.h, adj.koOpacity, adj.koScale, 'left',  adj.leftKo,  sideShadow ? { ...adj.koShadow, on: true } : null);
+  }
+  if (rightKoImg) {
+    const sideShadow = adj.koShadow.rightOn ? adj.koShadow : null;
+    drawKoTexture(rctx, rightKoImg, BAR.mid, BAR.y, BAR.x + BAR.w - BAR.mid, BAR.h, adj.koOpacity, adj.koScale, 'right', adj.rightKo, sideShadow ? { ...adj.koShadow, on: true } : null);
+  }
 
   // Gradient overlay (logo box edges + AT badge + date/time/network pill).
   const overlay = await ensureOverlay();
   if (overlay) rctx.drawImage(overlay, 0, 0, ROW_BASE_W, ROW_BASE_H);
 
-  // Logo-square backdrops behind the corner logos — secondary color, overlay
-  // blend. Matches matchup.html so each row has the same colored frame
-  // around the school logos.
-  drawLogoSquare(rctx, LOGO_BOX.leftX,  LOGO_BOX.y, schoolSecondaryColor(leftConf));
-  drawLogoSquare(rctx, LOGO_BOX.rightX, LOGO_BOX.y, schoolSecondaryColor(rightConf));
+  // Logo-square backdrops — secondary color by default; adj.leftSquare.color
+  // / rightSquare.color override per side; blend mode tunable.
+  const leftSqColor  = (adj.leftSquare.color  || '').trim() || schoolSecondaryColor(leftConf);
+  const rightSqColor = (adj.rightSquare.color || '').trim() || schoolSecondaryColor(rightConf);
+  drawLogoSquare(rctx, LOGO_BOX.leftX,  LOGO_BOX.y, leftSqColor,  adj.leftSquare.blend);
+  drawLogoSquare(rctx, LOGO_BOX.rightX, LOGO_BOX.y, rightSqColor, adj.rightSquare.blend);
 
-  // School primary logos in the corner boxes — with drop shadow (default
-  // matches matchup.html: 2/2 offset, 4 blur, 50% black).
-  const applyLogoShadow = () => {
-    rctx.shadowColor = hexToRgba('#000000', 0.5);
-    rctx.shadowBlur = 4;
-    rctx.shadowOffsetX = 2;
-    rctx.shadowOffsetY = 2;
-  };
+  // School primary logos in the corner boxes — drop shadow controls per-side.
   if (leftConf && leftConf.primary) {
     const img = await getImage(ASSET_DIR_PRIMARY + leftConf.primary).catch(()=>null);
-    if (img) {
-      rctx.save();
-      applyLogoShadow();
-      drawContainFit(rctx, img, LOGO_BOX.leftX, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h);
-      rctx.restore();
-    }
+    if (img) drawLogoWithShadow(rctx, img, LOGO_BOX.leftX,  LOGO_BOX.y, adj.leftLogo,  adj.logoShadow, adj.logoShadow.leftOn);
   }
   if (rightConf && rightConf.primary) {
     const img = await getImage(ASSET_DIR_PRIMARY + rightConf.primary).catch(()=>null);
-    if (img) {
-      rctx.save();
-      applyLogoShadow();
-      drawContainFit(rctx, img, LOGO_BOX.rightX, LOGO_BOX.y, LOGO_BOX.w, LOGO_BOX.h);
-      rctx.restore();
-    }
+    if (img) drawLogoWithShadow(rctx, img, LOGO_BOX.rightX, LOGO_BOX.y, adj.rightLogo, adj.logoShadow, adj.logoShadow.rightOn);
   }
 
-  // Name + nickname per side, locked to the strip-divider anchors.
-  if (leftConf)  drawSideText(rctx, leftConf,  LEFT_TEXT_X,  'right');
-  if (rightConf) drawSideText(rctx, rightConf, RIGHT_TEXT_X, 'left');
+  // Name + nickname per side, locked to the strip-divider anchors. Strip
+  // shadow controls the per-team nameplate drop (left+right share one config).
+  if (leftConf)  drawSideText(rctx, leftConf,  LEFT_TEXT_X,  'right', adj.leftName,  adj.leftNick,  adj.stripShadow);
+  if (rightConf) drawSideText(rctx, rightConf, RIGHT_TEXT_X, 'left',  adj.rightName, adj.rightNick, adj.stripShadow);
 
-  // Date / Time / Network strip (light weight, navy text).
+  // Date / Time / Network strip — navy text on the gradient pill. Per-element
+  // nudges let the operator dial the strip text into a shifted pill.
   rctx.fillStyle = '#0A254E';
   rctx.textAlign = 'center';
   rctx.textBaseline = 'middle';
   rctx.font = `400 11px "Proxima Nova","Barlow Condensed",sans-serif`;
-  rctx.fillText(rowState.date,    487, 120);
-  rctx.fillText(rowState.time,    540, 120);
-  rctx.fillText(rowState.network, 593, 120);
+  rctx.fillText(rowState.date,    487 + (adj.dateNudge.dx    || 0), 120 + (adj.dateNudge.dy    || 0));
+  rctx.fillText(rowState.time,    540 + (adj.timeNudge.dx    || 0), 120 + (adj.timeNudge.dy    || 0));
+  rctx.fillText(rowState.network, 593 + (adj.networkNudge.dx || 0), 120 + (adj.networkNudge.dy || 0));
 }
 
 // ─── Layout & main draw ───────────────────────────────────────────────────
@@ -446,11 +653,24 @@ function drawCoverFit(rctx, img, x, y, w, h){
   rctx.drawImage(img, dx, dy, dw, dh);
 }
 
+// Lazy-load + cache the canned CUSA pattern background.
+let PATTERN_BG_IMG = null;
+async function ensurePatternBg(){
+  if (PATTERN_BG_IMG) return PATTERN_BG_IMG;
+  try { PATTERN_BG_IMG = await getImage('assets/stark-strips.png'); }
+  catch (_) { PATTERN_BG_IMG = null; }
+  return PATTERN_BG_IMG;
+}
+
 async function draw(){
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Background — image if uploaded, otherwise the operator's chosen color.
-  if (state.bgImage) {
+  // Background priority: pattern preset > uploaded image > solid color.
+  if (state.bgPreset === 'pattern') {
+    const img = await ensurePatternBg();
+    if (img) drawCoverFit(ctx, img, 0, 0, CANVAS_W, CANVAS_H);
+    else { ctx.fillStyle = state.previewBg || '#0a254e'; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H); }
+  } else if (state.bgImage) {
     drawCoverFit(ctx, state.bgImage, 0, 0, CANVAS_W, CANVAS_H);
   } else {
     ctx.fillStyle = state.previewBg || '#0a254e';
@@ -472,8 +692,19 @@ async function draw(){
   }
 
   // Render each row to an offscreen 1080×135 canvas, then drawImage onto
-  // the main canvas at the layout position.
+  // the main canvas at the layout position. Group transform (scale + dx/dy)
+  // is applied around the rows-block center so the operator can shift +
+  // resize all rows together without re-tuning per-row geometry.
   const layout = rowLayout(state.count);
+  const adj = state.adj;
+  const groupCenterX = layout.x + layout.rowW / 2;
+  const blockTop     = layout.yStart;
+  const blockH       = state.count * layout.rowH + (state.count - 1) * layout.gap;
+  const groupCenterY = blockTop + blockH / 2;
+  ctx.save();
+  ctx.translate(groupCenterX + (adj.groupDx || 0), groupCenterY + (adj.groupDy || 0));
+  ctx.scale(adj.groupScale || 1, adj.groupScale || 1);
+  ctx.translate(-groupCenterX, -groupCenterY);
   for (let i = 0; i < state.count; i++) {
     const off = document.createElement('canvas');
     off.width = ROW_BASE_W;
@@ -483,6 +714,7 @@ async function draw(){
     const y = layout.yStart + i * (layout.rowH + layout.gap);
     ctx.drawImage(off, layout.x, y, layout.rowW, layout.rowH);
   }
+  ctx.restore();
 }
 
 // ─── UI: count picker, row cards, inputs ──────────────────────────────────
@@ -555,7 +787,8 @@ document.querySelectorAll('#orientButtons .count-btn').forEach(b => {
 document.getElementById('titleText').addEventListener('input', e => { state.title = e.target.value; persistState(); draw(); });
 document.getElementById('subtitleText').addEventListener('input', e => { state.subtitle = e.target.value; persistState(); draw(); });
 
-// Background image upload + remove.
+// Background image upload + remove. Pattern preset (CUSA stark-strips)
+// takes priority over the uploaded image; the upload handler clears it.
 document.getElementById('bgUpload').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
@@ -565,6 +798,7 @@ document.getElementById('bgUpload').addEventListener('change', e => {
     img.onload = () => {
       state.bgImage = img;
       state.bgImageData = ev.target.result;
+      state.bgPreset   = null;
       document.getElementById('bgZoneText').textContent = '✓ Background loaded — click to replace';
       persistState();
       draw();
@@ -576,8 +810,17 @@ document.getElementById('bgUpload').addEventListener('change', e => {
 document.getElementById('clearBgBtn').addEventListener('click', () => {
   state.bgImage = null;
   state.bgImageData = null;
+  state.bgPreset = null;
   document.getElementById('bgZoneText').textContent = '+ Upload background image';
   document.getElementById('bgUpload').value = '';
+  persistState();
+  draw();
+});
+document.getElementById('bgPatternBtn').addEventListener('click', () => {
+  // Pattern wins over uploaded image. Keep the uploaded data on disk in
+  // case the user toggles back, but draw() prefers bgPreset='pattern'.
+  state.bgPreset = 'pattern';
+  document.getElementById('bgZoneText').textContent = 'CUSA stark pattern (clear to upload your own)';
   persistState();
   draw();
 });
@@ -586,6 +829,192 @@ document.getElementById('bgColor').addEventListener('input', e => {
   persistState();
   draw();
 });
+
+// ─── Advanced adjustments — wire every input to state.adj ──────────────────
+// Tight binder: detects element type and writes to the path on state.adj.
+// `valId` (optional) is the small readout span; `fmt` is its formatter.
+function setAdjPath(path, v){
+  const parts = path.split('.');
+  let o = state.adj;
+  for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+  o[parts[parts.length - 1]] = v;
+}
+function getAdjPath(path){
+  const parts = path.split('.');
+  let o = state.adj;
+  for (const p of parts) { if (o == null) return undefined; o = o[p]; }
+  return o;
+}
+function bindAdj(inputId, path, valId, fmt){
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  const valEl = valId ? document.getElementById(valId) : null;
+  const ev = (el.type === 'checkbox' || el.tagName === 'SELECT') ? 'change' : 'input';
+  el.addEventListener(ev, () => {
+    const v = el.type === 'checkbox' ? el.checked
+            : el.type === 'range'    ? +el.value
+            : el.value;
+    setAdjPath(path, v);
+    if (valEl) valEl.textContent = fmt ? fmt(v) : String(v);
+    persistState();
+    draw();
+  });
+}
+
+// Group transform.
+bindAdj('grpScale', 'groupScale', 'grpScaleVal', v => (+v).toFixed(2) + '×');
+bindAdj('grpDx',    'groupDx',    'grpDxVal');
+bindAdj('grpDy',    'groupDy',    'grpDyVal');
+
+// KO + per-side logo geometry.
+bindAdj('koOpacity', 'koOpacity', 'koOpacityVal', v => (+v).toFixed(2));
+bindAdj('koScale',   'koScale',   'koScaleVal',   v => (+v).toFixed(2) + '×');
+bindAdj('leftLogoScale',  'leftLogo.scale',  'leftLogoScaleVal',  v => (+v).toFixed(2) + '×');
+bindAdj('leftLogoDx',     'leftLogo.dx',     'leftLogoDxVal');
+bindAdj('leftLogoDy',     'leftLogo.dy',     'leftLogoDyVal');
+bindAdj('rightLogoScale', 'rightLogo.scale', 'rightLogoScaleVal', v => (+v).toFixed(2) + '×');
+bindAdj('rightLogoDx',    'rightLogo.dx',    'rightLogoDxVal');
+bindAdj('rightLogoDy',    'rightLogo.dy',    'rightLogoDyVal');
+
+// Text nudges.
+bindAdj('leftNameDx',  'leftName.dx',  'leftNameDxVal');
+bindAdj('leftNameDy',  'leftName.dy',  'leftNameDyVal');
+bindAdj('leftNickDx',  'leftNick.dx',  'leftNickDxVal');
+bindAdj('leftNickDy',  'leftNick.dy',  'leftNickDyVal');
+bindAdj('rightNameDx', 'rightName.dx', 'rightNameDxVal');
+bindAdj('rightNameDy', 'rightName.dy', 'rightNameDyVal');
+bindAdj('rightNickDx', 'rightNick.dx', 'rightNickDxVal');
+bindAdj('rightNickDy', 'rightNick.dy', 'rightNickDyVal');
+
+// Date/Time/Net strip nudges.
+bindAdj('dateDx', 'dateNudge.dx', 'dateDxVal');
+bindAdj('dateDy', 'dateNudge.dy', 'dateDyVal');
+bindAdj('timeDx', 'timeNudge.dx', 'timeDxVal');
+bindAdj('timeDy', 'timeNudge.dy', 'timeDyVal');
+bindAdj('netDx',  'networkNudge.dx', 'netDxVal');
+bindAdj('netDy',  'networkNudge.dy', 'netDyVal');
+
+// Logo shadow.
+bindAdj('logoShadowL',     'logoShadow.leftOn');
+bindAdj('logoShadowR',     'logoShadow.rightOn');
+bindAdj('logoShadowColor', 'logoShadow.color');
+bindAdj('logoShadowA',     'logoShadow.alpha', 'logoShadowAVal', v => (+v).toFixed(2));
+bindAdj('logoShadowDx',    'logoShadow.dx',    'logoShadowDxVal');
+bindAdj('logoShadowDy',    'logoShadow.dy',    'logoShadowDyVal');
+bindAdj('logoShadowB',     'logoShadow.blur',  'logoShadowBVal');
+
+// Strip shadow.
+bindAdj('stripShadowOn',    'stripShadow.on');
+bindAdj('stripShadowColor', 'stripShadow.color');
+bindAdj('stripShadowA',     'stripShadow.alpha', 'stripShadowAVal', v => (+v).toFixed(2));
+bindAdj('stripShadowDx',    'stripShadow.dx',    'stripShadowDxVal');
+bindAdj('stripShadowDy',    'stripShadow.dy',    'stripShadowDyVal');
+bindAdj('stripShadowB',     'stripShadow.blur',  'stripShadowBVal');
+
+// KO shadow.
+bindAdj('koShadowL',     'koShadow.leftOn');
+bindAdj('koShadowR',     'koShadow.rightOn');
+bindAdj('koShadowColor', 'koShadow.color');
+bindAdj('koShadowA',     'koShadow.alpha', 'koShadowAVal', v => (+v).toFixed(2));
+bindAdj('koShadowDx',    'koShadow.dx',    'koShadowDxVal');
+bindAdj('koShadowDy',    'koShadow.dy',    'koShadowDyVal');
+bindAdj('koShadowB',     'koShadow.blur',  'koShadowBVal');
+
+// Blend modes + square color overrides.
+const BLEND_MODES = ['source-over','multiply','screen','overlay','darken','lighten','soft-light','hard-light','difference','exclusion'];
+function populateBlendModes(selectId){
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  sel.innerHTML = BLEND_MODES.map(m => `<option value="${m}">${m === 'source-over' ? 'normal' : m}</option>`).join('');
+}
+populateBlendModes('leftSqBlend');
+populateBlendModes('rightSqBlend');
+bindAdj('leftSqBlend',  'leftSquare.blend');
+bindAdj('rightSqBlend', 'rightSquare.blend');
+bindAdj('leftSqColor',  'leftSquare.color');
+bindAdj('rightSqColor', 'rightSquare.color');
+document.getElementById('leftSqColorClear').addEventListener('click', () => {
+  state.adj.leftSquare.color = '';
+  persistState(); draw();
+});
+document.getElementById('rightSqColorClear').addEventListener('click', () => {
+  state.adj.rightSquare.color = '';
+  persistState(); draw();
+});
+
+// Adv panel toggle.
+const _advBtn   = document.getElementById('advToggle');
+const _advPanel = document.getElementById('advPanel');
+_advBtn.addEventListener('click', () => {
+  const open = _advPanel.style.display !== 'flex';
+  _advPanel.style.display = open ? 'flex' : 'none';
+  _advBtn.textContent = open
+    ? '▼ Advanced Adjustments (per-row, applied to all)'
+    : '▶ Advanced Adjustments (per-row, applied to all)';
+});
+
+// Reset adjustments.
+document.getElementById('resetAdjBtn').addEventListener('click', () => {
+  if (!confirm('Reset all per-row adjustments and group transform to defaults?')) return;
+  state.adj = DEFAULT_ADJ();
+  syncAdjUiFromState();
+  persistState();
+  draw();
+});
+
+// Push state.adj values back into the inputs (called after restoreState
+// during init so persisted adjustments rehydrate the UI).
+function syncAdjUiFromState(){
+  const a = state.adj;
+  const setVal  = (id, v) => { const el = document.getElementById(id); if (el && el.type !== 'checkbox') el.value = v; };
+  const setChk  = (id, v) => { const el = document.getElementById(id); if (el && el.type === 'checkbox') el.checked = !!v; };
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setVal('grpScale', a.groupScale); setText('grpScaleVal', (+a.groupScale).toFixed(2) + '×');
+  setVal('grpDx',    a.groupDx);    setText('grpDxVal',    String(a.groupDx));
+  setVal('grpDy',    a.groupDy);    setText('grpDyVal',    String(a.groupDy));
+  setVal('koOpacity', a.koOpacity); setText('koOpacityVal', (+a.koOpacity).toFixed(2));
+  setVal('koScale',   a.koScale);   setText('koScaleVal',   (+a.koScale).toFixed(2) + '×');
+  ['leftLogo','rightLogo'].forEach(side => {
+    const v = a[side];
+    setVal(side + 'Scale', v.scale); setText(side + 'ScaleVal', (+v.scale).toFixed(2) + '×');
+    setVal(side + 'Dx',    v.dx);    setText(side + 'DxVal',    String(v.dx));
+    setVal(side + 'Dy',    v.dy);    setText(side + 'DyVal',    String(v.dy));
+  });
+  ['leftName','leftNick','rightName','rightNick'].forEach(k => {
+    const v = a[k];
+    setVal(k + 'Dx', v.dx); setText(k + 'DxVal', String(v.dx));
+    setVal(k + 'Dy', v.dy); setText(k + 'DyVal', String(v.dy));
+  });
+  ['date','time','net'].forEach(k => {
+    const src = k === 'net' ? a.networkNudge : a[k + 'Nudge'];
+    setVal(k + 'Dx', src.dx); setText(k + 'DxVal', String(src.dx));
+    setVal(k + 'Dy', src.dy); setText(k + 'DyVal', String(src.dy));
+  });
+  setChk('logoShadowL', a.logoShadow.leftOn);
+  setChk('logoShadowR', a.logoShadow.rightOn);
+  setVal('logoShadowColor', a.logoShadow.color || '#000000');
+  setVal('logoShadowA',  a.logoShadow.alpha); setText('logoShadowAVal',  (+a.logoShadow.alpha).toFixed(2));
+  setVal('logoShadowDx', a.logoShadow.dx);    setText('logoShadowDxVal', String(a.logoShadow.dx));
+  setVal('logoShadowDy', a.logoShadow.dy);    setText('logoShadowDyVal', String(a.logoShadow.dy));
+  setVal('logoShadowB',  a.logoShadow.blur);  setText('logoShadowBVal',  String(a.logoShadow.blur));
+  setChk('stripShadowOn',    a.stripShadow.on);
+  setVal('stripShadowColor', a.stripShadow.color || '#000000');
+  setVal('stripShadowA',  a.stripShadow.alpha); setText('stripShadowAVal',  (+a.stripShadow.alpha).toFixed(2));
+  setVal('stripShadowDx', a.stripShadow.dx);    setText('stripShadowDxVal', String(a.stripShadow.dx));
+  setVal('stripShadowDy', a.stripShadow.dy);    setText('stripShadowDyVal', String(a.stripShadow.dy));
+  setVal('stripShadowB',  a.stripShadow.blur);  setText('stripShadowBVal',  String(a.stripShadow.blur));
+  setChk('koShadowL', a.koShadow.leftOn);
+  setChk('koShadowR', a.koShadow.rightOn);
+  setVal('koShadowColor', a.koShadow.color || '#000000');
+  setVal('koShadowA',  a.koShadow.alpha); setText('koShadowAVal',  (+a.koShadow.alpha).toFixed(2));
+  setVal('koShadowDx', a.koShadow.dx);    setText('koShadowDxVal', String(a.koShadow.dx));
+  setVal('koShadowDy', a.koShadow.dy);    setText('koShadowDyVal', String(a.koShadow.dy));
+  setVal('koShadowB',  a.koShadow.blur);  setText('koShadowBVal',  String(a.koShadow.blur));
+  setVal('leftSqBlend',  a.leftSquare.blend);
+  setVal('rightSqBlend', a.rightSquare.blend);
+  setVal('leftSqColor',  a.leftSquare.color  || '#000000');
+  setVal('rightSqColor', a.rightSquare.color || '#000000');
+}
 
 document.getElementById('downloadBtn').addEventListener('click', async () => {
   await draw();
@@ -611,9 +1040,14 @@ if (IS_EMBEDDED) document.body.classList.add('embedded');
   document.getElementById('titleText').value    = state.title;
   document.getElementById('subtitleText').value = state.subtitle;
   document.getElementById('bgColor').value      = state.previewBg || '#0a254e';
-  if (state.bgImageData) document.getElementById('bgZoneText').textContent = '✓ Background loaded — click to replace';
+  if (state.bgPreset === 'pattern') {
+    document.getElementById('bgZoneText').textContent = 'CUSA stark pattern (clear to upload your own)';
+  } else if (state.bgImageData) {
+    document.getElementById('bgZoneText').textContent = '✓ Background loaded — click to replace';
+  }
   document.querySelectorAll('#countButtons .count-btn').forEach(b => b.classList.toggle('active', +b.dataset.count === state.count));
   renderRowCards();
+  syncAdjUiFromState();
   if (document.fonts && document.fonts.load) {
     try { await document.fonts.load(`400 22px "Proxima Nova"`); } catch (_) {}
     try { await document.fonts.load(`700 ${NICK_FS}px "Proxima Nova"`); } catch (_) {}
