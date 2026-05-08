@@ -47,6 +47,11 @@ body.embedded .main{height:100vh}
 canvas#cvs{display:block;width:100%;height:100%}
 .preview-meta{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);pointer-events:none}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js" onerror="console.warn('config.js not generated — run bash build.sh')"></script>
+<script src="assets/cusa-auth.js"></script>
+<script src="assets/cusa-cloud-state.js"></script>
+<script src="assets/cusa-page.js"></script>
 </head>
 <body>
 
@@ -204,6 +209,8 @@ function persistState(){
     }));
   } catch (_) {}
 }
+if (window.cusaPage) window.cusaPage.hookPersist({ pageKey: 'matchup-grid', stateKey: STATE_KEY });
+
 function restoreState(){
   try {
     const raw = localStorage.getItem(STATE_KEY);
@@ -613,6 +620,7 @@ if (IS_EMBEDDED) document.body.classList.add('embedded');
     try { await document.fonts.load(`900 56px "Proxima Nova"`); } catch (_) {}
   }
   draw();
+  if (window.cusaPage) window.cusaPage.boot({ pageKey: 'matchup-grid', stateKey: STATE_KEY });
 })();
 </script>
 </body>

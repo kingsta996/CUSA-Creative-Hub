@@ -65,6 +65,11 @@ body.embedded .tabs{display:none !important}
 .canvas-wrap canvas{display:block;width:100%;height:auto}
 .preview-meta{margin-top:10px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-align:center}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js" onerror="console.warn('config.js not generated — run bash build.sh')"></script>
+<script src="assets/cusa-auth.js"></script>
+<script src="assets/cusa-cloud-state.js"></script>
+<script src="assets/cusa-page.js"></script>
 </head>
 <body>
 
@@ -910,6 +915,9 @@ function persistState(){
     }));
   } catch (_) {}
 }
+// Mirror persistState to Supabase (debounced).
+if (window.cusaPage) window.cusaPage.hookPersist({ pageKey: 'matchup-final', stateKey: STATE_KEY });
+
 function restoreState(){
   try {
     const raw = localStorage.getItem(STATE_KEY);
@@ -1508,6 +1516,7 @@ window.addEventListener('storage', e => {
     ensureSchoolImages('right'),
   ]);
   draw();
+  if (window.cusaPage) window.cusaPage.boot({ pageKey: 'matchup-final', stateKey: STATE_KEY });
 })();
 </script>
 </body>

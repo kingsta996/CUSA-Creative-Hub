@@ -1,6 +1,10 @@
 .DS_Store
 **/.DS_Store
 
+# Local-only env + generated config (Netlify generates config.js from env vars)
+.env
+config.js
+
 # Source design assets — not used by the deployed site
 *.psd
 *.psb

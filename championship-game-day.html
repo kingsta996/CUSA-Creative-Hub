@@ -65,6 +65,11 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .canvas-wrap canvas{display:block;width:100%;height:100%}
 .preview-meta{margin-top:10px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-align:center}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js" onerror="console.warn('config.js not generated — run bash build.sh')"></script>
+<script src="assets/cusa-auth.js"></script>
+<script src="assets/cusa-cloud-state.js"></script>
+<script src="assets/cusa-page.js"></script>
 </head>
 <body>
 
@@ -575,6 +580,9 @@ function persistState(){
     }));
   } catch (_) {}
 }
+// Hook persistState to also save to Supabase (must run before persistPositions
+// alias is captured so the alias points at the wrapped version).
+if (window.cusaPage) window.cusaPage.hookPersist({ pageKey: 'championship-game-day', stateKey: STATE_KEY });
 const persistPositions = persistState;
 
 function restoreState(){
@@ -737,6 +745,7 @@ document.getElementById('download').addEventListener('click', () => {
     ensureSchoolLogo('bot'),
   ]);
   draw();
+  if (window.cusaPage) window.cusaPage.boot({ pageKey: 'championship-game-day', stateKey: STATE_KEY });
 })();
 </script>
 </body>
