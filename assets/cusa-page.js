@@ -61,6 +61,13 @@
       'dlewis@conferenceusa.com':    { mode: 'local',  scope: 'all' },
       'jyonis@conferenceusa.com':    { mode: 'local',  scope: 'all' },
     },
+    // Media Day production rundown — Keith owns the master, Josh + Mike
+    // (JW Productions) edit and submit save requests for Keith to approve.
+    'media-day': {
+      'kking@conferenceusa.com':   { mode: 'global',         scope: 'all' },
+      'jyonis@conferenceusa.com':  { mode: 'request-global', scope: 'all' },
+      'mike@jwproductions.org':    { mode: 'request-global', scope: 'all' },
+    },
   };
 
   // Default for signed-in users without an explicit page entry — local
