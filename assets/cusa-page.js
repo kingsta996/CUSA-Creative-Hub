@@ -122,8 +122,12 @@
 
     const bar = document.createElement('div');
     bar.id = 'cusa-mode-banner';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99998;background:' + bg + ';color:' + fg +
-      ';font-family:Segoe UI,Helvetica Neue,sans-serif;font-size:11px;padding:5px 12px;display:flex;gap:12px;align-items:center;letter-spacing:0.5px;line-height:1.3';
+    // Non-fixed: takes its own space at the top of <body> so any sticky
+    // page-chrome (e.g. Media Day's top-bar) lays out below it. Scrolls
+    // out of view when the user scrolls; the page's own header takes the
+    // sticky slot at viewport top:0 once the banner clears.
+    bar.style.cssText = 'background:' + bg + ';color:' + fg +
+      ';font-family:Segoe UI,Helvetica Neue,sans-serif;font-size:11px;padding:5px 12px;display:flex;gap:12px;align-items:center;letter-spacing:0.5px;line-height:1.3;width:100%;box-sizing:border-box';
     bar.innerHTML =
       '<strong style="letter-spacing:1px">' + label + '</strong>' +
       '<span style="opacity:0.9;flex:1">' + hint + '</span>' +
@@ -131,7 +135,9 @@
         ? '<button id="cusa-request-global-btn" style="background:#fff;color:#1f4f8c;border:none;padding:4px 10px;border-radius:4px;font-weight:600;font-size:11px;cursor:pointer;font-family:inherit">Request Global Save</button>'
         : '') +
       '<a href="#" id="cusa-banner-signout" style="color:' + fg + ';text-decoration:underline;opacity:0.85">sign out</a>';
-    document.body.appendChild(bar);
+    // insertBefore so the banner ends up above any existing top-bar / topbar
+    // chrome that lives at the top of <body>.
+    document.body.insertBefore(bar, document.body.firstChild);
 
     document.getElementById('cusa-banner-signout').addEventListener('click', (e) => {
       e.preventDefault();
