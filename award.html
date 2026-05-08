@@ -61,7 +61,6 @@ input[type=file]{display:none}
 <script src="assets/cusa-auth.js"></script>
 <script src="assets/cusa-cloud-state.js"></script>
 <script src="assets/cusa-page.js"></script>
-<script>if (window.cusaPage) window.cusaPage.gateOnly({ pageKey: 'award' });</script>
 </head>
 <body>
 <a class="hub-link" href="index.html">← HUB</a>
@@ -660,14 +659,123 @@ function init(){
     document.fonts.load('900 60px "Barlow Condensed"'),
     document.fonts.load('400 16px "Barlow"'),
     ...proms
-  ]).then(()=>{
+  ]).then(async ()=>{
     // Set title preview
     document.getElementById('titlePreview').src=LAYERS['title_default'];
     document.getElementById('statsTitlePreview').src=LAYERS['stats_title_default'];
     updateNpPreview();
     hideOverlay();draw();
+
+    // Auth + cloud sync (after assets are ready so we can repaint cleanly).
+    if (window.cusaPage) {
+      await window.cusaPage.boot({ pageKey: 'award', stateKey: STATE_KEY });
+    }
+    restoreFormState();
   }).catch(()=>{setTimeout(()=>{hideOverlay();draw();},1800);});
 }
+
+// ══════════════════════════════════════════════
+//  CLOUD-SYNCED STATE (S minus the uploaded images)
+// ══════════════════════════════════════════════
+// S has a few image fields (photo, bgImg, customTitle, statsTitleImg,
+// npCustomImg, customLogos) — those are session-bound and skipped from the
+// synced blob. Everything else (selection, custom name, font, sizes, stats,
+// event line) syncs.
+const STATE_KEY = 'cusa_award_state_v1';
+
+function persistState() {
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      type:          S.type,
+      gender:        S.gender,
+      school:        S.school,
+      player:        S.player,
+      useCustom:     S.useCustom,
+      custom:        S.custom,
+      npKey:         S.npKey,
+      font:          S.font,
+      nameSize:      S.nameSize,
+      autoNameSize:  S.autoNameSize,
+      stats:         S.stats,
+      evLine:        S.evLine,
+    }));
+  } catch (_) {}
+}
+if (window.cusaPage) window.cusaPage.hookPersist({ pageKey: 'award', stateKey: STATE_KEY });
+
+function restoreFormState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+
+    // Apply scalar S fields first.
+    if (typeof s.type         === 'string')  S.type         = s.type;
+    if (typeof s.gender       === 'string')  S.gender       = s.gender;
+    if (typeof s.font         === 'string')  S.font         = s.font;
+    if (typeof s.nameSize     === 'number')  S.nameSize     = s.nameSize;
+    if (typeof s.autoNameSize === 'boolean') S.autoNameSize = s.autoNameSize;
+    if (typeof s.useCustom    === 'boolean') S.useCustom    = s.useCustom;
+    if (typeof s.custom       === 'string')  S.custom       = s.custom;
+    if (Array.isArray(s.stats) && s.stats.length) S.stats   = s.stats.slice(0, 4);
+    if (typeof s.evLine       === 'string')  S.evLine       = s.evLine;
+
+    // School + player: reproduce the cascading select behavior.
+    if (s.school) {
+      const sch = document.getElementById('sch');
+      if (sch && Array.from(sch.options).some(o => o.value === s.school)) {
+        sch.value = s.school;
+        if (typeof onSchool === 'function') onSchool();
+      }
+    }
+    if (s.player) {
+      const plr = document.getElementById('plr');
+      if (plr && Array.from(plr.options).some(o => o.value === s.player)) {
+        plr.value = s.player;
+        if (typeof onPlayer === 'function') onPlayer();
+      }
+    }
+
+    // Custom name + override checkbox.
+    const cn = document.getElementById('customName'); if (cn && typeof s.custom === 'string') cn.value = s.custom;
+    const uc = document.getElementById('useCustom');  if (uc && typeof s.useCustom === 'boolean') uc.checked = s.useCustom;
+
+    // Nameplate select (npKey) — onNpSelect rebuilds preview.
+    if (typeof s.npKey === 'string') {
+      const np = document.getElementById('npSelect');
+      if (np && Array.from(np.options).some(o => o.value === s.npKey)) {
+        np.value = s.npKey;
+        if (typeof onNpSelect === 'function') onNpSelect();
+      }
+    }
+
+    // Font search box (visual only — actual font is on S.font).
+    const fs = document.getElementById('fontSearch');
+    if (fs && S.font) fs.value = S.font;
+
+    // Name size range + auto-fit toggle.
+    const ns  = document.getElementById('nameSize');
+    const nsv = document.getElementById('nameSizeVal');
+    if (ns)  ns.value  = S.nameSize;
+    if (nsv) nsv.textContent = String(S.nameSize);
+    const an = document.getElementById('autoNameSize');
+    if (an) an.checked = !!S.autoNameSize;
+
+    // Event line.
+    const ev = document.getElementById('evLine'); if (ev) ev.value = S.evLine || '';
+
+    // Stats columns — re-render cards from S.stats.
+    if (typeof renderStats === 'function') renderStats();
+
+    draw();
+  } catch (e) { console.warn('Award restoreFormState failed:', e); }
+}
+
+// Auto-persist on every input/change. Resolve window.persistState
+// dynamically so we pick up the cloud-sync wrapper from hookPersist.
+const _awardPersist = () => { if (typeof window.persistState === 'function') window.persistState(); };
+document.body.addEventListener('input',  _awardPersist, { capture: true });
+document.body.addEventListener('change', _awardPersist, { capture: true });
 
 init();
 </script>

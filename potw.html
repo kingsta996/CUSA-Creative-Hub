@@ -114,7 +114,6 @@ select option.has-bg::after{content:' ✓'}
 <script src="assets/cusa-auth.js"></script>
 <script src="assets/cusa-cloud-state.js"></script>
 <script src="assets/cusa-page.js"></script>
-<script>if (window.cusaPage) window.cusaPage.gateOnly({ pageKey: 'potw' });</script>
 </head>
 <body>
 
@@ -980,10 +979,113 @@ function doExport() {
 }
 
 // ══════════════════════════════════════════════
+//  CLOUD-SYNCED STATE (school/sport/player + visual nudges)
+// ══════════════════════════════════════════════
+// Persists every form input that survives a reload. Skips uploaded blobs
+// (POTW_PHOTO, BG_IMGS, ZIP) — those stay session-bound on each device.
+const STATE_KEY = 'cusa_potw_state_v1';
+
+function persistState() {
+  try {
+    const get = (id) => document.getElementById(id);
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      school:       get('potwSchool')?.value || '',
+      sport:        get('potwSport')?.value  || '',
+      player:       get('potwPlayer')?.value || '',
+      playerName:   get('playerName')?.value || '',
+      nameOverride: !!nameOverrideMode,
+      awardText:    get('awardText')?.value || '',
+      awardColor:   awardColor,
+      photoZoom:    parseFloat(get('photoZoom')?.value || '1'),
+      cropTop:      parseFloat(get('cropTop')?.value    || '0'),
+      cropLeft:     parseFloat(get('cropLeft')?.value   || '0'),
+      cropRight:    parseFloat(get('cropRight')?.value  || '0'),
+      cropBottom:   parseFloat(get('cropBottom')?.value || '0'),
+      nameSz:       parseInt(get('nameSz')?.value     || '172', 10),
+      nameOffset:   parseInt(get('nameOffset')?.value || '0',   10),
+    }));
+  } catch (_) {}
+}
+if (window.cusaPage) window.cusaPage.hookPersist({ pageKey: 'potw', stateKey: STATE_KEY });
+
+function restoreFormState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+
+    // Cascading dropdowns: school populates sport, sport populates player.
+    // Each handler must run before the next selection takes effect.
+    if (s.school) {
+      const el = document.getElementById('potwSchool');
+      if (el && Array.from(el.options).some(o => o.value === s.school)) {
+        el.value = s.school;
+        if (typeof onSchoolChange === 'function') onSchoolChange();
+      }
+    }
+    if (s.sport) {
+      const el = document.getElementById('potwSport');
+      if (el && Array.from(el.options).some(o => o.value === s.sport)) {
+        el.value = s.sport;
+        if (typeof onSportChange === 'function') onSportChange();
+      }
+    }
+    if (s.player) {
+      const el = document.getElementById('potwPlayer');
+      if (el && Array.from(el.options).some(o => o.value === s.player)) {
+        el.value = s.player;
+        if (typeof onPlayerSelect === 'function') onPlayerSelect();
+      }
+    }
+
+    // Override toggle (button + input class). Sync to saved state.
+    if (typeof toggleNameOverride === 'function' && nameOverrideMode !== !!s.nameOverride) {
+      toggleNameOverride();
+    }
+    // Apply playerName AFTER any cascading population so we don't get
+    // overwritten by the auto-fill from onPlayerSelect.
+    if (typeof s.playerName === 'string') {
+      const el = document.getElementById('playerName');
+      if (el) el.value = s.playerName;
+    }
+
+    // Award text + color
+    const at = document.getElementById('awardText');
+    if (at && typeof s.awardText === 'string') at.value = s.awardText;
+    if (s.awardColor && typeof setAwardColorCustom === 'function') setAwardColorCustom(s.awardColor);
+
+    // Numeric ranges + their readout spans
+    const setRange = (id, valId, val, fmt) => {
+      const el = document.getElementById(id); if (!el || val === undefined) return;
+      el.value = val;
+      const ve = document.getElementById(valId);
+      if (ve) ve.textContent = fmt ? fmt(val) : String(val);
+    };
+    setRange('photoZoom',  'photoZoomVal',  s.photoZoom, v => parseFloat(v).toFixed(1) + '×');
+    setRange('cropTop',    'cropTopVal',    s.cropTop,   v => (v > 0 ? '+' : '') + parseFloat(v).toFixed(1));
+    setRange('cropLeft',   'cropLeftVal',   s.cropLeft,  v => (v > 0 ? '+' : '') + parseFloat(v).toFixed(1));
+    setRange('cropRight',  'cropRightVal',  s.cropRight, v => (v > 0 ? '+' : '') + parseFloat(v).toFixed(1));
+    setRange('cropBottom', 'cropBottomVal', s.cropBottom,v => (v > 0 ? '+' : '') + parseFloat(v).toFixed(1));
+    setRange('nameSz',     'nameSzVal',     s.nameSz);
+    setRange('nameOffset', 'nameOffsetVal', s.nameOffset, v => (v > 0 ? '+' : '') + v);
+
+    drawPOTW();
+  } catch (e) { console.warn('POTW restoreFormState failed:', e); }
+}
+
+// Auto-persist on every input/change so the user doesn't have to think
+// about saving. Looking up window.persistState dynamically (instead of
+// referencing the function directly) means we pick up the cloud-sync
+// wrapper installed by cusaPage.hookPersist instead of the bare original.
+const _potwPersist = () => { if (typeof window.persistState === 'function') window.persistState(); };
+document.body.addEventListener('input',  _potwPersist, { capture: true });
+document.body.addEventListener('change', _potwPersist, { capture: true });
+
+// ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
-(function init() {
-  // Auto-restore roster from localStorage
+(async function init() {
+  // Auto-restore roster from localStorage (existing behavior).
   try {
     const saved = localStorage.getItem('cusa_roster_csv');
     if (saved) {
@@ -994,6 +1096,14 @@ function doExport() {
     }
   } catch(e) { console.warn('Could not restore roster:', e); }
   drawPOTW();
+
+  // Auth + cloud sync — pulls global state into localStorage; reloads once
+  // if cloud differs from local so this init reruns against the synced data.
+  if (window.cusaPage) {
+    await window.cusaPage.boot({ pageKey: 'potw', stateKey: STATE_KEY });
+  }
+  // Apply persisted form state to inputs after auth resolves.
+  restoreFormState();
 })();
 </script>
 </body>
