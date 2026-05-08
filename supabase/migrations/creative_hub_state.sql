@@ -49,17 +49,27 @@ create policy "public read creative hub state"  on creative_hub_state for select
 create policy "public write creative hub state" on creative_hub_state for all    using (true) with check (true);
 
 -- 3. Seed editors.
---    keithmkingjr@gmail.com → reuses the same hash already in admin_users
---                              so Keith's existing password works here too.
---    jyonis@conferenceusa.com → SHA-256('C0nferenceUSA!') — same hash
---                                already used in admin_users for kcarney.
+--    kking@conferenceusa.com  → SHA-256('12nolimitsonUS!') — Keith's existing
+--                                Production Hub admin password (where he
+--                                signs in via the legacy-fallback path).
+--    jyonis@conferenceusa.com → SHA-256('C0nferenceUSA!').
 insert into creative_hub_users (email, pw_hash, display_name) values
-  ('keithmkingjr@gmail.com',     '9a874f8b06ebb0eb63336db78b70ca149513a237de8395d8e858ee8f0c702ae2', 'Keith King'),
+  ('kking@conferenceusa.com',    '9a874f8b06ebb0eb63336db78b70ca149513a237de8395d8e858ee8f0c702ae2', 'Keith King'),
   ('jyonis@conferenceusa.com',   '8b0bc1004fe02329dc00733a3be4ee41e8539e929ec9f7d1e858906a676f4f47', 'Josh Yonis')
 on conflict (email) do update set
   pw_hash      = excluded.pw_hash,
   display_name = excluded.display_name,
   is_active    = true;
+
+-- One-time cleanup: an earlier version of this migration seeded Keith's row
+-- under the wrong email (keithmkingjr@gmail.com). Move any state he saved
+-- under it to kking@conferenceusa.com, then drop the old row. Safe to run
+-- on a fresh DB (no rows match → no-op).
+update creative_hub_state
+   set email = 'kking@conferenceusa.com'
+ where email = 'keithmkingjr@gmail.com';
+delete from creative_hub_users
+ where email = 'keithmkingjr@gmail.com';
 
 -- 4. Realtime publication so the override tool in admin.html can stream
 --    state changes if it subscribes.
