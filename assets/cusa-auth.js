@@ -7,14 +7,19 @@
 (function () {
   const SESSION_KEY = 'cusa_creative_hub_user_v1';
   let _user = null;
-  let _db = null;
 
+  // Single shared Supabase client for all CUSA tooling. Stashed on window
+  // so cusa-cloud-state.js, page-specific realtime listeners, etc. can
+  // reuse it instead of each calling supabase.createClient with the same
+  // URL+key (which logs "Multiple GoTrueClient instances detected" because
+  // every client registers a separate auth listener under the same
+  // sb-<project>-auth-token storage key).
   function db() {
-    if (_db) return _db;
+    if (window.__cusaSharedDb) return window.__cusaSharedDb;
     if (typeof supabase !== 'undefined' && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
-      _db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      window.__cusaSharedDb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
     }
-    return _db;
+    return window.__cusaSharedDb || null;
   }
 
   async function hashPw(pw) {
@@ -154,5 +159,5 @@
     document.getElementById('cusa-signout').addEventListener('click', (e) => { e.preventDefault(); signOut(); });
   }
 
-  window.cusaAuth = { currentUser, signOut, requireLogin, renderUserBadge, signInAsGuest };
+  window.cusaAuth = { currentUser, signOut, requireLogin, renderUserBadge, signInAsGuest, db };
 })();

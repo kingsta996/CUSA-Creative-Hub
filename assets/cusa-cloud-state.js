@@ -5,13 +5,17 @@
 //
 // Exposes window.cusaCloudState = { saveState, loadState, saveStateNow }.
 (function () {
-  let _db = null;
+  // Reuse the single shared Supabase client created by cusa-auth.js.
+  // Both helpers used to call createClient independently which produced
+  // "Multiple GoTrueClient instances detected" warnings under the same
+  // auth-token storage key.
   function db() {
-    if (_db) return _db;
+    if (window.cusaAuth && window.cusaAuth.db) return window.cusaAuth.db();
+    if (window.__cusaSharedDb) return window.__cusaSharedDb;
     if (typeof supabase !== 'undefined' && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
-      _db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      window.__cusaSharedDb = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
     }
-    return _db;
+    return window.__cusaSharedDb || null;
   }
 
   const _timers = {};   // pageKey -> timeout id
