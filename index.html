@@ -355,7 +355,11 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
 
 <div class="footer">
   CONFERENCE USA GRAPHIC BUILDER HUB &nbsp;·&nbsp; Graphics export at full resolution &nbsp;·&nbsp; Powered by ESPN Live Data
+  &nbsp;·&nbsp; <a href="faq.html" style="color:rgba(255,255,255,0.35);text-decoration:none;letter-spacing:1px">FAQ</a>
   &nbsp;·&nbsp; <a href="podcast-graphics/index.html?admin=1" style="color:rgba(255,255,255,0.35);text-decoration:none;letter-spacing:1px">Admin</a>
+  <span id="hubChatLogsFooter" style="display:none">
+    &nbsp;·&nbsp; <a href="chatlogs.html" style="color:rgba(255,255,255,0.35);text-decoration:none;letter-spacing:1px">Chat Logs</a>
+  </span>
 </div>
 
 <!-- Support chat widget — visible to signed-in non-guest users -->
@@ -387,8 +391,9 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
 
 <script>
   // Creative Hub is internal-office only — show support chat to everyone.
-  // Reveal the admin "Logs" link only when the signed-in Creative Hub user
-  // is the legacy admin (kking@conferenceusa.com).
+  // Reveal admin-only entry points (chat-panel header link + footer link)
+  // when the signed-in Creative Hub user is the legacy admin
+  // (kking@conferenceusa.com).
   (function () {
     try {
       var raw = localStorage.getItem('cusa_creative_hub_user_v1');
@@ -397,6 +402,8 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
         if (u && u.email && u.email.toLowerCase() === 'kking@conferenceusa.com') {
           var l = document.getElementById('supportLogsLink');
           if (l) l.style.display = 'inline';
+          var f = document.getElementById('hubChatLogsFooter');
+          if (f) f.style.display = 'inline';
         }
       }
     } catch (_) {}
