@@ -64,8 +64,16 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
 .support-chat-form textarea:focus{outline:0;border-color:#EB1946;background:rgba(255,255,255,0.08)}
 .support-chat-form button{background:#EB1946;color:#fff;border:0;cursor:pointer;padding:9px 14px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:1px;height:40px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
 .support-chat-form button:disabled{opacity:0.5;cursor:not-allowed}
-.support-chat-foot{padding:8px 12px;font-size:10px;color:rgba(255,255,255,0.45);border-top:1px solid rgba(255,255,255,0.06);line-height:1.4}
-.support-chat-foot a{color:#EB1946}
+.support-chat-foot{padding:8px 12px;font-size:10px;color:rgba(255,255,255,0.45);border-top:1px solid rgba(255,255,255,0.06);line-height:1.4;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.support-chat-foot .grow{flex:1}
+.support-chat-foot a{color:#EB1946;text-decoration:none}
+.support-chat-foot a:hover{color:#fff}
+.support-chat-head .head-actions{display:flex;gap:6px;align-items:center}
+.support-chat-head .head-link{color:rgba(255,255,255,0.5);font-size:11px;font-weight:600;text-decoration:none;padding:3px 8px;border-radius:4px;font-family:inherit}
+.support-chat-head .head-link:hover{color:#fff;background:rgba(255,255,255,0.08)}
+.support-chat-msg a{color:#EB1946}
+.faq-link-pill{display:inline-block;margin:4px 6px 0 0;padding:4px 10px;background:rgba(167,213,0,0.18);color:#A7D500;border:1px solid rgba(167,213,0,0.35);border-radius:999px;font-size:10.5px;font-weight:700;text-decoration:none;letter-spacing:0.3px;font-family:inherit}
+.faq-link-pill:hover{background:#A7D500;color:#0a1624}
 </style>
 </head>
 <body>
@@ -358,22 +366,41 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
 <div id="supportChatPanel" class="support-chat-panel" role="dialog" aria-label="Support chat">
   <div class="support-chat-head">
     <span>💬 Chat with Support</span>
-    <button class="close-btn" type="button" onclick="toggleSupportChat()" aria-label="Close">✕</button>
+    <span class="head-actions">
+      <a class="head-link" id="supportLogsLink" href="chatlogs.html" style="display:none">📋 Logs</a>
+      <button class="close-btn" type="button" onclick="toggleSupportChat()" aria-label="Close">✕</button>
+    </span>
   </div>
   <div id="supportChatLog" class="support-chat-log">
-    <div class="support-chat-msg assistant">Hi — I'm the Creative Hub support assistant. Tell me which builder is acting up or describe what you're seeing and I'll help you diagnose. For code or schema changes I'll point you to Keith.</div>
+    <div class="support-chat-msg assistant">Hi — I'm the Creative Hub support assistant. Tell me which builder is acting up or describe what you're seeing and I'll help you diagnose. For code or schema changes I'll point you to Keith. Quick answers may live in the <a href="faq.html" target="_blank" rel="noopener">FAQ</a>.</div>
   </div>
   <form id="supportChatForm" class="support-chat-form" onsubmit="return sendSupportChat(event)">
     <textarea id="supportChatInput" placeholder="Describe the issue…" rows="2" required></textarea>
     <button type="submit" id="supportChatSend">Send</button>
   </form>
   <div class="support-chat-foot">
-    Powered by Claude. Don't paste passwords. Larger fixes go to <a href="mailto:kking@conferenceusa.com">Keith</a>.
+    <a href="faq.html" target="_blank" rel="noopener">📚 Browse FAQ</a>
+    <span class="grow"></span>
+    <span>Powered by Claude · <a href="mailto:kking@conferenceusa.com">Email Keith</a></span>
   </div>
 </div>
 
 <script>
   // Creative Hub is internal-office only — show support chat to everyone.
+  // Reveal the admin "Logs" link only when the signed-in Creative Hub user
+  // is the legacy admin (kking@conferenceusa.com).
+  (function () {
+    try {
+      var raw = localStorage.getItem('cusa_creative_hub_user_v1');
+      if (raw) {
+        var u = JSON.parse(raw);
+        if (u && u.email && u.email.toLowerCase() === 'kking@conferenceusa.com') {
+          var l = document.getElementById('supportLogsLink');
+          if (l) l.style.display = 'inline';
+        }
+      }
+    } catch (_) {}
+  })();
 
   /* ── Support chat ─────────────────────────────────────────────────── */
   var _supportMessages = []; // [{ role, content }]
@@ -385,15 +412,42 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
     if (isOpen) setTimeout(function () { document.getElementById('supportChatInput').focus(); }, 60);
   }
 
+  function escSupportHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function renderSupportContent(role, text) {
+    if (role.indexOf('user') === 0) return escSupportHtml(text);
+    var html = escSupportHtml(text);
+    html = html.replace(/\[FAQ:([a-z0-9][a-z0-9\-_]+)\]/gi, function (_, slug) {
+      var s = String(slug).toLowerCase();
+      return '<a class="faq-link-pill" href="faq.html#' + s + '" target="_blank" rel="noopener">📚 FAQ · ' + s + '</a>';
+    });
+    html = html.replace(/(^|[\s(])((?:https?:\/\/)[^\s)<]+)/g, function (_, lead, u) {
+      return lead + '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>';
+    });
+    return html;
+  }
   function appendSupportMsg(role, text) {
     var log = document.getElementById('supportChatLog');
     var div = document.createElement('div');
     div.className = 'support-chat-msg ' + role;
-    div.textContent = text;
+    div.innerHTML = renderSupportContent(role, text);
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
     return div;
   }
+
+  function chatStoredUserCH() {
+    try {
+      var raw = localStorage.getItem('cusa_creative_hub_user_v1');
+      if (raw) { var u = JSON.parse(raw); if (u && u.email) return u; }
+    } catch (_) {}
+    return null;
+  }
+
+  var _conversationId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('c' + Date.now() + Math.random().toString(36).slice(2,8));
 
   async function sendSupportChat(e) {
     if (e) e.preventDefault();
@@ -411,10 +465,19 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
     var pending = appendSupportMsg('assistant pending', 'Thinking…');
 
     try {
+      var caller = chatStoredUserCH();
       var r = await fetch('/.netlify/functions/claude-chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: _supportMessages })
+        body: JSON.stringify({
+          messages: _supportMessages,
+          conversation_id: _conversationId,
+          user: caller ? {
+            email: caller.email,
+            display_name: caller.display_name || null,
+            role: caller.role || null
+          } : null
+        })
       });
       var data = null;
       try { data = await r.json(); } catch (_) {}
