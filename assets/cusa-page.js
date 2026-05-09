@@ -61,10 +61,14 @@
       'dlewis@conferenceusa.com':    { mode: 'local',  scope: 'all' },
       'jyonis@conferenceusa.com':    { mode: 'local',  scope: 'all' },
     },
-    // Media Day production rundown — Keith owns the master, Josh + Mike
-    // (JW Productions) edit and submit save requests for Keith to approve.
+    // Media Day production rundown — Keith owns the master. Josh Bryant is
+    // the primary sponsorship editor (saves go straight to global). Josh
+    // Yonis + Mike (JW Productions) submit save requests for Keith to
+    // approve. Note: only Keith + Josh Bryant can EDIT sponsorship fields
+    // (the page gates input UIs separately via canEditSponsorship()).
     'media-day': {
       'kking@conferenceusa.com':   { mode: 'global',         scope: 'all' },
+      'jbryant@conferenceusa.com': { mode: 'global',         scope: 'sponsorship' },
       'jyonis@conferenceusa.com':  { mode: 'request-global', scope: 'all' },
       'mike@jwproductions.org':    { mode: 'request-global', scope: 'all' },
     },
