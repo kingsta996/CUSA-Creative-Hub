@@ -43,6 +43,29 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
 .footer{width:100%;padding:16px;text-align:center;font-size:10px;color:rgba(255,255,255,0.1);border-top:1px solid rgba(255,255,255,0.05);margin-top:auto}
 .launch-box{padding:7px 16px;background:#89734C;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;font-family:'Barlow Condensed',sans-serif;letter-spacing:1.5px;text-decoration:none;display:inline-block;transition:background .15s;cursor:pointer}
 .launch-box:hover{background:#6e5a3b}
+
+/* ── Support chat widget ── */
+.support-chat-btn{position:fixed;bottom:22px;right:22px;background:#EB1946;color:#fff;border:0;padding:11px 18px;border-radius:999px;font-size:12px;font-weight:800;font-family:'Barlow Condensed',sans-serif;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:inline-flex;align-items:center;gap:8px;z-index:9999;transition:transform .15s ease,box-shadow .15s ease}
+.support-chat-btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(235,25,70,0.45)}
+.support-chat-btn .icon{font-size:14px}
+.support-chat-panel{position:fixed;bottom:78px;right:22px;width:min(380px,calc(100vw - 32px));height:min(540px,calc(100vh - 120px));background:rgba(10,22,36,0.97);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.15);border-radius:14px;flex-direction:column;display:none;overflow:hidden;z-index:9998;box-shadow:0 20px 60px rgba(0,0,0,0.6);color:#fff;font-family:'Barlow',sans-serif}
+.support-chat-panel.open{display:flex}
+.support-chat-head{padding:12px 14px;background:rgba(235,25,70,0.15);border-bottom:1px solid rgba(255,255,255,0.1);display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif}
+.support-chat-head .close-btn{background:transparent;color:rgba(255,255,255,0.6);border:0;font-size:16px;cursor:pointer;padding:4px 8px;line-height:1;border-radius:6px;font-family:inherit}
+.support-chat-head .close-btn:hover{color:#fff;background:rgba(255,255,255,0.08)}
+.support-chat-log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.5}
+.support-chat-msg{padding:10px 12px;border-radius:10px;max-width:85%;white-space:pre-wrap;word-wrap:break-word}
+.support-chat-msg.assistant{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);align-self:flex-start}
+.support-chat-msg.user{background:rgba(235,25,70,0.18);border:1px solid rgba(235,25,70,0.4);align-self:flex-end}
+.support-chat-msg.pending{opacity:0.65;font-style:italic}
+.support-chat-msg.error{background:rgba(228,0,70,0.15);border:1px solid rgba(228,0,70,0.4);align-self:flex-start}
+.support-chat-form{padding:10px;border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:8px;align-items:flex-end}
+.support-chat-form textarea{flex:1;resize:none;min-height:40px;max-height:140px;background:rgba(255,255,255,0.05);color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;line-height:1.4}
+.support-chat-form textarea:focus{outline:0;border-color:#EB1946;background:rgba(255,255,255,0.08)}
+.support-chat-form button{background:#EB1946;color:#fff;border:0;cursor:pointer;padding:9px 14px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:1px;height:40px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
+.support-chat-form button:disabled{opacity:0.5;cursor:not-allowed}
+.support-chat-foot{padding:8px 12px;font-size:10px;color:rgba(255,255,255,0.45);border-top:1px solid rgba(255,255,255,0.06);line-height:1.4}
+.support-chat-foot a{color:#EB1946}
 </style>
 </head>
 <body>
@@ -326,6 +349,108 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
   CONFERENCE USA GRAPHIC BUILDER HUB &nbsp;·&nbsp; Graphics export at full resolution &nbsp;·&nbsp; Powered by ESPN Live Data
   &nbsp;·&nbsp; <a href="podcast-graphics/index.html?admin=1" style="color:rgba(255,255,255,0.35);text-decoration:none;letter-spacing:1px">Admin</a>
 </div>
+
+<!-- Support chat widget — visible to signed-in non-guest users -->
+<button id="supportChatBtn" class="support-chat-btn" type="button" onclick="toggleSupportChat()" aria-label="Chat with Support">
+  <span class="icon">💬</span>
+  <span>Chat with Support</span>
+</button>
+<div id="supportChatPanel" class="support-chat-panel" role="dialog" aria-label="Support chat">
+  <div class="support-chat-head">
+    <span>💬 Chat with Support</span>
+    <button class="close-btn" type="button" onclick="toggleSupportChat()" aria-label="Close">✕</button>
+  </div>
+  <div id="supportChatLog" class="support-chat-log">
+    <div class="support-chat-msg assistant">Hi — I'm the Creative Hub support assistant. Tell me which builder is acting up or describe what you're seeing and I'll help you diagnose. For code or schema changes I'll point you to Keith.</div>
+  </div>
+  <form id="supportChatForm" class="support-chat-form" onsubmit="return sendSupportChat(event)">
+    <textarea id="supportChatInput" placeholder="Describe the issue…" rows="2" required></textarea>
+    <button type="submit" id="supportChatSend">Send</button>
+  </form>
+  <div class="support-chat-foot">
+    Powered by Claude. Don't paste passwords. Larger fixes go to <a href="mailto:kking@conferenceusa.com">Keith</a>.
+  </div>
+</div>
+
+<script>
+  // Creative Hub is internal-office only — show support chat to everyone.
+
+  /* ── Support chat ─────────────────────────────────────────────────── */
+  var _supportMessages = []; // [{ role, content }]
+
+  function toggleSupportChat() {
+    var panel = document.getElementById('supportChatPanel');
+    if (!panel) return;
+    var isOpen = panel.classList.toggle('open');
+    if (isOpen) setTimeout(function () { document.getElementById('supportChatInput').focus(); }, 60);
+  }
+
+  function appendSupportMsg(role, text) {
+    var log = document.getElementById('supportChatLog');
+    var div = document.createElement('div');
+    div.className = 'support-chat-msg ' + role;
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+
+  async function sendSupportChat(e) {
+    if (e) e.preventDefault();
+    var input = document.getElementById('supportChatInput');
+    var sendBtn = document.getElementById('supportChatSend');
+    var text = (input.value || '').trim();
+    if (!text) return false;
+    input.value = '';
+    sendBtn.disabled = true;
+    var origLabel = sendBtn.textContent;
+    sendBtn.textContent = '…';
+
+    appendSupportMsg('user', text);
+    _supportMessages.push({ role: 'user', content: text });
+    var pending = appendSupportMsg('assistant pending', 'Thinking…');
+
+    try {
+      var r = await fetch('/.netlify/functions/claude-chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: _supportMessages })
+      });
+      var data = null;
+      try { data = await r.json(); } catch (_) {}
+      pending.remove();
+      if (!r.ok) {
+        var msg = (data && data.error) ? data.error : ('Request failed (HTTP ' + r.status + ')');
+        if (data && data.detail) msg += '\n\n' + data.detail;
+        appendSupportMsg('assistant error', '⚠ ' + msg);
+      } else {
+        var reply = (data && data.reply) ? data.reply : '(no reply)';
+        appendSupportMsg('assistant', reply);
+        _supportMessages.push({ role: 'assistant', content: reply });
+        if (_supportMessages.length > 20) _supportMessages = _supportMessages.slice(-20);
+      }
+    } catch (err) {
+      pending.remove();
+      appendSupportMsg('assistant error', '⚠ Network error: ' + (err && err.message ? err.message : err));
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = origLabel;
+      input.focus();
+    }
+    return false;
+  }
+
+  // Cmd/Ctrl+Enter submits.
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      var panel = document.getElementById('supportChatPanel');
+      if (panel && panel.classList.contains('open')) {
+        e.preventDefault();
+        sendSupportChat();
+      }
+    }
+  });
+</script>
 
 </body>
 </html>
