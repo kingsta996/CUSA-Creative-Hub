@@ -184,11 +184,11 @@
 
     renderModeBanner(pageKey, perm);
 
-    // Guest: localStorage only, skip Supabase entirely.
-    if (perm.mode === 'guest') return;
-
     try {
       // Everyone reads global first — it's the team-canonical version.
+      // Guests read it too (they just can't write back) so a guest
+      // viewer sees the latest sponsorships / rundown / etc. that the
+      // logged-in team has saved instead of the page's hardcoded defaults.
       const globalRes = await window.cusaCloudState.loadGlobalState(pageKey);
       let chosenState = globalRes ? globalRes.state : null;
 
@@ -207,8 +207,9 @@
           await new Promise(() => {});
           return;
         }
-      } else {
-        // No cloud row yet — seed it from current localStorage.
+      } else if (perm.mode !== 'guest') {
+        // No cloud row yet — seed it from current localStorage. Guests
+        // skip this branch since they have no write permission.
         const localStr = localStorage.getItem(stateKey);
         if (localStr) {
           try {
