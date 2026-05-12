@@ -80,7 +80,7 @@
 
   function pageGroupOf(pageKey) {
     if (!pageKey) return null;
-    if (pageKey === 'matchup' || pageKey === 'matchup-final' || pageKey === 'matchup-grid') return 'cusa-insider';
+    if (pageKey === 'campus-insider' || pageKey === 'matchup' || pageKey === 'matchup-final' || pageKey === 'matchup-grid') return 'cusa-insider';
     if (pageKey === 'championship' || pageKey === 'championship-game-day')                  return 'championship';
     if (pageKey === 'standings') return 'standings';
     if (pageKey === 'potw')      return 'potw';
@@ -172,8 +172,14 @@
 
   // ── Boot ─────────────────────────────────────────────────────────────
   async function boot({ pageKey, stateKey }) {
-    if (isEmbedded()) return;
-    await window.cusaAuth.requireLogin();
+    // Embedded mode: skip the login modal + banner (the parent page owns the
+    // visible auth flow) but still resolve the signed-in user from same-origin
+    // localStorage so cloud sync runs. This is what lets an admin's edits made
+    // inside campus-insider's Matchup iframe push to global.
+    const embedded = isEmbedded();
+    if (!embedded) {
+      await window.cusaAuth.requireLogin();
+    }
     const u = window.cusaAuth.currentUser();
     const perm = resolvePerm(pageKey, u);
 
@@ -182,7 +188,9 @@
     window.__cusaPagePageKey  = pageKey;
     window.__cusaPagePerm     = perm;
 
-    renderModeBanner(pageKey, perm);
+    if (!embedded) {
+      renderModeBanner(pageKey, perm);
+    }
 
     try {
       // Everyone reads global first — it's the team-canonical version.
@@ -228,8 +236,10 @@
   }
 
   // ── hookPersist — wraps window.persistState to mirror to the right table.
+  // Runs in both standalone and embedded modes; in embedded iframes it reads
+  // the parent's auth session via same-origin localStorage so admin edits made
+  // inside the campus-insider iframes still push to global.
   function hookPersist({ pageKey, stateKey }) {
-    if (isEmbedded()) return;
     const orig = window.persistState;
     if (typeof orig !== 'function') {
       console.warn('cusaPage.hookPersist: window.persistState not found.');

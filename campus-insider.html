@@ -74,6 +74,11 @@ select:disabled{opacity:0.45;cursor:not-allowed}
 .canvas-wrap canvas{display:block;width:100%;height:100%}
 .preview-meta{margin-top:10px;font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-align:center}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js" onerror="console.warn('config.js not generated — run bash build.sh')"></script>
+<script src="assets/cusa-auth.js"></script>
+<script src="assets/cusa-cloud-state.js"></script>
+<script src="assets/cusa-page.js"></script>
 </head>
 <body>
 
@@ -397,6 +402,72 @@ const state = {
   },
 };
 
+// ─── Persistence ──────────────────────────────────────────────────────────
+const STATE_KEY = 'cusa_campus_insider_v1';
+let _persistArmed = false;  // suppress writes during initial restore/rehydrate
+
+function persistState(){
+  if (!_persistArmed) return;
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      mode: state.mode,
+      frameCount: state.frameCount,
+      scale: state.scale,
+      bgRef: state.bgRef,
+      bgInExport: state.bgInExport,
+      matchupSub: state.matchupSub || null,
+      frames: state.frames.map(f => ({
+        school: f.school, header: f.header, sub: f.sub,
+        align: f.align, xOff: f.xOff, yOff: f.yOff,
+      })),
+      playerStats: {
+        sport: state.playerStats.sport,
+        position: state.playerStats.position,
+        jersey: state.playerStats.jersey,
+        stats: state.playerStats.stats.map(s => ({ label: s.label, value: s.value })),
+      },
+    }));
+  } catch (_) {}
+}
+// Mirror every persistState call to Supabase based on this user's perm for
+// this page (Keith=global → creative_hub_global_state; others=local or guest).
+if (window.cusaPage) window.cusaPage.hookPersist({ pageKey: 'campus-insider', stateKey: STATE_KEY });
+
+function restoreState(){
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (typeof s.mode === 'string')          state.mode = s.mode;
+    if (typeof s.frameCount === 'number')    state.frameCount = s.frameCount;
+    if (typeof s.scale === 'number')         state.scale = s.scale;
+    if (typeof s.bgRef === 'string')         state.bgRef = s.bgRef;
+    if (typeof s.bgInExport === 'boolean')   state.bgInExport = s.bgInExport;
+    if (typeof s.matchupSub === 'string')    state.matchupSub = s.matchupSub;
+    if (Array.isArray(s.frames)) {
+      state.frames = s.frames.map(f => ({
+        school: f.school || 'Liberty',
+        header: f.header || '',
+        sub: f.sub || '',
+        align: f.align || 'center',
+        xOff: typeof f.xOff === 'number' ? f.xOff : 0,
+        yOff: typeof f.yOff === 'number' ? f.yOff : 0,
+        bgImg: null,
+      }));
+    }
+    if (s.playerStats && typeof s.playerStats === 'object') {
+      if (s.playerStats.sport)    state.playerStats.sport    = s.playerStats.sport;
+      if (s.playerStats.position) state.playerStats.position = s.playerStats.position;
+      if (s.playerStats.jersey != null) state.playerStats.jersey = s.playerStats.jersey;
+      if (Array.isArray(s.playerStats.stats)) {
+        state.playerStats.stats = s.playerStats.stats.map(st => ({
+          label: st.label, value: st.value,
+        }));
+      }
+    }
+  } catch (_) {}
+}
+
 // ─── DOM refs ─────────────────────────────────────────────────────────────
 const cvs        = document.getElementById('cvs');
 const ctx        = cvs.getContext('2d');
@@ -548,6 +619,7 @@ function loadMatchupSub(sub){
   document.querySelectorAll('.matchup-subtab').forEach(b => {
     b.classList.toggle('active', b.dataset.sub === sub);
   });
+  persistState();
 }
 document.querySelectorAll('.matchup-subtab').forEach(btn => {
   btn.addEventListener('click', () => loadMatchupSub(btn.dataset.sub));
@@ -1062,6 +1134,9 @@ function draw(opts){
     ctx.drawImage(state.bgRefImg, 0, 0, CANVAS_W, CANVAS_H);
   }
   state.frames.forEach(drawPlate);
+  // Persist after every redraw — every state mutator funnels through here, so
+  // wrapping persistence into draw() avoids touching dozens of input handlers.
+  persistState();
 }
 
 // ─── Player + Stats panel listeners ───────────────────────────────────────
@@ -1555,13 +1630,25 @@ document.getElementById('download').addEventListener('click', () => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 (async () => {
-  state.frameCount = +fcSel.value;
-  state.scale = DEFAULT_SCALE[state.frameCount];
+  // Hydrate from localStorage first so restored mode/frames/playerStats
+  // survive instead of being clobbered by defaults below.
+  restoreState();
+
+  // Build a default starter set only if nothing came from restore.
+  if (!state.frames.length) {
+    state.frameCount = +fcSel.value;
+    state.frames = Array.from({length: state.frameCount}, (_, i) => makeFrame(i));
+    state.bgRef = DEFAULT_BG_REF[state.frameCount] || '';
+  }
+
+  // Sync UI controls to the (possibly restored) state.
+  fcSel.value = String(state.frameCount);
+  if (!state.scale) state.scale = DEFAULT_SCALE[state.frameCount];
   scaleR.value = String(state.scale);
   scaleN.textContent = Math.round(state.scale * 100) + '%';
-  state.frames = Array.from({length: state.frameCount}, (_, i) => makeFrame(i));
-  state.bgRef = DEFAULT_BG_REF[state.frameCount] || '';
-  bgRefSel.value = state.bgRef;
+  bgRefSel.value = state.bgRef || '';
+  bgInExport.checked = !!state.bgInExport;
+
   renderFrameControls();
 
   if (document.fonts && document.fonts.ready) {
@@ -1571,7 +1658,35 @@ document.getElementById('download').addEventListener('click', () => {
   }
 
   await Promise.all([...state.frames.map(ensureBg), ensureBgRef()]);
+
+  // Restore tab UI to match restored mode (without going through applyMode,
+  // which would clobber the restored frame/playerStats values with presets).
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === state.mode));
+  if (state.mode === 'player-stats') {
+    document.getElementById('standardSections').style.display = 'none';
+    document.getElementById('playerStatsSections').style.display = 'flex';
+    syncFrameFromPlayerStats();
+    renderPlayerStatsControls();
+  } else if (state.mode === 'matchup') {
+    loadMatchupSub(state.matchupSub || 'schedule');
+    mainBuilder.style.display = 'none';
+    matchupFrame.style.display = 'flex';
+  } else if (state.mode === 'interview') {
+    fcSel.disabled = true;
+  }
+
   draw();
+
+  // Arm persistence now that init is done — earlier draws above were just
+  // rendering restored state; from this point, every state change syncs to
+  // localStorage and through hookPersist to Supabase per the signed-in
+  // user's permission for the 'campus-insider' page group.
+  _persistArmed = true;
+
+  // Resolve auth + load global state; reloads the page if cloud has fresher
+  // data than localStorage. After this, admin edits push to
+  // creative_hub_global_state and the team picks them up on next load.
+  if (window.cusaPage) window.cusaPage.boot({ pageKey: 'campus-insider', stateKey: STATE_KEY });
 })();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
 </script>
