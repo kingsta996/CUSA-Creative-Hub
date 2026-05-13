@@ -74,6 +74,22 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
 .support-chat-msg a{color:#EB1946}
 .faq-link-pill{display:inline-block;margin:4px 6px 0 0;padding:4px 10px;background:rgba(167,213,0,0.18);color:#A7D500;border:1px solid rgba(167,213,0,0.35);border-radius:999px;font-size:10.5px;font-weight:700;text-decoration:none;letter-spacing:0.3px;font-family:inherit}
 .faq-link-pill:hover{background:#A7D500;color:#0a1624}
+
+/* ── Admin Audit login modal ── */
+.aa-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:9999}
+.aa-overlay.open{display:flex}
+.aa-box{background:#0e1d2e;border:1px solid rgba(255,215,0,0.35);border-radius:12px;padding:24px 26px;width:min(360px,calc(100vw - 32px));color:#fff;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+.aa-box h3{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;letter-spacing:1px;margin-bottom:4px}
+.aa-box p{font-size:11.5px;color:rgba(255,255,255,0.55);margin-bottom:14px;line-height:1.5}
+.aa-box input{width:100%;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);border-radius:7px;color:#fff;font-size:13px;font-family:inherit;margin-bottom:6px}
+.aa-box input:focus{outline:0;border-color:#FFD700;background:rgba(255,255,255,0.1)}
+.aa-err{color:#ff7d8a;font-size:11.5px;margin:4px 0 8px;min-height:16px}
+.aa-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.aa-actions button{padding:8px 16px;border-radius:6px;font-size:11px;font-weight:800;font-family:'Barlow Condensed',sans-serif;letter-spacing:1.5px;cursor:pointer;text-transform:uppercase}
+.aa-actions .secondary{background:transparent;color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.2)}
+.aa-actions .secondary:hover{color:#fff;border-color:#fff}
+.aa-actions .primary{background:#EB1946;color:#fff;border:0}
+.aa-actions .primary:disabled{opacity:0.5;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -351,6 +367,26 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
     </div>
   </div>
 
+  <!-- ═══ ADMIN ═══ -->
+  <div class="section">
+    <div class="section-label">Admin</div>
+    <div class="section-grid">
+
+      <div class="card">
+        <div class="card-bar" style="background:linear-gradient(90deg,#FFD700,#EB1946)"></div>
+        <div class="card-body">
+          <div class="card-icon">🛡</div>
+          <div class="card-name">ADMIN AUDIT</div>
+          <div class="card-desc">Claude Code activity log + risk assessment for this hub. Legacy admin password required.</div>
+        </div>
+        <div class="card-footer">
+          <a class="launch" href="javascript:void(0)" onclick="openAdminAuditLogin();return false;">OPEN →</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
 <div class="footer">
@@ -360,6 +396,20 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
   <span id="hubChatLogsFooter" style="display:none">
     &nbsp;·&nbsp; <a href="chatlogs.html" style="color:rgba(255,255,255,0.35);text-decoration:none;letter-spacing:1px">Chat Logs</a>
   </span>
+</div>
+
+<!-- Admin Audit sign-in modal (legacy admin password gate for admin.html) -->
+<div id="adminAuditLoginOverlay" class="aa-overlay" role="dialog" aria-label="Admin Audit sign-in">
+  <div class="aa-box">
+    <h3>🛡 ADMIN AUDIT SIGN-IN</h3>
+    <p>Enter the legacy admin password to open the Claude Audit dashboard.</p>
+    <input id="adminAuditPw" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitAdminAuditLogin()">
+    <div class="aa-err" id="adminAuditErr"></div>
+    <div class="aa-actions">
+      <button class="secondary" type="button" onclick="closeAdminAuditLogin()">Cancel</button>
+      <button class="primary" type="button" id="adminAuditSubmit" onclick="submitAdminAuditLogin()">Sign in</button>
+    </div>
+  </div>
 </div>
 
 <!-- Support chat widget — visible to signed-in non-guest users -->
@@ -520,6 +570,57 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
       }
     }
   });
+
+  /* ── Admin Audit gate (legacy admin password → admin.html) ── */
+  var ADMIN_AUDIT_LEGACY_HASH = '9a874f8b06ebb0eb63336db78b70ca149513a237de8395d8e858ee8f0c702ae2';
+
+  function openAdminAuditLogin() {
+    var pwEl = document.getElementById('adminAuditPw');
+    var errEl = document.getElementById('adminAuditErr');
+    if (pwEl) pwEl.value = '';
+    if (errEl) errEl.textContent = '';
+    var overlay = document.getElementById('adminAuditLoginOverlay');
+    if (overlay) overlay.classList.add('open');
+    setTimeout(function () { if (pwEl) pwEl.focus(); }, 60);
+  }
+  function closeAdminAuditLogin() {
+    var overlay = document.getElementById('adminAuditLoginOverlay');
+    if (overlay) overlay.classList.remove('open');
+  }
+  async function adminAuditHashPw(s) {
+    var buf = new TextEncoder().encode(s);
+    var h = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(h)).map(function (b) { return b.toString(16).padStart(2,'0'); }).join('');
+  }
+  async function submitAdminAuditLogin() {
+    var pw  = document.getElementById('adminAuditPw').value;
+    var err = document.getElementById('adminAuditErr');
+    var btn = document.getElementById('adminAuditSubmit');
+    err.textContent = '';
+    if (!pw) { err.textContent = 'Password required.'; return; }
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    try {
+      var h = await adminAuditHashPw(pw);
+      if (h !== ADMIN_AUDIT_LEGACY_HASH) {
+        err.textContent = 'Incorrect password.';
+        btn.disabled = false; btn.textContent = 'Sign in';
+        return;
+      }
+      // Pre-seed admin.html's session so bootAuth skips its own modal and
+      // mounts the Claude Audit tab directly.
+      try {
+        localStorage.setItem('cusa_creative_admin_user', JSON.stringify({
+          email: 'kking@conferenceusa.com',
+          display_name: 'Legacy Admin',
+          role: 'admin'
+        }));
+      } catch (_) {}
+      window.location.href = 'admin.html';
+    } catch (e) {
+      err.textContent = 'Sign-in failed: ' + (e.message || e);
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  }
 </script>
 
 </body>
