@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creative Hub Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+  :root { --red:#EB1946; --bg:#060f1a; --panel:rgba(255,255,255,0.04); --line:rgba(255,255,255,0.1); --mute:rgba(255,255,255,0.55); --green:#A7D500; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: #fff; font-family: 'Barlow', sans-serif; min-height: 100vh; }
+
+  .header { padding: 18px 24px; display: flex; gap: 14px; align-items: center; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .header h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
+  .header h1 small { display: block; font-size: 9px; letter-spacing: 4px; color: rgba(255,255,255,0.35); margin-bottom: 3px; font-weight: 800; }
+  .header .grow { flex: 1; }
+  .header a { color: var(--red); font-size: 12px; text-decoration: none; font-weight: 700; font-family: 'Barlow Condensed', sans-serif; letter-spacing: 1.5px; text-transform: uppercase; }
+  .header a:hover { color: #fff; }
+  .who { color: var(--mute); font-size: 12px; }
+  .signout { background: transparent; color: var(--mute); border: 1px solid var(--line); padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .signout:hover { color: var(--red); border-color: var(--red); }
+
+  .tabs { display: flex; gap: 0; padding: 0 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs button { background: transparent; color: rgba(255,255,255,0.5); border: 0; padding: 14px 18px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border-bottom: 3px solid transparent; }
+  .tabs button.active { color: var(--red); border-bottom-color: var(--red); }
+  .tabs button:hover { color: #fff; }
+  section.tab { display: none; padding: 22px 24px; }
+  section.tab.active { display: block; }
+
+  .login-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 99999; }
+  .login-overlay.open { display: flex; }
+  .login-box { background: rgba(10,22,36,0.98); border: 1px solid var(--line); border-radius: 14px; padding: 28px; width: min(360px, calc(100vw - 32px)); }
+  .login-box h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .login-box p { font-size: 12px; color: var(--mute); margin-bottom: 16px; line-height: 1.5; }
+  .login-box input { width: 100%; padding: 10px 12px; background: rgba(255,255,255,0.06); border: 1px solid var(--line); border-radius: 8px; color: #fff; font-size: 13px; font-family: inherit; margin-bottom: 8px; }
+  .login-box input:focus { outline: 0; border-color: var(--red); }
+  .login-err { color: #ff7d8a; font-size: 11.5px; min-height: 16px; margin: 4px 0 8px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .btn { padding: 9px 16px; border-radius: 8px; font-size: 11px; font-weight: 800; font-family: 'Barlow Condensed', sans-serif; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; }
+  .btn-primary { background: var(--red); color: #fff; border: 0; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: transparent; color: var(--mute); border: 1px solid var(--line); }
+  .btn-secondary:hover { color: #fff; border-color: #fff; }
+</style>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="claude-audit-ui.js"></script>
+</head>
+<body>
+
+<div id="loginOverlay" class="login-overlay open">
+  <div class="login-box">
+    <h2>Creative Hub Admin</h2>
+    <p>Restricted to Keith (kking@conferenceusa.com). Same credentials as the rest of the Creative Hub admin suite.</p>
+    <input id="loginEmail" type="email" placeholder="kking@conferenceusa.com" autocomplete="email" value="kking@conferenceusa.com">
+    <input id="loginPw" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
+    <div id="loginErr" class="login-err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="window.location.href='index.html'">Cancel</button>
+      <button class="btn btn-primary" id="loginBtn" onclick="submitLogin()">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<div class="header">
+  <h1><small>Creative Hub</small>Admin Console</h1>
+  <div class="grow"></div>
+  <span class="who" id="currentUser"></span>
+  <a href="index.html">← Hub</a>
+  <a href="chatlogs.html">Chat Logs</a>
+  <button class="signout" onclick="signOut()">Sign Out</button>
+</div>
+
+<div class="tabs">
+  <button class="active" data-tab="claude-audit" onclick="showTab('claude-audit')">🛡 Claude Audit</button>
+</div>
+
+<section class="tab active" id="tab-claude-audit">
+  <div id="claudeAuditMount"></div>
+</section>
+
+<script>
+  var SUPER_EMAIL = 'kking@conferenceusa.com';
+  var SESSION_KEY = 'cusa_creative_admin_user';
+  var _db = null, _user = null;
+
+  function db() {
+    if (_db) return _db;
+    if (typeof supabase !== 'undefined' && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+      _db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    }
+    return _db;
+  }
+
+  async function hashPw(s) {
+    var buf = new TextEncoder().encode(s);
+    var h = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(h)).map(function (b) { return b.toString(16).padStart(2,'0'); }).join('');
+  }
+
+  async function submitLogin() {
+    var email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
+    var pw    = document.getElementById('loginPw').value;
+    var err   = document.getElementById('loginErr');
+    var btn   = document.getElementById('loginBtn');
+    err.textContent = '';
+    if (email !== SUPER_EMAIL) { err.textContent = 'Restricted to ' + SUPER_EMAIL + '.'; return; }
+    if (!pw) { err.textContent = 'Password required.'; return; }
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    try {
+      var d = db();
+      if (!d) { err.textContent = 'Database not configured.'; btn.disabled = false; btn.textContent = 'Sign in'; return; }
+      var h = await hashPw(pw);
+      var resp = await d.from('creative_hub_users').select('email, pw_hash, display_name, is_active, role').eq('email', email).maybeSingle();
+      if (resp.error) throw resp.error;
+      var row = resp.data;
+      if (!row || !row.is_active || row.pw_hash !== h || row.role !== 'admin') {
+        err.textContent = 'Incorrect password or insufficient role.';
+        btn.disabled = false; btn.textContent = 'Sign in'; return;
+      }
+      _user = { email: row.email, display_name: row.display_name || 'Keith King', role: 'admin' };
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify(_user)); } catch (_) {}
+      btn.disabled = false; btn.textContent = 'Sign in';
+      onSignedIn();
+    } catch (e) {
+      err.textContent = 'Sign-in failed: ' + (e.message || e);
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  }
+
+  function signOut() {
+    try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
+    location.reload();
+  }
+
+  function onSignedIn() {
+    document.getElementById('loginOverlay').classList.remove('open');
+    document.getElementById('currentUser').textContent = _user.display_name + ' · ' + _user.email;
+    showTab('claude-audit');
+  }
+
+  function bootAuth() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (raw) {
+        var u = JSON.parse(raw);
+        if (u && u.email === SUPER_EMAIL) { _user = u; onSignedIn(); return; }
+      }
+    } catch (_) {}
+    setTimeout(function () { document.getElementById('loginPw').focus(); }, 80);
+  }
+
+  function showTab(name) {
+    document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
+    document.querySelectorAll('section.tab').forEach(function (s) { s.classList.toggle('active', s.id === 'tab-' + name); });
+    if (name === 'claude-audit') mountClaudeAudit();
+  }
+
+  function mountClaudeAudit() {
+    if (typeof ClaudeAudit === 'undefined' || !ClaudeAudit.init) {
+      document.getElementById('claudeAuditMount').innerHTML = '<div style="padding:24px;opacity:0.6">Claude Audit module not loaded.</div>';
+      return;
+    }
+    var d = db();
+    ClaudeAudit.init({
+      db:            d,
+      container:     document.getElementById('claudeAuditMount'),
+      hubLabel:      'Creative Hub',
+      repoLabel:     'cusa-creative-hub',
+      repoFilter:    '%/cusa-creative-hub%',
+      getUser:       function () { return _user; },
+      requiredEmail: SUPER_EMAIL
+    });
+  }
+
+  bootAuth();
+</script>
+</body>
+</html>
