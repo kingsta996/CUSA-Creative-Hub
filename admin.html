@@ -11,9 +11,16 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: #fff; font-family: 'Barlow', sans-serif; min-height: 100vh; }
 
-  .header { padding: 18px 24px; display: flex; gap: 14px; align-items: center; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .header { padding: 14px 22px; display: flex; gap: 18px; align-items: center; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .header .cobrand { display: flex; align-items: center; gap: 14px; }
+  .header .cusa-logo { height: 42px; width: auto; display: block; }
+  .header .cobrand-x { font-family: 'Times New Roman', serif; font-size: 22px; font-weight: 300; color: var(--red); opacity: 0.75; line-height: 1; }
+  .header .claude-pill { background: #FAF5EE; border-radius: 999px; padding: 7px 16px; display: inline-flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+  .header .claude-logo { height: 22px; width: auto; display: block; }
+  .header .cobrand-divider { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
   .header h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
   .header h1 small { display: block; font-size: 9px; letter-spacing: 4px; color: rgba(255,255,255,0.35); margin-bottom: 3px; font-weight: 800; }
+  @media (max-width: 640px) { .header .cusa-logo { height: 32px; } .header .claude-logo { height: 18px; } .header h1 { font-size: 14px; flex-basis: 100%; order: 2; } }
   .header .grow { flex: 1; }
   .header a { color: var(--red); font-size: 12px; text-decoration: none; font-weight: 700; font-family: 'Barlow Condensed', sans-serif; letter-spacing: 1.5px; text-transform: uppercase; }
   .header a:hover { color: #fff; }
@@ -64,7 +71,13 @@
 </div>
 
 <div class="header">
-  <h1><small>Creative Hub</small>Admin Console</h1>
+  <div class="cobrand">
+    <img class="cusa-logo"   src="Logos/cusa-stacked-white.png" alt="Conference USA" onerror="this.style.display='none'">
+    <span class="cobrand-x" aria-hidden="true">×</span>
+    <span class="claude-pill"><img class="claude-logo" src="Logos/claude-logo.png" alt="Claude"></span>
+  </div>
+  <div class="cobrand-divider" aria-hidden="true"></div>
+  <h1><small>Creative Hub · Cobranded</small>Admin Console</h1>
   <div class="grow"></div>
   <span class="who" id="currentUser"></span>
   <a href="index.html">← Hub</a>
@@ -82,6 +95,14 @@
 
 <script>
   var SUPER_EMAIL = 'kking@conferenceusa.com';
+  // Local-hash admin accounts that bypass the creative_hub_users table lookup
+  // (so we don't need to enroll IT staff in the page-permissions table).
+  // Keep in sync with ADMIN_AUDIT_USERS in index.html.
+  var LOCAL_ADMINS = [
+    { hash: '9a874f8b06ebb0eb63336db78b70ca149513a237de8395d8e858ee8f0c702ae2', email: 'kking@conferenceusa.com', display_name: 'Keith King' },
+    { hash: 'ee0579f300f3d10b330e1b9a9d122d6638f9ab54a2fa6c28dd8e5e972c0fadf1', email: 'bcarter@gxait.com',        display_name: 'GXA IT — B. Carter' }
+  ];
+  var ALLOWED_EMAILS = LOCAL_ADMINS.map(function (u) { return u.email; });
   var SESSION_KEY = 'cusa_creative_admin_user';
   var _db = null, _user = null;
 
@@ -105,13 +126,27 @@
     var err   = document.getElementById('loginErr');
     var btn   = document.getElementById('loginBtn');
     err.textContent = '';
-    if (email !== SUPER_EMAIL) { err.textContent = 'Restricted to ' + SUPER_EMAIL + '.'; return; }
+    if (ALLOWED_EMAILS.indexOf(email) === -1) {
+      err.textContent = 'Restricted to ' + ALLOWED_EMAILS.join(' / ') + '.';
+      return;
+    }
     if (!pw) { err.textContent = 'Password required.'; return; }
     btn.disabled = true; btn.textContent = 'Signing in…';
     try {
+      var h = await hashPw(pw);
+      // Local-hash path: IT/legacy admins authenticate without a DB round-trip
+      // so they don't need a row in creative_hub_users.
+      var local = LOCAL_ADMINS.find(function (u) { return u.email === email && u.hash === h; });
+      if (local) {
+        _user = { email: local.email, display_name: local.display_name, role: 'admin' };
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify(_user)); } catch (_) {}
+        btn.disabled = false; btn.textContent = 'Sign in';
+        onSignedIn();
+        return;
+      }
+      // Fallback: Supabase creative_hub_users lookup (legacy DB-backed admins).
       var d = db();
       if (!d) { err.textContent = 'Database not configured.'; btn.disabled = false; btn.textContent = 'Sign in'; return; }
-      var h = await hashPw(pw);
       var resp = await d.from('creative_hub_users').select('email, pw_hash, display_name, is_active, role').eq('email', email).maybeSingle();
       if (resp.error) throw resp.error;
       var row = resp.data;
@@ -119,7 +154,7 @@
         err.textContent = 'Incorrect password or insufficient role.';
         btn.disabled = false; btn.textContent = 'Sign in'; return;
       }
-      _user = { email: row.email, display_name: row.display_name || 'Keith King', role: 'admin' };
+      _user = { email: row.email, display_name: row.display_name || row.email, role: 'admin' };
       try { localStorage.setItem(SESSION_KEY, JSON.stringify(_user)); } catch (_) {}
       btn.disabled = false; btn.textContent = 'Sign in';
       onSignedIn();
@@ -145,7 +180,7 @@
       var raw = localStorage.getItem(SESSION_KEY);
       if (raw) {
         var u = JSON.parse(raw);
-        if (u && u.email === SUPER_EMAIL) { _user = u; onSignedIn(); return; }
+        if (u && u.email && ALLOWED_EMAILS.indexOf(u.email) !== -1) { _user = u; onSignedIn(); return; }
       }
     } catch (_) {}
     setTimeout(function () { document.getElementById('loginPw').focus(); }, 80);
@@ -170,7 +205,7 @@
       repoLabel:     'cusa-creative-hub',
       repoFilter:    '%/cusa-creative-hub%',
       getUser:       function () { return _user; },
-      requiredEmail: SUPER_EMAIL
+      allowedEmails: ALLOWED_EMAILS
     });
   }
 
