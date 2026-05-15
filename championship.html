@@ -575,9 +575,11 @@ async function draw(){
   ctx.fillText(state.top.seed || '', SEED_CX, SEED_CY.top);
   ctx.fillText(state.bot.seed || '', SEED_CX, SEED_CY.bot);
 
-  // R / H / E values (Gazzetta ExtraBold 161.59pt white). Each row gets a
-  // shared Y nudge; each column has its own X nudge applied to both rows.
-  ctx.fillStyle = WHITE;
+  // R / H / E values (Gazzetta ExtraBold 161.59pt navy — matches the seed
+  // numbers + FINAL SCORE banner letters so they read against the light BG /
+  // overlay strip). Each row gets a shared Y nudge; each column has its own
+  // X nudge applied to both rows.
+  ctx.fillStyle = NAVY;
   ctx.font = SCORE_FONT;
   for (const side of ['top', 'bot']) {
     const baseCy = side === 'top' ? SEED_CY.top : SEED_CY.bot;
