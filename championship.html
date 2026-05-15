@@ -140,6 +140,41 @@ body{display:flex;flex-direction:column;overflow:hidden}
     </label>
     <button class="btn secondary" id="clearPhotoBtn" style="font-size:10px;padding:8px 10px">Clear photo</button>
 
+    <div class="panel-head" style="margin-top:6px">Custom Background</div>
+    <label class="upload-zone" id="bgZone">
+      <input type="file" accept="image/*" onchange="onCustomBgUpload(event)">
+      <span id="bgZoneText">+ Upload custom background</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.7);text-transform:uppercase;cursor:pointer">
+      <input id="hideOverlays" type="checkbox" style="accent-color:#EB1946;margin:0">
+      Hide built-in score box overlays
+    </label>
+    <button class="btn secondary" id="clearBgBtn" style="font-size:10px;padding:8px 10px">Clear custom background</button>
+
+    <div class="panel-head" style="margin-top:6px">Championship Logo</div>
+    <label class="upload-zone" id="champLogoZone">
+      <input type="file" accept="image/*" onchange="onChampLogoUpload(event)">
+      <span id="champLogoZoneText">+ Upload championship logo</span>
+    </label>
+    <div class="team-card">
+      <div class="team-card-title">Position &amp; Size</div>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label">X (center) <span class="nudge-readout" id="champLogoXR">540px</span></label>
+          <input id="champLogoX" type="range" min="0" max="1080" step="1" value="540">
+        </div>
+        <div class="field">
+          <label class="field-label">Y (center) <span class="nudge-readout" id="champLogoYR">150px</span></label>
+          <input id="champLogoY" type="range" min="0" max="1350" step="1" value="150">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Size <span class="nudge-readout" id="champLogoSizeR">25%</span></label>
+        <input id="champLogoSize" type="range" min="5" max="100" step="1" value="25">
+      </div>
+    </div>
+    <button class="btn secondary" id="clearChampLogoBtn" style="font-size:10px;padding:8px 10px">Clear championship logo</button>
+
     <div class="panel-head" style="margin-top:6px">Position Tuning <span style="font-weight:600;color:rgba(255,255,255,0.35);letter-spacing:1px">· auto-saved</span></div>
     <div class="team-card">
       <div class="team-card-title">Photo</div>
@@ -239,6 +274,7 @@ const SCHOOLS = [
   { id:'Liberty',           file:'26 SB Final Score - Liberty.png' },
   { id:'New Mexico State',  file:'26 SB Final Score - New Mexico State.png' },
   { id:'Sam Houston',       file:'26 SB Final Score - SHSU.png' },
+  { id:'UCF',               file:'26 SB Final Score - UCF.png' },
   { id:'Western Kentucky',  file:'26 SB Final Score - WKU.png' },
 ];
 
@@ -272,9 +308,17 @@ const WHITE      = '#FFFFFF';
 
 // ─── State ────────────────────────────────────────────────────────────────
 const state = {
-  top: { school: SCHOOLS[4].id, seed: '1', r: '0', h: '0', e: '0', logoImg: null },
-  bot: { school: SCHOOLS[6].id, seed: '2', r: '0', h: '0', e: '0', logoImg: null },
+  top: { school: 'Liberty',          seed: '1', r: '0', h: '0', e: '0', logoImg: null },
+  bot: { school: 'Western Kentucky', seed: '2', r: '0', h: '0', e: '0', logoImg: null },
   photo: null,
+  customBg: null,           // operator-uploaded Image replacing the default bg layer
+  hideOverlays: false,      // when true, skip the built-in scoreBox / scoreOverlay / seedsBoxes layers
+  champLogo: {              // optional NCAA championship overlay, drawn topmost
+    img: null,
+    x: 540,                 // center X (0..1080)
+    y: 150,                 // center Y (0..1350)
+    size: 25,               // width as % of canvas (5..100)
+  },
   layerImgs: {},
   // Per-element nudges. Logos shift by (dx, dy); the score row Ys nudge the
   // R/H/E values vertically per row, and each column has its own X offset
@@ -360,6 +404,64 @@ document.getElementById('clearPhotoBtn').addEventListener('click', () => {
   draw();
 });
 
+// ─── Custom background + championship logo uploads ───────────────────────
+function onCustomBgUpload(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      state.customBg = img;
+      document.getElementById('bgZone').classList.add('loaded');
+      document.getElementById('bgZoneText').textContent = '✓ Custom BG loaded — click to replace';
+      persistState();
+      draw();
+    };
+    img.src = ev.target.result;
+  };
+  fr.readAsDataURL(file);
+}
+document.getElementById('clearBgBtn').addEventListener('click', () => {
+  state.customBg = null;
+  document.getElementById('bgZone').classList.remove('loaded');
+  document.getElementById('bgZoneText').textContent = '+ Upload custom background';
+  document.querySelector('#bgZone input').value = '';
+  persistState();
+  draw();
+});
+document.getElementById('hideOverlays').addEventListener('change', e => {
+  state.hideOverlays = !!e.target.checked;
+  persistState();
+  draw();
+});
+
+function onChampLogoUpload(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      state.champLogo.img = img;
+      document.getElementById('champLogoZone').classList.add('loaded');
+      document.getElementById('champLogoZoneText').textContent = '✓ Championship logo loaded — click to replace';
+      persistState();
+      draw();
+    };
+    img.src = ev.target.result;
+  };
+  fr.readAsDataURL(file);
+}
+document.getElementById('clearChampLogoBtn').addEventListener('click', () => {
+  state.champLogo.img = null;
+  document.getElementById('champLogoZone').classList.remove('loaded');
+  document.getElementById('champLogoZoneText').textContent = '+ Upload championship logo';
+  document.querySelector('#champLogoZone input').value = '';
+  persistState();
+  draw();
+});
+
 // ─── Render ───────────────────────────────────────────────────────────────
 function drawCoverFit(img, x, y, w, h, nudgeDx, nudgeDy, scale){
   const s = (scale ?? 100) / 100;
@@ -390,9 +492,14 @@ function drawCoverFit(img, x, y, w, h, nudgeDx, nudgeDy, scale){
 async function draw(){
   ctx.clearRect(0, 0, 1080, 1350);
 
-  // 1. BG (full canvas)
-  try { ctx.drawImage(await ensureLayer('bg'), 0, 0, 1080, 1350); }
-  catch (e) { ctx.fillStyle = '#0a1628'; ctx.fillRect(0,0,1080,1350); console.error(e); }
+  // 1. BG (full canvas) — custom upload takes precedence over the default asset.
+  if (state.customBg) {
+    try { ctx.drawImage(state.customBg, 0, 0, 1080, 1350); }
+    catch (e) { ctx.fillStyle = '#0a1628'; ctx.fillRect(0,0,1080,1350); console.error(e); }
+  } else {
+    try { ctx.drawImage(await ensureLayer('bg'), 0, 0, 1080, 1350); }
+    catch (e) { ctx.fillStyle = '#0a1628'; ctx.fillRect(0,0,1080,1350); console.error(e); }
+  }
 
   // 2. Photo (clipped to photo area, with operator-controlled nudge + zoom)
   if (state.photo) {
@@ -417,8 +524,11 @@ async function draw(){
 
   // 4. Score Box (FINAL SCORE banner + dark navy body — provides the substrate
   //     the team logos sit on). Drawn between Photo and Team Logos so the
-  //     logos render on top of the navy background.
-  try { ctx.drawImage(await ensureLayer('scoreBox'), 0, 0, 1080, 1350); } catch (_) {}
+  //     logos render on top of the navy background. Skipped when the operator
+  //     has uploaded a custom BG that bakes these elements in.
+  if (!state.hideOverlays) {
+    try { ctx.drawImage(await ensureLayer('scoreBox'), 0, 0, 1080, 1350); } catch (_) {}
+  }
 
   // 5. Team logos (with per-team X/Y nudge)
   if (state.top.logoImg) {
@@ -435,10 +545,14 @@ async function draw(){
   }
 
   // 6. Score Overlay (C-USA + R/H/E label strip + column dividers)
-  try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
+  if (!state.hideOverlays) {
+    try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
+  }
 
   // 7. Seed Boxes (small light-gray squares to the left of each team logo)
-  try { ctx.drawImage(await ensureLayer('seedsBoxes'), 0, 0, 1080, 1350); } catch (_) {}
+  if (!state.hideOverlays) {
+    try { ctx.drawImage(await ensureLayer('seedsBoxes'), 0, 0, 1080, 1350); } catch (_) {}
+  }
 
   // ── Text overlays ──
   ctx.textAlign = 'center';
@@ -460,6 +574,15 @@ async function draw(){
     ctx.fillText(state[side].r || '', COLS_CX.r + state.adj.rColDx, cy);
     ctx.fillText(state[side].h || '', COLS_CX.h + state.adj.hColDx, cy);
     ctx.fillText(state[side].e || '', COLS_CX.e + state.adj.eColDx, cy);
+  }
+
+  // ── Championship Logo overlay (topmost; centered at champLogo.x/y, width = size% of canvas) ──
+  const cl = state.champLogo;
+  if (cl && cl.img) {
+    const w = (cl.size / 100) * 1080;
+    const ar = cl.img.naturalWidth / cl.img.naturalHeight;
+    const h = w / (ar || 1);
+    ctx.drawImage(cl.img, cl.x - w/2, cl.y - h/2, w, h);
   }
 }
 
@@ -503,11 +626,16 @@ const STATE_KEY       = 'cusa_championship_softball_finalscore_v2';
 
 function persistState(){
   try {
-    const photoSrc = (state.photo && state.photo.src) ? state.photo.src : null;
+    const photoSrc     = (state.photo    && state.photo.src)         ? state.photo.src         : null;
+    const customBgSrc  = (state.customBg && state.customBg.src)      ? state.customBg.src      : null;
+    const champLogoSrc = (state.champLogo && state.champLogo.img && state.champLogo.img.src) ? state.champLogo.img.src : null;
     localStorage.setItem(STATE_KEY, JSON.stringify({
       top: { school: state.top.school, seed: state.top.seed, r: state.top.r, h: state.top.h, e: state.top.e },
       bot: { school: state.bot.school, seed: state.bot.seed, r: state.bot.r, h: state.bot.h, e: state.bot.e },
       photo: photoSrc,
+      customBg: customBgSrc,
+      hideOverlays: !!state.hideOverlays,
+      champLogo: { src: champLogoSrc, x: state.champLogo.x, y: state.champLogo.y, size: state.champLogo.size },
       adj: state.adj,
     }));
   } catch (_) {}
@@ -548,6 +676,38 @@ function restoreState(){
       };
       img.src = v2.photo;
     }
+    if (typeof v2.customBg === 'string' && v2.customBg) {
+      const img = new Image();
+      img.onload = () => {
+        state.customBg = img;
+        const zone = document.getElementById('bgZone');
+        if (zone) {
+          zone.classList.add('loaded');
+          document.getElementById('bgZoneText').textContent = '✓ Custom BG loaded — click to replace';
+        }
+        draw();
+      };
+      img.src = v2.customBg;
+    }
+    if (typeof v2.hideOverlays === 'boolean') state.hideOverlays = v2.hideOverlays;
+    if (v2.champLogo && typeof v2.champLogo === 'object') {
+      if (typeof v2.champLogo.x    === 'number') state.champLogo.x    = v2.champLogo.x;
+      if (typeof v2.champLogo.y    === 'number') state.champLogo.y    = v2.champLogo.y;
+      if (typeof v2.champLogo.size === 'number') state.champLogo.size = v2.champLogo.size;
+      if (typeof v2.champLogo.src  === 'string' && v2.champLogo.src) {
+        const img = new Image();
+        img.onload = () => {
+          state.champLogo.img = img;
+          const zone = document.getElementById('champLogoZone');
+          if (zone) {
+            zone.classList.add('loaded');
+            document.getElementById('champLogoZoneText').textContent = '✓ Championship logo loaded — click to replace';
+          }
+          draw();
+        };
+        img.src = v2.champLogo.src;
+      }
+    }
     return;
   }
   // v1 fallback (positions only).
@@ -565,28 +725,37 @@ function restoreState(){
 }
 const restorePositions = restoreState;
 
+// champLogoX / champLogoY are absolute canvas coords (not nudges), so suppress
+// the leading '+' prefix that the other px readouts use for positive values.
+const ABS_COORD_IDS = new Set(['champLogoX', 'champLogoY']);
+const PCT_SCALE_IDS = new Set(['photoScale', 'champLogoSize']);
+
 function syncSlidersFromState(){
   const m = {
-    topLogoDx:  state.adj.topLogo.dx,
-    topLogoDy:  state.adj.topLogo.dy,
-    botLogoDx:  state.adj.botLogo.dx,
-    botLogoDy:  state.adj.botLogo.dy,
-    topScoreDy: state.adj.topScoreDy,
-    botScoreDy: state.adj.botScoreDy,
-    rColDx:     state.adj.rColDx,
-    hColDx:     state.adj.hColDx,
-    eColDx:     state.adj.eColDx,
-    photoDx:    state.adj.photo?.dx ?? 0,
-    photoDy:    state.adj.photo?.dy ?? 0,
-    photoScale: state.adj.photo?.scale ?? 100,
+    topLogoDx:     state.adj.topLogo.dx,
+    topLogoDy:     state.adj.topLogo.dy,
+    botLogoDx:     state.adj.botLogo.dx,
+    botLogoDy:     state.adj.botLogo.dy,
+    topScoreDy:    state.adj.topScoreDy,
+    botScoreDy:    state.adj.botScoreDy,
+    rColDx:        state.adj.rColDx,
+    hColDx:        state.adj.hColDx,
+    eColDx:        state.adj.eColDx,
+    photoDx:       state.adj.photo?.dx ?? 0,
+    photoDy:       state.adj.photo?.dy ?? 0,
+    photoScale:    state.adj.photo?.scale ?? 100,
+    champLogoX:    state.champLogo.x,
+    champLogoY:    state.champLogo.y,
+    champLogoSize: state.champLogo.size,
   };
   for (const [id, val] of Object.entries(m)) {
     const inp = document.getElementById(id);
     const ro  = document.getElementById(id + 'R');
     if (inp) inp.value = String(val);
     if (ro) {
-      const unit = id === 'photoScale' ? '%' : 'px';
-      ro.textContent = (val >= 0 && unit === 'px' ? '+' : '') + val + unit;
+      const unit = PCT_SCALE_IDS.has(id) ? '%' : 'px';
+      const showPlus = (val >= 0 && unit === 'px' && !ABS_COORD_IDS.has(id));
+      ro.textContent = (showPlus ? '+' : '') + val + unit;
     }
   }
 }
@@ -598,23 +767,28 @@ function syncTextInputsFromState(){
   document.querySelectorAll('input[data-team][data-stat]').forEach(inp => {
     inp.value = state[inp.dataset.team][inp.dataset.stat];
   });
+  const hideCb = document.getElementById('hideOverlays');
+  if (hideCb) hideCb.checked = !!state.hideOverlays;
 }
 
 // Position-tuning sliders. Each slider updates the corresponding state.adj
 // field and re-draws. Readouts show the current px value.
 const ADJ_BINDINGS = [
-  ['topLogoDx',  v => state.adj.topLogo.dx = v, 'px'],
-  ['topLogoDy',  v => state.adj.topLogo.dy = v, 'px'],
-  ['botLogoDx',  v => state.adj.botLogo.dx = v, 'px'],
-  ['botLogoDy',  v => state.adj.botLogo.dy = v, 'px'],
-  ['topScoreDy', v => state.adj.topScoreDy = v, 'px'],
-  ['botScoreDy', v => state.adj.botScoreDy = v, 'px'],
-  ['rColDx',     v => state.adj.rColDx = v, 'px'],
-  ['hColDx',     v => state.adj.hColDx = v, 'px'],
-  ['eColDx',     v => state.adj.eColDx = v, 'px'],
-  ['photoDx',    v => state.adj.photo.dx = v, 'px'],
-  ['photoDy',    v => state.adj.photo.dy = v, 'px'],
-  ['photoScale', v => state.adj.photo.scale = v, '%'],
+  ['topLogoDx',     v => state.adj.topLogo.dx = v,     'px'],
+  ['topLogoDy',     v => state.adj.topLogo.dy = v,     'px'],
+  ['botLogoDx',     v => state.adj.botLogo.dx = v,     'px'],
+  ['botLogoDy',     v => state.adj.botLogo.dy = v,     'px'],
+  ['topScoreDy',    v => state.adj.topScoreDy = v,     'px'],
+  ['botScoreDy',    v => state.adj.botScoreDy = v,     'px'],
+  ['rColDx',        v => state.adj.rColDx = v,         'px'],
+  ['hColDx',        v => state.adj.hColDx = v,         'px'],
+  ['eColDx',        v => state.adj.eColDx = v,         'px'],
+  ['photoDx',       v => state.adj.photo.dx = v,       'px'],
+  ['photoDy',       v => state.adj.photo.dy = v,       'px'],
+  ['photoScale',    v => state.adj.photo.scale = v,    '%'],
+  ['champLogoX',    v => state.champLogo.x = v,        'px'],
+  ['champLogoY',    v => state.champLogo.y = v,        'px'],
+  ['champLogoSize', v => state.champLogo.size = v,     '%'],
 ];
 ADJ_BINDINGS.forEach(([id, setter, unit]) => {
   const inp = document.getElementById(id);
@@ -623,7 +797,10 @@ ADJ_BINDINGS.forEach(([id, setter, unit]) => {
   inp.addEventListener('input', () => {
     const v = Number(inp.value || 0);
     setter(v);
-    if (ro) ro.textContent = (v >= 0 && unit === 'px' ? '+' : '') + v + unit;
+    if (ro) {
+      const showPlus = (v >= 0 && unit === 'px' && !ABS_COORD_IDS.has(id));
+      ro.textContent = (showPlus ? '+' : '') + v + unit;
+    }
     persistState();
     draw();
   });
