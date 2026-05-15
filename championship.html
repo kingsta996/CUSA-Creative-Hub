@@ -283,6 +283,7 @@ const LAYERS = {
   bg:                ASSET_DIR + '26 SB Final Score - BG.png',
   cusaWatermark:     ASSET_DIR + '26 SB Final Score - CUSA Logo Overlay.png',
   scoreOverlay:      ASSET_DIR + '26 SB Final Score - Score Overlay.png',
+  scoreBoxes:        ASSET_DIR + '26 SB Final Score - Score Boxes.png',
   seedsBoxes:        ASSET_DIR + '26 SB Final Score - Seeds Boxes.png',
   championshipLogo:  ASSET_DIR + '26 SB Final Score - Championship Logo.png',
 };
@@ -529,7 +530,14 @@ async function draw(){
     try { ctx.drawImage(await ensureLayer('cusaWatermark'), 0, 0, 1080, 1350); } catch (_) {}
   }
 
-  // 4. Team logos (with per-team X/Y nudge)
+  // 4. Final Score overlay — combined FINAL SCORE banner + C-USA + R/H/E
+  //     label strip + dark navy substrate behind the team-logo / score rows.
+  //     Drawn BEFORE the team logos so the navy substrate sits behind them.
+  if (!state.hideOverlays) {
+    try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
+  }
+
+  // 5. Team logos (with per-team X/Y nudge)
   if (state.top.logoImg) {
     ctx.drawImage(state.top.logoImg,
       TEAM_LOGO.x + state.adj.topLogo.dx,
@@ -543,43 +551,30 @@ async function draw(){
       TEAM_LOGO.w, TEAM_LOGO.h);
   }
 
-  // 5. Seed Boxes (small light-gray squares to the left of each team logo)
+  // 6. Score Boxes — C-USA + R/H/E label strip plus tinted score-value cells
+  //     for each row. Sits on top of the navy substrate from the Final Score
+  //     overlay; under the seed boxes so seed numbers can be read first.
+  if (!state.hideOverlays) {
+    try { ctx.drawImage(await ensureLayer('scoreBoxes'), 0, 0, 1080, 1350); } catch (_) {}
+  }
+
+  // 7. Seed Boxes (small light-gray squares to the left of each team logo)
   if (!state.hideOverlays) {
     try { ctx.drawImage(await ensureLayer('seedsBoxes'), 0, 0, 1080, 1350); } catch (_) {}
   }
 
-  // 6. Score Overlay — combined FINAL SCORE banner + C-USA + R/H/E label strip
-  if (!state.hideOverlays) {
-    try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
-  }
-
-  // 7. Championship Logo (operator upload OR bundled NCAA default). Drawn
-  //     under the text overlays so scores stay readable even if the logo is
-  //     dragged into the score area.
-  const cl = state.champLogo;
-  const champImg = (cl && cl.img) || state.layerImgs.championshipLogo;
-  if (champImg) {
-    const w = (cl.size / 100) * 1080;
-    const ar = champImg.naturalWidth / champImg.naturalHeight;
-    const h = w / (ar || 1);
-    ctx.drawImage(champImg, cl.x - w/2, cl.y - h/2, w, h);
-  }
-
-  // ── Text overlays (drawn last so seeds + R/H/E values are always on top) ──
+  // ── 8. Text overlays — all values in white per spec. ──
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Seeds (Gazzetta Black 50pt navy)
+  // Seeds in navy so they read on the light-gray seed boxes.
   ctx.fillStyle = NAVY;
   ctx.font = SEED_FONT;
   ctx.fillText(state.top.seed || '', SEED_CX, SEED_CY.top);
   ctx.fillText(state.bot.seed || '', SEED_CX, SEED_CY.bot);
 
-  // R / H / E values (Gazzetta ExtraBold 161.59pt navy — matches the seed
-  // numbers + FINAL SCORE banner letters so they read against the light BG /
-  // overlay strip). Each row gets a shared Y nudge; each column has its own
-  // X nudge applied to both rows.
-  ctx.fillStyle = NAVY;
+  // R/H/E values in white on the navy substrate.
+  ctx.fillStyle = WHITE;
   ctx.font = SCORE_FONT;
   for (const side of ['top', 'bot']) {
     const baseCy = side === 'top' ? SEED_CY.top : SEED_CY.bot;
@@ -587,6 +582,19 @@ async function draw(){
     ctx.fillText(state[side].r || '', COLS_CX.r + state.adj.rColDx, cy);
     ctx.fillText(state[side].h || '', COLS_CX.h + state.adj.hColDx, cy);
     ctx.fillText(state[side].e || '', COLS_CX.e + state.adj.eColDx, cy);
+  }
+
+  // 8. Championship Logo (operator upload OR bundled NCAA default) — drawn
+  //     last per spec so it sits on top of the score area when positioned
+  //     there. Operator can use the X/Y/Size sliders to move it clear of
+  //     the scores if needed.
+  const cl = state.champLogo;
+  const champImg = (cl && cl.img) || state.layerImgs.championshipLogo;
+  if (champImg) {
+    const w = (cl.size / 100) * 1080;
+    const ar = champImg.naturalWidth / champImg.naturalHeight;
+    const h = w / (ar || 1);
+    ctx.drawImage(champImg, cl.x - w/2, cl.y - h/2, w, h);
   }
 }
 
@@ -857,6 +865,7 @@ document.getElementById('download').addEventListener('click', () => {
     ensureLayer('bg').catch(()=>null),
     ensureLayer('cusaWatermark').catch(()=>null),
     ensureLayer('scoreOverlay').catch(()=>null),
+    ensureLayer('scoreBoxes').catch(()=>null),
     ensureLayer('seedsBoxes').catch(()=>null),
     ensureLayer('championshipLogo').catch(()=>null),
     ensureSchoolLogo('top'),
