@@ -251,10 +251,14 @@ body{display:flex;flex-direction:column;overflow:hidden}
         <div class="field"><label class="field-label">Headline X <span class="nudge-readout" id="headlineDxR">0px</span></label><input id="headlineDx" type="range" min="-300" max="300" step="1" value="0"></div>
         <div class="field"><label class="field-label">Headline Y <span class="nudge-readout" id="headlineDyR">0px</span></label><input id="headlineDy" type="range" min="-100" max="100" step="1" value="0"></div>
       </div>
-      <div class="field">
-        <label class="field-label">Champ Medallion Y <span class="nudge-readout" id="champLayerDyR">0px</span></label>
-        <input id="champLayerDy" type="range" min="-100" max="100" step="1" value="0">
+    </div>
+    <div class="team-card">
+      <div class="team-card-title">Logo + Split Layer · pole &amp; square</div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">X <span class="nudge-readout" id="champLayerDxR">0px</span></label><input id="champLayerDx" type="range" min="-300" max="300" step="1" value="0"></div>
+        <div class="field"><label class="field-label">Y <span class="nudge-readout" id="champLayerDyR">0px</span></label><input id="champLayerDy" type="range" min="-300" max="300" step="1" value="0"></div>
       </div>
+      <div class="field"><label class="field-label">Scale <span class="nudge-readout" id="champLayerScaleR">100%</span></label><input id="champLayerScale" type="range" min="50" max="200" step="1" value="100"></div>
     </div>
     <button id="resetPositions" class="btn secondary" style="font-size:10px;padding:8px 10px">Reset All Positions</button>
 
@@ -431,7 +435,13 @@ const state = {
     timeRowDy: 0,
     headlineDx: 0,
     headlineDy: 0,
-    champLayerDy: 0,  // additional fine-tune on top of CHAMP_LAYER_DY_BASE
+    // No-Logo-and-Split layer transform. X/Y nudge in canvas px (+/-), scale
+    // in %. Both the split asset AND any operator-uploaded championship logo
+    // (which lives inside the square baked into the asset) follow this
+    // transform so the logo stays glued to the square when the layer moves.
+    champLayerDx:    0,
+    champLayerDy:    0,  // additional fine-tune on top of CHAMP_LAYER_DY_BASE
+    champLayerScale: 100,
   },
 };
 
@@ -689,23 +699,33 @@ async function draw(){
   drawSchoolSide('top');
   drawSchoolSide('bot');
 
-  // 5. Champ Logo and Split — "No Logo and Split" asset (pole + empty square).
-  //    Operator can fine-tune its Y offset; base offset is 0 for the new asset.
-  const champDy = CHAMP_LAYER_DY_BASE + state.adj.champLayerDy;
-  try { ctx.drawImage(await ensureChampLogoSplit(), 0, champDy, 1080, 1350); } catch (_) {}
+  // 5. Logo + Split layer transform — operator can nudge X/Y and scale around
+  //    the canvas center. The user-uploaded championship logo (5b) uses the
+  //    same transform so it stays glued to the square baked into the asset.
+  const layerScale = (state.adj.champLayerScale ?? 100) / 100;
+  const layerW = 1080 * layerScale;
+  const layerH = 1350 * layerScale;
+  const layerX = (1080 - layerW) / 2 + (state.adj.champLayerDx || 0);
+  const layerY = (1350 - layerH) / 2 + CHAMP_LAYER_DY_BASE + (state.adj.champLayerDy || 0);
+  try { ctx.drawImage(await ensureChampLogoSplit(), layerX, layerY, layerW, layerH); } catch (_) {}
 
   // 5b. Operator-uploaded championship logo — contain-fit into the square
-  //     baked into the No-Logo-and-Split asset, with X/Y/scale tuning.
+  //     baked into the No-Logo-and-Split asset, transformed alongside the
+  //     split layer plus its own X/Y/scale tuning.
   if (state.userLogo && state.userLogo.img) {
     const u = state.userLogo;
+    // Square bbox in canvas coords after the split-layer transform.
+    const squareX = layerX + USER_LOGO_RECT.x * layerScale;
+    const squareY = layerY + USER_LOGO_RECT.y * layerScale;
+    const squareW = USER_LOGO_RECT.w * layerScale;
+    const squareH = USER_LOGO_RECT.h * layerScale;
+    // Operator's own scale applied around the (transformed) square center.
     const s = (u.scale ?? 100) / 100;
-    const w = USER_LOGO_RECT.w * s;
-    const h = USER_LOGO_RECT.h * s;
-    const cx = USER_LOGO_RECT.x + USER_LOGO_RECT.w / 2;
-    const cy = USER_LOGO_RECT.y + USER_LOGO_RECT.h / 2;
-    // Track the same vertical shift as the split layer so the logo stays
-    // inside the square when the operator nudges Champ Medallion Y.
-    drawContainFit(u.img, cx - w/2 + (u.dx || 0), cy - h/2 + (u.dy || 0) + champDy, w, h);
+    const w = squareW * s;
+    const h = squareH * s;
+    const cx = squareX + squareW / 2;
+    const cy = squareY + squareH / 2;
+    drawContainFit(u.img, cx - w/2 + (u.dx || 0), cy - h/2 + (u.dy || 0), w, h);
   }
 
   // 6. Seeding Overlay (small light-gray seed boxes at far edges)
@@ -873,7 +893,7 @@ function restoreState(){
       ['leftPhoto','rightPhoto','leftLogo','rightLogo','leftBlock','rightBlock'].forEach(k => {
         if (v2.adj[k] && typeof v2.adj[k] === 'object') Object.assign(state.adj[k], v2.adj[k]);
       });
-      ['leftSeedDy','rightSeedDy','timeRowDx','timeRowDy','headlineDx','headlineDy','champLayerDy'].forEach(k => {
+      ['leftSeedDy','rightSeedDy','timeRowDx','timeRowDy','headlineDx','headlineDy','champLayerDx','champLayerDy','champLayerScale'].forEach(k => {
         if (typeof v2.adj[k] === 'number') state.adj[k] = v2.adj[k];
       });
     }
@@ -927,7 +947,7 @@ function restoreState(){
 }
 const restorePositions = restoreState;
 
-const PCT_SCALE_IDS = new Set(['leftLogoScale','rightLogoScale','userLogoScale']);
+const PCT_SCALE_IDS = new Set(['leftLogoScale','rightLogoScale','userLogoScale','champLayerScale']);
 const ADJ_BINDINGS = [
   ['leftPhotoDx',    v => state.adj.leftPhoto.dx  = v],
   ['leftPhotoDy',    v => state.adj.leftPhoto.dy  = v],
@@ -943,9 +963,11 @@ const ADJ_BINDINGS = [
   ['rightSeedDy',    v => state.adj.rightSeedDy   = v],
   ['timeRowDx',      v => state.adj.timeRowDx     = v],
   ['timeRowDy',      v => state.adj.timeRowDy     = v],
-  ['headlineDx',     v => state.adj.headlineDx    = v],
-  ['headlineDy',     v => state.adj.headlineDy    = v],
-  ['champLayerDy',   v => state.adj.champLayerDy  = v],
+  ['headlineDx',     v => state.adj.headlineDx     = v],
+  ['headlineDy',     v => state.adj.headlineDy     = v],
+  ['champLayerDx',   v => state.adj.champLayerDx   = v],
+  ['champLayerDy',   v => state.adj.champLayerDy   = v],
+  ['champLayerScale',v => state.adj.champLayerScale = v],
   ['userLogoDx',     v => state.userLogo.dx       = v],
   ['userLogoDy',     v => state.userLogo.dy       = v],
   ['userLogoScale',  v => state.userLogo.scale    = v],
@@ -969,7 +991,9 @@ function syncSlidersFromState(){
     timeRowDy:      state.adj.timeRowDy,
     headlineDx:     state.adj.headlineDx,
     headlineDy:     state.adj.headlineDy,
+    champLayerDx:   state.adj.champLayerDx ?? 0,
     champLayerDy:   state.adj.champLayerDy,
+    champLayerScale: state.adj.champLayerScale ?? 100,
     userLogoDx:     state.userLogo.dx,
     userLogoDy:     state.userLogo.dy,
     userLogoScale:  state.userLogo.scale ?? 100,
@@ -1025,7 +1049,8 @@ document.getElementById('resetPositions').addEventListener('click', () => {
     leftLogo:  { dx: 0, dy: 0, scale: 100 }, rightLogo:  { dx: 0, dy: 0, scale: 100 },
     leftBlock:  keepLeftBlock,
     rightBlock: keepRightBlock,
-    leftSeedDy: 0, rightSeedDy: 0, timeRowDx: 0, timeRowDy: 0, headlineDx: 0, headlineDy: 0, champLayerDy: 0,
+    leftSeedDy: 0, rightSeedDy: 0, timeRowDx: 0, timeRowDy: 0, headlineDx: 0, headlineDy: 0,
+    champLayerDx: 0, champLayerDy: 0, champLayerScale: 100,
   };
   state.userLogo.dx = 0; state.userLogo.dy = 0; state.userLogo.scale = 100;
   syncSlidersFromState();
