@@ -230,12 +230,18 @@ body{display:flex;flex-direction:column;overflow:hidden}
         <div class="field"><label class="field-label">Left X <span class="nudge-readout" id="leftLogoDxR">0px</span></label><input id="leftLogoDx" type="range" min="-200" max="200" step="1" value="0"></div>
         <div class="field"><label class="field-label">Left Y <span class="nudge-readout" id="leftLogoDyR">0px</span></label><input id="leftLogoDy" type="range" min="-200" max="200" step="1" value="0"></div>
       </div>
-      <div class="field"><label class="field-label">Left Size <span class="nudge-readout" id="leftLogoScaleR">100%</span></label><input id="leftLogoScale" type="range" min="50" max="200" step="1" value="100"></div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Left Size · block <span class="nudge-readout" id="leftLogoScaleR">100%</span></label><input id="leftLogoScale" type="range" min="50" max="200" step="1" value="100"></div>
+        <div class="field"><label class="field-label">Left Logo · mark <span class="nudge-readout" id="leftLogoLogoScaleR">100%</span></label><input id="leftLogoLogoScale" type="range" min="40" max="200" step="1" value="100"></div>
+      </div>
       <div class="row-2">
         <div class="field"><label class="field-label">Right X <span class="nudge-readout" id="rightLogoDxR">0px</span></label><input id="rightLogoDx" type="range" min="-200" max="200" step="1" value="0"></div>
         <div class="field"><label class="field-label">Right Y <span class="nudge-readout" id="rightLogoDyR">0px</span></label><input id="rightLogoDy" type="range" min="-200" max="200" step="1" value="0"></div>
       </div>
-      <div class="field"><label class="field-label">Right Size <span class="nudge-readout" id="rightLogoScaleR">100%</span></label><input id="rightLogoScale" type="range" min="50" max="200" step="1" value="100"></div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">Right Size · block <span class="nudge-readout" id="rightLogoScaleR">100%</span></label><input id="rightLogoScale" type="range" min="50" max="200" step="1" value="100"></div>
+        <div class="field"><label class="field-label">Right Logo · mark <span class="nudge-readout" id="rightLogoLogoScaleR">100%</span></label><input id="rightLogoLogoScale" type="range" min="40" max="200" step="1" value="100"></div>
+      </div>
     </div>
     <div class="team-card">
       <div class="team-card-title">Seeds + Time Row</div>
@@ -423,8 +429,8 @@ const state = {
   adj: {
     leftPhoto:  { dx: 0, dy: 0 },
     rightPhoto: { dx: 0, dy: 0 },
-    leftLogo:   { dx: 0, dy: 0, scale: 100 },
-    rightLogo:  { dx: 0, dy: 0, scale: 100 },
+    leftLogo:   { dx: 0, dy: 0, scale: 100, logoScale: 100 },
+    rightLogo:  { dx: 0, dy: 0, scale: 100, logoScale: 100 },
     // Per-team color block + 3-stop gradient for schools without a custom PNG.
     // Ignored when the selected school is in CUSTOM_LOGOS.
     leftBlock:  { color: '', useGradient: true, intensity: 100 },
@@ -547,12 +553,16 @@ function onUserLogoUpload(e){
 
 // ─── Render helpers ────────────────────────────────────────────────────────
 // Contain-fit: scale image into (w,h) preserving aspect, centered.
-function drawContainFit(img, x, y, w, h){
+// `scale` (%, default 100) zooms the rendered image around the box center
+// without changing the box itself — used for per-side logo-only scaling.
+function drawContainFit(img, x, y, w, h, scale){
   const ar = img.naturalWidth / img.naturalHeight;
   const tar = w / h;
   let dw, dh;
   if (ar > tar) { dw = w; dh = w / ar; }
   else          { dh = h; dw = h * ar; }
+  const s = (scale ?? 100) / 100;
+  dw *= s; dh *= s;
   const ox = x + (w - dw) / 2;
   const oy = y + (h - dh) / 2;
   ctx.drawImage(img, ox, oy, dw, dh);
@@ -585,17 +595,23 @@ function drawSchoolSide(side){
   const conf = SCHOOLS.find(s => s.name === sObj.school);
   const baseColor = (blk.color && blk.color.trim()) || schoolColor(conf);
   if (blk.useGradient !== false) {
+    // Game Day gradient — sampled from the existing custom PNGs (Jax State,
+    // LA Tech, etc): flat full-primary plateau across the upper ~30%, then a
+    // linear darken to ~87% at the bottom. (Final Score uses a different
+    // "lit center" shape; this matches Game Day's brand designs.)
     const k = Math.max(0, Math.min(100, blk.intensity ?? 100)) / 100;
     const grad = ctx.createLinearGradient(0, y, 0, y + h);
-    grad.addColorStop(0,    darkenHex(baseColor, 1 - 0.07 * k));
+    grad.addColorStop(0,    baseColor);
     grad.addColorStop(0.30, baseColor);
-    grad.addColorStop(1,    darkenHex(baseColor, 1 - 0.15 * k));
+    grad.addColorStop(1,    darkenHex(baseColor, 1 - 0.13 * k));
     ctx.fillStyle = grad;
   } else {
     ctx.fillStyle = baseColor;
   }
   ctx.fillRect(x, y, w, h);
-  if (sObj.logoImg) drawContainFit(sObj.logoImg, x, y, w, h);
+  // logoScale zooms only the inner IMS logo (not the color block) around the
+  // box center, so the operator can grow / shrink the mark independently.
+  if (sObj.logoImg) drawContainFit(sObj.logoImg, x, y, w, h, adj.logoScale);
 }
 
 function drawCoverFit(img, x, y, w, h, dx, dy){
@@ -947,7 +963,7 @@ function restoreState(){
 }
 const restorePositions = restoreState;
 
-const PCT_SCALE_IDS = new Set(['leftLogoScale','rightLogoScale','userLogoScale','champLayerScale']);
+const PCT_SCALE_IDS = new Set(['leftLogoScale','rightLogoScale','leftLogoLogoScale','rightLogoLogoScale','userLogoScale','champLayerScale']);
 const ADJ_BINDINGS = [
   ['leftPhotoDx',    v => state.adj.leftPhoto.dx  = v],
   ['leftPhotoDy',    v => state.adj.leftPhoto.dy  = v],
@@ -955,10 +971,12 @@ const ADJ_BINDINGS = [
   ['rightPhotoDy',   v => state.adj.rightPhoto.dy = v],
   ['leftLogoDx',     v => state.adj.leftLogo.dx   = v],
   ['leftLogoDy',     v => state.adj.leftLogo.dy   = v],
-  ['leftLogoScale',  v => state.adj.leftLogo.scale = v],
-  ['rightLogoDx',    v => state.adj.rightLogo.dx  = v],
-  ['rightLogoDy',    v => state.adj.rightLogo.dy  = v],
-  ['rightLogoScale', v => state.adj.rightLogo.scale = v],
+  ['leftLogoScale',      v => state.adj.leftLogo.scale     = v],
+  ['leftLogoLogoScale',  v => state.adj.leftLogo.logoScale = v],
+  ['rightLogoDx',        v => state.adj.rightLogo.dx       = v],
+  ['rightLogoDy',        v => state.adj.rightLogo.dy       = v],
+  ['rightLogoScale',     v => state.adj.rightLogo.scale    = v],
+  ['rightLogoLogoScale', v => state.adj.rightLogo.logoScale = v],
   ['leftSeedDy',     v => state.adj.leftSeedDy    = v],
   ['rightSeedDy',    v => state.adj.rightSeedDy   = v],
   ['timeRowDx',      v => state.adj.timeRowDx     = v],
@@ -981,10 +999,12 @@ function syncSlidersFromState(){
     rightPhotoDy:   state.adj.rightPhoto.dy,
     leftLogoDx:     state.adj.leftLogo.dx,
     leftLogoDy:     state.adj.leftLogo.dy,
-    leftLogoScale:  state.adj.leftLogo.scale ?? 100,
-    rightLogoDx:    state.adj.rightLogo.dx,
-    rightLogoDy:    state.adj.rightLogo.dy,
-    rightLogoScale: state.adj.rightLogo.scale ?? 100,
+    leftLogoScale:      state.adj.leftLogo.scale ?? 100,
+    leftLogoLogoScale:  state.adj.leftLogo.logoScale ?? 100,
+    rightLogoDx:        state.adj.rightLogo.dx,
+    rightLogoDy:        state.adj.rightLogo.dy,
+    rightLogoScale:     state.adj.rightLogo.scale ?? 100,
+    rightLogoLogoScale: state.adj.rightLogo.logoScale ?? 100,
     leftSeedDy:     state.adj.leftSeedDy,
     rightSeedDy:    state.adj.rightSeedDy,
     timeRowDx:      state.adj.timeRowDx,
@@ -1046,7 +1066,7 @@ document.getElementById('resetPositions').addEventListener('click', () => {
   const keepRightBlock = { ...state.adj.rightBlock };
   state.adj = {
     leftPhoto: { dx: 0, dy: 0 }, rightPhoto: { dx: 0, dy: 0 },
-    leftLogo:  { dx: 0, dy: 0, scale: 100 }, rightLogo:  { dx: 0, dy: 0, scale: 100 },
+    leftLogo:  { dx: 0, dy: 0, scale: 100, logoScale: 100 }, rightLogo:  { dx: 0, dy: 0, scale: 100, logoScale: 100 },
     leftBlock:  keepLeftBlock,
     rightBlock: keepRightBlock,
     leftSeedDy: 0, rightSeedDy: 0, timeRowDx: 0, timeRowDy: 0, headlineDx: 0, headlineDy: 0,
