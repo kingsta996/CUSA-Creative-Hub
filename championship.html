@@ -112,6 +112,22 @@ body{display:flex;flex-direction:column;overflow:hidden}
         <div class="field"><label class="field-label">H</label><input data-team="top" data-stat="h" type="text" maxlength="3" value="0"></div>
         <div class="field"><label class="field-label">E</label><input data-team="top" data-stat="e" type="text" maxlength="3" value="0"></div>
       </div>
+      <div id="topBackdrop" style="display:flex;flex-direction:column;gap:8px;border-top:1px dashed rgba(235,25,70,0.18);padding-top:8px;margin-top:2px">
+        <div class="row-2">
+          <div class="field">
+            <label class="field-label">Block Color</label>
+            <input id="topBlockColor" type="color" value="#0a254e" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%">
+          </div>
+          <div class="field">
+            <label class="field-label">Gradient <span class="nudge-readout" id="topBlockIntensityR">100%</span></label>
+            <input id="topBlockIntensity" type="range" min="0" max="100" step="1" value="100">
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:9px;font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.55);text-transform:uppercase;cursor:pointer">
+          <input id="topBlockGradient" type="checkbox" checked style="accent-color:#EB1946;margin:0">
+          Apply gradient
+        </label>
+      </div>
     </div>
 
     <div class="panel-head" style="margin-top:6px">Bottom Team</div>
@@ -130,6 +146,22 @@ body{display:flex;flex-direction:column;overflow:hidden}
         <div class="field"><label class="field-label">R</label><input data-team="bot" data-stat="r" type="text" maxlength="3" value="0"></div>
         <div class="field"><label class="field-label">H</label><input data-team="bot" data-stat="h" type="text" maxlength="3" value="0"></div>
         <div class="field"><label class="field-label">E</label><input data-team="bot" data-stat="e" type="text" maxlength="3" value="0"></div>
+      </div>
+      <div id="botBackdrop" style="display:flex;flex-direction:column;gap:8px;border-top:1px dashed rgba(235,25,70,0.18);padding-top:8px;margin-top:2px">
+        <div class="row-2">
+          <div class="field">
+            <label class="field-label">Block Color</label>
+            <input id="botBlockColor" type="color" value="#9d2235" style="height:32px;padding:2px;background:#0a1624;border:1px solid rgba(255,255,255,0.18);border-radius:4px;width:100%">
+          </div>
+          <div class="field">
+            <label class="field-label">Gradient <span class="nudge-readout" id="botBlockIntensityR">100%</span></label>
+            <input id="botBlockIntensity" type="range" min="0" max="100" step="1" value="100">
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:9px;font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.55);text-transform:uppercase;cursor:pointer">
+          <input id="botBlockGradient" type="checkbox" checked style="accent-color:#EB1946;margin:0">
+          Apply gradient
+        </label>
       </div>
     </div>
 
@@ -264,19 +296,74 @@ body{display:flex;flex-direction:column;overflow:hidden}
 
 <script>
 // ─── Config ───────────────────────────────────────────────────────────────
-const ASSET_DIR = 'championship/softball-final-score/';
-const SCHOOLS = [
-  // Logos available in this Final Score asset set (8 of the 9 host + 2 affiliates).
-  { id:'Delaware',          file:'26 SB Final Score - Delaware.png' },
-  { id:'FIU',               file:'26 SB Final Score - FIU.png' },
-  { id:'Jax State',         file:'26 SB Final Score - Jax State.png' },
-  { id:'LA Tech',           file:'26 SB Final Score - LA Tech.png' },
-  { id:'Liberty',           file:'26 SB Final Score - Liberty.png' },
-  { id:'New Mexico State',  file:'26 SB Final Score - New Mexico State.png' },
-  { id:'Sam Houston',       file:'26 SB Final Score - SHSU.png' },
-  { id:'UCF',               file:'26 SB Final Score - UCF.png' },
-  { id:'Western Kentucky',  file:'26 SB Final Score - WKU.png' },
-];
+const ASSET_DIR         = 'championship/softball-final-score/';
+const ASSET_DIR_PRIMARY = 'matchup/primary/';
+
+// Pre-designed championship logos that already bake in their own colored
+// substrate + texture. Keyed by the canonical school name from schools.json.
+// Schools NOT in this map render as a colored box + IMS primary logo.
+const CUSTOM_LOGOS = {
+  'Delaware':              '26 SB Final Score - Delaware.png',
+  'Florida International': '26 SB Final Score - FIU.png',
+  'Jacksonville State':    '26 SB Final Score - Jax State.png',
+  'Louisiana Tech':        '26 SB Final Score - LA Tech.png',
+  'Liberty':               '26 SB Final Score - Liberty.png',
+  'New Mexico State':      '26 SB Final Score - New Mexico State.png',
+  'Sam Houston':           '26 SB Final Score - SHSU.png',
+  'UCF':                   '26 SB Final Score - UCF.png',
+  'Western Kentucky':      '26 SB Final Score - WKU.png',
+};
+
+// Saved-state IDs from before we switched to schools.json — mapped to the
+// canonical names so old state still resolves a school after restore.
+const LEGACY_NAME_MAP = {
+  'FIU':       'Florida International',
+  'Jax State': 'Jacksonville State',
+  'LA Tech':   'Louisiana Tech',
+};
+const migrateSchoolName = (n) => LEGACY_NAME_MAP[n] || n;
+
+// CUSA full members + key affiliates — these float to the top of the dropdown.
+const CUSA_PRIORITY_NAMES = new Set([
+  'Liberty','Middle Tennessee','Delaware','Florida International',
+  'Jacksonville State','Kennesaw State','Louisiana Tech','Missouri State',
+  'New Mexico State','Sam Houston','UTEP','Western Kentucky','Dallas Baptist','UCF',
+]);
+
+// Fallback school list (the 8 with custom logos) — used until schools.json
+// finishes loading so the page renders something on first paint.
+const SCHOOLS_FALLBACK = Object.keys(CUSTOM_LOGOS).map(name => ({ name, primary: '', swatch: '', espn: '' }));
+let SCHOOLS = SCHOOLS_FALLBACK.slice();
+
+function schoolColor(s){
+  if (!s) return '#666666';
+  const sw = (s.swatch || '').trim();
+  if (sw && sw !== 'N/A' && /^#?[0-9a-f]+/i.test(sw)) return sw[0] === '#' ? sw : '#' + sw;
+  const ep = (s.espn || '').trim();
+  if (ep && /^#?[0-9a-f]+/i.test(ep)) return ep[0] === '#' ? ep : '#' + ep;
+  return '#666666';
+}
+function escapeAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+async function loadSchoolsJson(){
+  try {
+    const r = await fetch('matchup/schools.json', { cache: 'no-cache' });
+    if (!r.ok) throw new Error('schools.json HTTP ' + r.status);
+    const data = await r.json();
+    if (Array.isArray(data) && data.length) SCHOOLS = data;
+  } catch (e) {
+    console.warn('Could not load schools.json — falling back to seed list.', e);
+  }
+}
+
+// Linear darken — multiply each RGB channel by factor (0..1).
+function darkenHex(hex, factor) {
+  const h = (hex || '#666666').replace('#', '');
+  const r = Math.round(parseInt(h.slice(0,2),16) * factor);
+  const g = Math.round(parseInt(h.slice(2,4),16) * factor);
+  const b = Math.round(parseInt(h.slice(4,6),16) * factor);
+  const cl = v => Math.max(0, Math.min(255, v));
+  return `rgb(${cl(r)},${cl(g)},${cl(b)})`;
+}
 
 // Layer assets (loaded once)
 const LAYERS = {
@@ -337,6 +424,12 @@ const state = {
     hColDx: 0,
     eColDx: 0,
     photo: { dx: 0, dy: 0, scale: 100 },
+    // Per-team backdrop. `color` overrides the school's primary (empty = auto).
+    // `useGradient` toggles the 3-stop vertical fade. `intensity` 0..100 scales
+    // the fade: 0 = flat solid color, 100 = matches the existing custom PNGs
+    // (top 93%, peak 100%, bottom 85%). Ignored for schools in CUSTOM_LOGOS.
+    topBlock: { color: '', useGradient: true, intensity: 100 },
+    botBlock: { color: '', useGradient: true, intensity: 100 },
   },
 };
 
@@ -371,14 +464,19 @@ async function ensureLayer(key){
 
 async function ensureSchoolLogo(side){
   const sObj = state[side];
-  const conf = SCHOOLS.find(s => s.id === sObj.school);
-  if (!conf) { sObj.logoImg = null; return null; }
-  try {
-    sObj.logoImg = await loadImage(encodeURI(ASSET_DIR + conf.file));
-  } catch (e) {
-    sObj.logoImg = null;
-    setStatus('Could not load logo for ' + sObj.school, true);
+  const conf = SCHOOLS.find(s => s.name === sObj.school);
+  if (!conf) { sObj.logoImg = null; sObj.isCustomLogo = false; return null; }
+  const customFile = CUSTOM_LOGOS[conf.name];
+  if (customFile) {
+    sObj.isCustomLogo = true;
+    try { sObj.logoImg = await loadImage(encodeURI(ASSET_DIR + customFile)); }
+    catch (_) { sObj.logoImg = null; setStatus('Could not load custom logo for ' + sObj.school, true); }
+    return sObj.logoImg;
   }
+  sObj.isCustomLogo = false;
+  if (!conf.primary) { sObj.logoImg = null; setStatus('No IMS logo file for ' + sObj.school, true); return null; }
+  try { sObj.logoImg = await loadImage(encodeURI(ASSET_DIR_PRIMARY + conf.primary)); }
+  catch (_) { sObj.logoImg = null; setStatus('Could not load IMS logo for ' + sObj.school, true); }
   return sObj.logoImg;
 }
 
@@ -494,6 +592,53 @@ function drawCoverFit(img, x, y, w, h, nudgeDx, nudgeDy, scale){
   ctx.restore();
 }
 
+// Contain-fit: scale the image to fit inside (w,h) preserving aspect ratio,
+// centered. Used for IMS primary logos sitting inside the team-color block.
+function drawContainFit(img, x, y, w, h){
+  const ar = img.naturalWidth / img.naturalHeight;
+  const tar = w / h;
+  let dw, dh;
+  if (ar > tar) { dw = w; dh = w / ar; }
+  else          { dh = h; dw = h * ar; }
+  const ox = x + (w - dw) / 2;
+  const oy = y + (h - dh) / 2;
+  ctx.drawImage(img, ox, oy, dw, dh);
+}
+
+function drawTeamSide(side){
+  const sObj = state[side];
+  const adj  = side === 'top' ? state.adj.topLogo  : state.adj.botLogo;
+  const blk  = side === 'top' ? state.adj.topBlock : state.adj.botBlock;
+  const baseY = side === 'top' ? TEAM_LOGO.topY : TEAM_LOGO.botY;
+  const x = TEAM_LOGO.x + adj.dx;
+  const y = baseY + adj.dy;
+  const w = TEAM_LOGO.w;
+  const h = TEAM_LOGO.h;
+
+  // Custom-designed PNG: includes its own colored substrate; render as-is.
+  if (sObj.isCustomLogo && sObj.logoImg) {
+    ctx.drawImage(sObj.logoImg, x, y, w, h);
+    return;
+  }
+
+  // Programmatic backdrop: color box + optional 3-stop vertical gradient.
+  const conf = SCHOOLS.find(s => s.name === sObj.school);
+  const baseColor = (blk.color && blk.color.trim()) || schoolColor(conf);
+  if (blk.useGradient !== false) {
+    const k = Math.max(0, Math.min(100, blk.intensity ?? 100)) / 100;
+    const grad = ctx.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0,    darkenHex(baseColor, 1 - 0.07 * k));
+    grad.addColorStop(0.30, baseColor);
+    grad.addColorStop(1,    darkenHex(baseColor, 1 - 0.15 * k));
+    ctx.fillStyle = grad;
+  } else {
+    ctx.fillStyle = baseColor;
+  }
+  ctx.fillRect(x, y, w, h);
+
+  if (sObj.logoImg) drawContainFit(sObj.logoImg, x, y, w, h);
+}
+
 async function draw(){
   ctx.clearRect(0, 0, 1080, 1350);
 
@@ -537,19 +682,12 @@ async function draw(){
     try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
   }
 
-  // 5. Team logos (with per-team X/Y nudge)
-  if (state.top.logoImg) {
-    ctx.drawImage(state.top.logoImg,
-      TEAM_LOGO.x + state.adj.topLogo.dx,
-      TEAM_LOGO.topY + state.adj.topLogo.dy,
-      TEAM_LOGO.w, TEAM_LOGO.h);
-  }
-  if (state.bot.logoImg) {
-    ctx.drawImage(state.bot.logoImg,
-      TEAM_LOGO.x + state.adj.botLogo.dx,
-      TEAM_LOGO.botY + state.adj.botLogo.dy,
-      TEAM_LOGO.w, TEAM_LOGO.h);
-  }
+  // 5. Per-team backdrop + logo. Schools with a custom-designed PNG render
+  //    the PNG directly (it already bakes in its colored substrate). All
+  //    other schools get a primary-color box + optional vertical 3-stop
+  //    gradient with an IMS primary logo on top.
+  drawTeamSide('top');
+  drawTeamSide('bot');
 
   // 6. Score Boxes — C-USA + R/H/E label strip plus tinted score-value cells
   //     for each row. Sits on top of the navy substrate from the Final Score
@@ -600,25 +738,70 @@ async function draw(){
 
 // ─── Wire-up ──────────────────────────────────────────────────────────────
 function populateSchools(){
-  const opts = SCHOOLS.map(s => `<option value="${s.id}">${s.id}</option>`).join('');
-  document.getElementById('topSchool').innerHTML = opts;
-  document.getElementById('botSchool').innerHTML = opts;
+  const cusa  = SCHOOLS.filter(s => CUSA_PRIORITY_NAMES.has(s.name));
+  const other = SCHOOLS.filter(s => !CUSA_PRIORITY_NAMES.has(s.name));
+  const opt   = s => `<option value="${escapeAttr(s.name)}">${escapeAttr(s.name)}${s.tricode ? ' · ' + s.tricode : ''}</option>`;
+  const sep   = '<option disabled>──────────</option>';
+  const html  = cusa.map(opt).join('') + (cusa.length && other.length ? sep : '') + other.map(opt).join('');
+  document.getElementById('topSchool').innerHTML = html;
+  document.getElementById('botSchool').innerHTML = html;
   document.getElementById('topSchool').value = state.top.school;
   document.getElementById('botSchool').value = state.bot.school;
 }
 
+// Hide the block-color / gradient controls for schools that have a custom
+// championship PNG (the PNG already bakes in its own substrate).
+function syncBackdropVisibility(){
+  for (const side of ['top','bot']) {
+    const conf = SCHOOLS.find(s => s.name === state[side].school);
+    const hasCustom = conf && !!CUSTOM_LOGOS[conf.name];
+    const el = document.getElementById(side + 'Backdrop');
+    if (el) el.style.display = hasCustom ? 'none' : 'flex';
+  }
+}
+
 document.getElementById('topSchool').addEventListener('change', async e => {
   state.top.school = e.target.value;
+  // Reset the operator color override so the picker reflects the new
+  // school's primary by default. Operator can still override afterward.
+  const conf = SCHOOLS.find(s => s.name === state.top.school);
+  state.adj.topBlock.color = schoolColor(conf);
+  const ci = document.getElementById('topBlockColor');
+  if (ci) ci.value = state.adj.topBlock.color;
   await ensureSchoolLogo('top');
+  syncBackdropVisibility();
   persistState();
   draw();
 });
 document.getElementById('botSchool').addEventListener('change', async e => {
   state.bot.school = e.target.value;
+  const conf = SCHOOLS.find(s => s.name === state.bot.school);
+  state.adj.botBlock.color = schoolColor(conf);
+  const ci = document.getElementById('botBlockColor');
+  if (ci) ci.value = state.adj.botBlock.color;
   await ensureSchoolLogo('bot');
+  syncBackdropVisibility();
   persistState();
   draw();
 });
+
+// Block-color / gradient listeners.
+for (const side of ['top','bot']) {
+  const blk = side === 'top' ? state.adj.topBlock : state.adj.botBlock;
+  const colorEl = document.getElementById(side + 'BlockColor');
+  const gradEl  = document.getElementById(side + 'BlockGradient');
+  const intEl   = document.getElementById(side + 'BlockIntensity');
+  const intRo   = document.getElementById(side + 'BlockIntensityR');
+  if (colorEl) colorEl.addEventListener('input', e => { blk.color = e.target.value; persistState(); draw(); });
+  if (gradEl)  gradEl.addEventListener('change', e => { blk.useGradient = !!e.target.checked; persistState(); draw(); });
+  if (intEl)   intEl.addEventListener('input', e => {
+    const v = Number(e.target.value || 0);
+    blk.intensity = v;
+    if (intRo) intRo.textContent = v + '%';
+    persistState();
+    draw();
+  });
+}
 document.getElementById('topSeed').addEventListener('input', e => { state.top.seed = e.target.value; persistState(); draw(); });
 document.getElementById('botSeed').addEventListener('input', e => { state.bot.seed = e.target.value; persistState(); draw(); });
 document.querySelectorAll('input[data-team][data-stat]').forEach(inp => {
@@ -649,11 +832,9 @@ function persistState(){
       hideOverlays: !!state.hideOverlays,
       champLogo: { src: champLogoSrc, x: state.champLogo.x, y: state.champLogo.y, size: state.champLogo.size },
       adj: state.adj,
-      // bgVersion 3 = layered asset stack (separate BG / seed boxes / score
-      // overlay / championship logo). Restore honors stored hideOverlays only
-      // when saved under v3+, since v2 saves carried hideOverlays=true from
-      // the brief all-in-one BG era and would suppress the new layers.
-      bgVersion: 3,
+      // bgVersion 4 = layered asset stack with per-team color block + gradient
+      // (programmatic backdrop for schools without a custom championship PNG).
+      bgVersion: 4,
     }));
   } catch (_) {}
 }
@@ -670,12 +851,20 @@ function restoreState(){
   let v2 = null;
   try { const raw = localStorage.getItem(STATE_KEY); if (raw) v2 = JSON.parse(raw); } catch (_) {}
   if (v2 && typeof v2 === 'object') {
-    if (v2.top && typeof v2.top === 'object') Object.assign(state.top, v2.top);
-    if (v2.bot && typeof v2.bot === 'object') Object.assign(state.bot, v2.bot);
+    if (v2.top && typeof v2.top === 'object') {
+      Object.assign(state.top, v2.top);
+      state.top.school = migrateSchoolName(state.top.school);
+    }
+    if (v2.bot && typeof v2.bot === 'object') {
+      Object.assign(state.bot, v2.bot);
+      state.bot.school = migrateSchoolName(state.bot.school);
+    }
     if (v2.adj && typeof v2.adj === 'object') {
       if (v2.adj.topLogo) Object.assign(state.adj.topLogo, v2.adj.topLogo);
       if (v2.adj.botLogo) Object.assign(state.adj.botLogo, v2.adj.botLogo);
       if (v2.adj.photo)   Object.assign(state.adj.photo,   v2.adj.photo);
+      if (v2.adj.topBlock && typeof v2.adj.topBlock === 'object') Object.assign(state.adj.topBlock, v2.adj.topBlock);
+      if (v2.adj.botBlock && typeof v2.adj.botBlock === 'object') Object.assign(state.adj.botBlock, v2.adj.botBlock);
       ['topScoreDy','botScoreDy','rColDx','hColDx','eColDx'].forEach(k => {
         if (typeof v2.adj[k] === 'number') state.adj[k] = v2.adj[k];
       });
@@ -792,6 +981,21 @@ function syncTextInputsFromState(){
   });
   const hideCb = document.getElementById('hideOverlays');
   if (hideCb) hideCb.checked = !!state.hideOverlays;
+
+  // Per-side backdrop controls. Color picker shows the override if set,
+  // otherwise the school's primary color so the operator can preview it.
+  for (const side of ['top','bot']) {
+    const blk  = side === 'top' ? state.adj.topBlock : state.adj.botBlock;
+    const conf = SCHOOLS.find(s => s.name === state[side].school);
+    const colorEl = document.getElementById(side + 'BlockColor');
+    const gradEl  = document.getElementById(side + 'BlockGradient');
+    const intEl   = document.getElementById(side + 'BlockIntensity');
+    const intRo   = document.getElementById(side + 'BlockIntensityR');
+    if (colorEl) colorEl.value = (blk.color && blk.color.trim()) || schoolColor(conf);
+    if (gradEl)  gradEl.checked = blk.useGradient !== false;
+    if (intEl)   intEl.value = String(blk.intensity ?? 100);
+    if (intRo)   intRo.textContent = (blk.intensity ?? 100) + '%';
+  }
 }
 
 // Position-tuning sliders. Each slider updates the corresponding state.adj
@@ -853,9 +1057,14 @@ document.getElementById('download').addEventListener('click', () => {
 // ─── Init ─────────────────────────────────────────────────────────────────
 (async () => {
   restoreState();
+  // schools.json holds 354 D1 schools with IMS logo paths + swatch colors.
+  // Fetched before populateSchools so the dropdown has the full list and
+  // ensureSchoolLogo can resolve a `primary` filename for non-custom teams.
+  await loadSchoolsJson();
   populateSchools();
   syncSlidersFromState();
   syncTextInputsFromState();
+  syncBackdropVisibility();
   // Pre-warm fonts so the first paint already has the right glyphs.
   if (document.fonts && document.fonts.load) {
     try { await document.fonts.load('900 50px "Gazzetta Black"'); } catch(_) {}
