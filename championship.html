@@ -312,7 +312,11 @@ const state = {
   bot: { school: 'Western Kentucky', seed: '2', r: '0', h: '0', e: '0', logoImg: null },
   photo: null,
   customBg: null,           // operator-uploaded Image replacing the default bg layer
-  hideOverlays: false,      // when true, skip the built-in scoreBox / scoreOverlay / seedsBoxes layers
+  // The default BG asset has the FINAL SCORE banner, C-USA mark, and R/H/E
+  // labels baked in, so we skip the separate scoreBox/scoreOverlay/seedsBoxes
+  // layers by default. Operators can re-enable them if they upload an older
+  // separated background design.
+  hideOverlays: true,
   champLogo: {              // optional NCAA championship overlay, drawn topmost
     img: null,
     x: 540,                 // center X (0..1080)
@@ -637,6 +641,9 @@ function persistState(){
       hideOverlays: !!state.hideOverlays,
       champLogo: { src: champLogoSrc, x: state.champLogo.x, y: state.champLogo.y, size: state.champLogo.size },
       adj: state.adj,
+      // bgVersion 2 = default BG ships with FINAL SCORE / C-USA / R-H-E baked in.
+      // Restore logic uses this to decide whether to honor stored hideOverlays.
+      bgVersion: 2,
     }));
   } catch (_) {}
 }
@@ -689,7 +696,13 @@ function restoreState(){
       };
       img.src = v2.customBg;
     }
-    if (typeof v2.hideOverlays === 'boolean') state.hideOverlays = v2.hideOverlays;
+    // Only honor stored hideOverlays once the operator has saved state under
+    // the bgVersion≥2 schema (where the default BG bakes in the score box).
+    // Earlier saves predate the asset swap and would resurface duplicate
+    // overlays if we read them back here.
+    if (typeof v2.hideOverlays === 'boolean' && (v2.bgVersion || 0) >= 2) {
+      state.hideOverlays = v2.hideOverlays;
+    }
     if (v2.champLogo && typeof v2.champLogo === 'object') {
       if (typeof v2.champLogo.x    === 'number') state.champLogo.x    = v2.champLogo.x;
       if (typeof v2.champLogo.y    === 'number') state.champLogo.y    = v2.champLogo.y;
