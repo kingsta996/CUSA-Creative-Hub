@@ -280,11 +280,11 @@ const SCHOOLS = [
 
 // Layer assets (loaded once)
 const LAYERS = {
-  bg:            ASSET_DIR + '26 SB Final Score - BG.png',
-  cusaWatermark: ASSET_DIR + '26 SB Final Score - CUSA Logo Overlay.png',
-  scoreBox:      ASSET_DIR + '26 SB Final Score - Score Box.png',
-  scoreOverlay:  ASSET_DIR + '26 SB Final Score - Score Overlay.png',
-  seedsBoxes:    ASSET_DIR + '26 SB Final Score - Seeds Boxes.png',
+  bg:                ASSET_DIR + '26 SB Final Score - BG.png',
+  cusaWatermark:     ASSET_DIR + '26 SB Final Score - CUSA Logo Overlay.png',
+  scoreOverlay:      ASSET_DIR + '26 SB Final Score - Score Overlay.png',
+  seedsBoxes:        ASSET_DIR + '26 SB Final Score - Seeds Boxes.png',
+  championshipLogo:  ASSET_DIR + '26 SB Final Score - Championship Logo.png',
 };
 
 // Geometry (1080×1350 source coords; measured from the reference PNGs).
@@ -312,11 +312,11 @@ const state = {
   bot: { school: 'Western Kentucky', seed: '2', r: '0', h: '0', e: '0', logoImg: null },
   photo: null,
   customBg: null,           // operator-uploaded Image replacing the default bg layer
-  // The default BG asset has the FINAL SCORE banner, C-USA mark, and R/H/E
-  // labels baked in, so we skip the separate scoreBox/scoreOverlay/seedsBoxes
-  // layers by default. Operators can re-enable them if they upload an older
-  // separated background design.
-  hideOverlays: true,
+  // The shipping asset stack composites BG → teams → seeds → scoreOverlay →
+  // championship logo as separate layers, so we render them all by default.
+  // The toggle still lets an operator suppress the overlay/seeds when they
+  // upload a baked-in custom BG.
+  hideOverlays: false,
   champLogo: {              // optional NCAA championship overlay, drawn topmost
     img: null,
     x: 540,                 // center X (0..1080)
@@ -521,20 +521,15 @@ async function draw(){
     ctx.fillText('UPLOAD AN ACTION PHOTO', PHOTO_AREA.x + PHOTO_AREA.w/2, PHOTO_AREA.y + PHOTO_AREA.h/2);
   }
 
-  // 3. CUSA Logo Overlay watermark — translucent CUSA mark in the upper-right
-  //     of the photo area. Sits ON TOP of the photo so it brands every photo
-  //     uploaded; under the score box / team logos so it never obscures them.
-  try { ctx.drawImage(await ensureLayer('cusaWatermark'), 0, 0, 1080, 1350); } catch (_) {}
-
-  // 4. Score Box (FINAL SCORE banner + dark navy body — provides the substrate
-  //     the team logos sit on). Drawn between Photo and Team Logos so the
-  //     logos render on top of the navy background. Skipped when the operator
-  //     has uploaded a custom BG that bakes these elements in.
-  if (!state.hideOverlays) {
-    try { ctx.drawImage(await ensureLayer('scoreBox'), 0, 0, 1080, 1350); } catch (_) {}
+  // 3. CUSA watermark — translucent C-USA mark drawn ONLY over an uploaded
+  //     action photo (re-brands the photo). When no photo is uploaded the BG
+  //     already has C-USA baked into its upper-right corner, so we skip this
+  //     to avoid a double stamp.
+  if (state.photo) {
+    try { ctx.drawImage(await ensureLayer('cusaWatermark'), 0, 0, 1080, 1350); } catch (_) {}
   }
 
-  // 5. Team logos (with per-team X/Y nudge)
+  // 4. Team logos (with per-team X/Y nudge)
   if (state.top.logoImg) {
     ctx.drawImage(state.top.logoImg,
       TEAM_LOGO.x + state.adj.topLogo.dx,
@@ -548,17 +543,29 @@ async function draw(){
       TEAM_LOGO.w, TEAM_LOGO.h);
   }
 
-  // 6. Score Overlay (C-USA + R/H/E label strip + column dividers)
-  if (!state.hideOverlays) {
-    try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
-  }
-
-  // 7. Seed Boxes (small light-gray squares to the left of each team logo)
+  // 5. Seed Boxes (small light-gray squares to the left of each team logo)
   if (!state.hideOverlays) {
     try { ctx.drawImage(await ensureLayer('seedsBoxes'), 0, 0, 1080, 1350); } catch (_) {}
   }
 
-  // ── Text overlays ──
+  // 6. Score Overlay — combined FINAL SCORE banner + C-USA + R/H/E label strip
+  if (!state.hideOverlays) {
+    try { ctx.drawImage(await ensureLayer('scoreOverlay'), 0, 0, 1080, 1350); } catch (_) {}
+  }
+
+  // 7. Championship Logo (operator upload OR bundled NCAA default). Drawn
+  //     under the text overlays so scores stay readable even if the logo is
+  //     dragged into the score area.
+  const cl = state.champLogo;
+  const champImg = (cl && cl.img) || state.layerImgs.championshipLogo;
+  if (champImg) {
+    const w = (cl.size / 100) * 1080;
+    const ar = champImg.naturalWidth / champImg.naturalHeight;
+    const h = w / (ar || 1);
+    ctx.drawImage(champImg, cl.x - w/2, cl.y - h/2, w, h);
+  }
+
+  // ── Text overlays (drawn last so seeds + R/H/E values are always on top) ──
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -578,15 +585,6 @@ async function draw(){
     ctx.fillText(state[side].r || '', COLS_CX.r + state.adj.rColDx, cy);
     ctx.fillText(state[side].h || '', COLS_CX.h + state.adj.hColDx, cy);
     ctx.fillText(state[side].e || '', COLS_CX.e + state.adj.eColDx, cy);
-  }
-
-  // ── Championship Logo overlay (topmost; centered at champLogo.x/y, width = size% of canvas) ──
-  const cl = state.champLogo;
-  if (cl && cl.img) {
-    const w = (cl.size / 100) * 1080;
-    const ar = cl.img.naturalWidth / cl.img.naturalHeight;
-    const h = w / (ar || 1);
-    ctx.drawImage(cl.img, cl.x - w/2, cl.y - h/2, w, h);
   }
 }
 
@@ -641,9 +639,11 @@ function persistState(){
       hideOverlays: !!state.hideOverlays,
       champLogo: { src: champLogoSrc, x: state.champLogo.x, y: state.champLogo.y, size: state.champLogo.size },
       adj: state.adj,
-      // bgVersion 2 = default BG ships with FINAL SCORE / C-USA / R-H-E baked in.
-      // Restore logic uses this to decide whether to honor stored hideOverlays.
-      bgVersion: 2,
+      // bgVersion 3 = layered asset stack (separate BG / seed boxes / score
+      // overlay / championship logo). Restore honors stored hideOverlays only
+      // when saved under v3+, since v2 saves carried hideOverlays=true from
+      // the brief all-in-one BG era and would suppress the new layers.
+      bgVersion: 3,
     }));
   } catch (_) {}
 }
@@ -697,10 +697,10 @@ function restoreState(){
       img.src = v2.customBg;
     }
     // Only honor stored hideOverlays once the operator has saved state under
-    // the bgVersion≥2 schema (where the default BG bakes in the score box).
-    // Earlier saves predate the asset swap and would resurface duplicate
-    // overlays if we read them back here.
-    if (typeof v2.hideOverlays === 'boolean' && (v2.bgVersion || 0) >= 2) {
+    // the bgVersion≥3 schema (layered asset stack). Earlier saves were taken
+    // when the default was true (all-in-one BG), so reading them back would
+    // suppress the layered overlay/seeds we now ship by default.
+    if (typeof v2.hideOverlays === 'boolean' && (v2.bgVersion || 0) >= 3) {
       state.hideOverlays = v2.hideOverlays;
     }
     if (v2.champLogo && typeof v2.champLogo === 'object') {
@@ -854,9 +854,9 @@ document.getElementById('download').addEventListener('click', () => {
   await Promise.all([
     ensureLayer('bg').catch(()=>null),
     ensureLayer('cusaWatermark').catch(()=>null),
-    ensureLayer('scoreBox').catch(()=>null),
     ensureLayer('scoreOverlay').catch(()=>null),
     ensureLayer('seedsBoxes').catch(()=>null),
+    ensureLayer('championshipLogo').catch(()=>null),
     ensureSchoolLogo('top'),
     ensureSchoolLogo('bot'),
   ]);
