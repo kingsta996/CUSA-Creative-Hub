@@ -87,7 +87,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 </div>
 
 <div class="tabs">
-  <button class="tab active" data-mode="final-score" style="cursor:default">Softball · Final Score</button>
+  <button class="tab active" data-mode="final-score" style="cursor:default">Final Score · Baseball &amp; Softball</button>
   <a class="tab" href="championship-game-day.html" style="text-decoration:none">Game Day · Universal</a>
 </div>
 
@@ -237,6 +237,10 @@ body{display:flex;flex-direction:column;overflow:hidden}
           <input id="topLogoDy" type="range" min="-200" max="200" step="1" value="0">
         </div>
       </div>
+      <div class="field">
+        <label class="field-label">Size <span class="nudge-readout" id="topLogoScaleR">100%</span></label>
+        <input id="topLogoScale" type="range" min="50" max="200" step="1" value="100">
+      </div>
     </div>
     <div class="team-card">
       <div class="team-card-title">Bottom Logo</div>
@@ -249,6 +253,10 @@ body{display:flex;flex-direction:column;overflow:hidden}
           <label class="field-label">Y Nudge <span class="nudge-readout" id="botLogoDyR">0px</span></label>
           <input id="botLogoDy" type="range" min="-200" max="200" step="1" value="0">
         </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Size <span class="nudge-readout" id="botLogoScaleR">100%</span></label>
+        <input id="botLogoScale" type="range" min="50" max="200" step="1" value="100">
       </div>
     </div>
     <div class="team-card">
@@ -289,7 +297,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
     <div class="canvas-wrap">
       <canvas id="cvs" width="1080" height="1350"></canvas>
     </div>
-    <div class="preview-meta">1080 × 1350  ·  Final Score · Softball Championship</div>
+    <div class="preview-meta">1080 × 1350  ·  Final Score · Baseball &amp; Softball Championship</div>
   </div>
 
 </div>
@@ -416,8 +424,8 @@ const state = {
   // R/H/E values vertically per row, and each column has its own X offset
   // applied to BOTH rows so columns align even after fine-tuning.
   adj: {
-    topLogo:  { dx: 0, dy: 0 },
-    botLogo:  { dx: 0, dy: 0 },
+    topLogo:  { dx: 0, dy: 0, scale: 100 },
+    botLogo:  { dx: 0, dy: 0, scale: 100 },
     topScoreDy: 0,
     botScoreDy: 0,
     rColDx: 0,
@@ -610,10 +618,15 @@ function drawTeamSide(side){
   const adj  = side === 'top' ? state.adj.topLogo  : state.adj.botLogo;
   const blk  = side === 'top' ? state.adj.topBlock : state.adj.botBlock;
   const baseY = side === 'top' ? TEAM_LOGO.topY : TEAM_LOGO.botY;
-  const x = TEAM_LOGO.x + adj.dx;
-  const y = baseY + adj.dy;
-  const w = TEAM_LOGO.w;
-  const h = TEAM_LOGO.h;
+  // Scale the whole block (custom PNG or color-box + IMS logo) around the
+  // base center; X/Y nudges then translate the scaled rect.
+  const s = (adj.scale ?? 100) / 100;
+  const w = TEAM_LOGO.w * s;
+  const h = TEAM_LOGO.h * s;
+  const cx = TEAM_LOGO.x + TEAM_LOGO.w / 2;
+  const cy = baseY + TEAM_LOGO.h / 2;
+  const x = cx - w / 2 + adj.dx;
+  const y = cy - h / 2 + adj.dy;
 
   // Custom-designed PNG: includes its own colored substrate; render as-is.
   if (sObj.isCustomLogo && sObj.logoImg) {
@@ -940,14 +953,16 @@ const restorePositions = restoreState;
 // champLogoX / champLogoY are absolute canvas coords (not nudges), so suppress
 // the leading '+' prefix that the other px readouts use for positive values.
 const ABS_COORD_IDS = new Set(['champLogoX', 'champLogoY']);
-const PCT_SCALE_IDS = new Set(['photoScale', 'champLogoSize']);
+const PCT_SCALE_IDS = new Set(['photoScale', 'champLogoSize', 'topLogoScale', 'botLogoScale']);
 
 function syncSlidersFromState(){
   const m = {
     topLogoDx:     state.adj.topLogo.dx,
     topLogoDy:     state.adj.topLogo.dy,
+    topLogoScale:  state.adj.topLogo.scale ?? 100,
     botLogoDx:     state.adj.botLogo.dx,
     botLogoDy:     state.adj.botLogo.dy,
+    botLogoScale:  state.adj.botLogo.scale ?? 100,
     topScoreDy:    state.adj.topScoreDy,
     botScoreDy:    state.adj.botScoreDy,
     rColDx:        state.adj.rColDx,
@@ -1003,8 +1018,10 @@ function syncTextInputsFromState(){
 const ADJ_BINDINGS = [
   ['topLogoDx',     v => state.adj.topLogo.dx = v,     'px'],
   ['topLogoDy',     v => state.adj.topLogo.dy = v,     'px'],
+  ['topLogoScale',  v => state.adj.topLogo.scale = v,  '%'],
   ['botLogoDx',     v => state.adj.botLogo.dx = v,     'px'],
   ['botLogoDy',     v => state.adj.botLogo.dy = v,     'px'],
+  ['botLogoScale',  v => state.adj.botLogo.scale = v,  '%'],
   ['topScoreDy',    v => state.adj.topScoreDy = v,     'px'],
   ['botScoreDy',    v => state.adj.botScoreDy = v,     'px'],
   ['rColDx',        v => state.adj.rColDx = v,         'px'],
@@ -1034,11 +1051,17 @@ ADJ_BINDINGS.forEach(([id, setter, unit]) => {
 });
 
 document.getElementById('resetPositions').addEventListener('click', () => {
+  // Preserve per-team backdrop choices (color/gradient/intensity) since those
+  // aren't really "positions" — only reset the nudge/scale fields.
+  const keepTopBlock = { ...state.adj.topBlock };
+  const keepBotBlock = { ...state.adj.botBlock };
   state.adj = {
-    topLogo: { dx: 0, dy: 0 }, botLogo: { dx: 0, dy: 0 },
+    topLogo: { dx: 0, dy: 0, scale: 100 }, botLogo: { dx: 0, dy: 0, scale: 100 },
     topScoreDy: 0, botScoreDy: 0,
     rColDx: 0, hColDx: 0, eColDx: 0,
     photo: { dx: 0, dy: 0, scale: 100 },
+    topBlock: keepTopBlock,
+    botBlock: keepBotBlock,
   };
   syncSlidersFromState();
   persistState();
