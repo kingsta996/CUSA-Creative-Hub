@@ -128,6 +128,60 @@ select option.has-bg::after{content:' ✓'}
     <div id="topStatus" class="top-status">● READY</div>
     <button class="action-btn" onclick="drawPOTW()">↺  REDRAW</button>
     <button class="action-btn export" onclick="doExport()">↓  EXPORT PNG</button>
+    <!-- Admin-only: revealed after auth resolves if the signed-in email is in POW_BG_ADMINS -->
+    <button class="action-btn" id="bgAdminBtn" onclick="openBgAdmin()" style="display:none;background:rgba(235,25,70,0.18);border-color:rgba(235,25,70,0.45);color:#ff8aa5">🖼  BACKGROUNDS</button>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════
+     ADMIN: POW Backgrounds upload overlay. Gated to POW_BG_ADMINS by the
+     openBgAdmin() handler — the button above stays display:none for anyone
+     else. Same Supabase Storage bucket (`pow-backgrounds`) the public page
+     reads from.
+     ════════════════════════════════════════════════════════════════════ -->
+<div id="bgAdminOverlay" style="display:none;position:fixed;inset:0;background:rgba(2,8,16,0.88);z-index:9000;align-items:flex-start;justify-content:center;padding:32px;overflow:auto">
+  <div style="background:#0a1624;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:24px 26px;max-width:1100px;width:100%;color:#fff;font-family:'Barlow',sans-serif">
+    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px;margin-bottom:16px">
+      <div>
+        <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:18px;letter-spacing:2px;font-weight:900;margin:0">PLAYER OF THE WEEK · BACKGROUNDS</h2>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">Admin-only · uploads to Supabase bucket <code style="font-family:'SF Mono',Menlo,monospace">pow-backgrounds</code></div>
+      </div>
+      <button onclick="closeBgAdmin()" style="background:none;border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.6);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:1px">CLOSE ✕</button>
+    </div>
+
+    <p style="color:rgba(255,255,255,0.55);font-size:12.5px;line-height:1.6;margin-bottom:14px">
+      Drop the master <strong>POW Backgrounds</strong> zip, a per-school zip, or individual PNGs.
+      Filenames must follow <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;font-family:'SF Mono',Menlo,monospace">School - Sport.png</code>
+      (e.g. <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;font-family:'SF Mono',Menlo,monospace">Kennesaw State - WBB.png</code>).
+      Unrecognized filenames are skipped and logged.
+    </p>
+
+    <div id="bgAdminDrop" style="border:2px dashed rgba(235,25,70,0.35);border-radius:10px;padding:30px;text-align:center;background:rgba(235,25,70,0.04);cursor:pointer;transition:all .15s;margin-bottom:14px">
+      <div style="font-size:26px;margin-bottom:4px">🖼</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,.85)">DROP ZIP OR PNG FILES HERE</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:3px">or click to browse · accepts .zip and image files</div>
+      <input type="file" id="bgAdminInput" accept=".zip,image/png,image/jpeg,image/webp" multiple style="display:none">
+    </div>
+
+    <div id="bgAdminProgress" style="display:none;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:13px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <strong id="bgAdminProgressLabel" style="font-size:12.5px">Uploading…</strong>
+        <span id="bgAdminProgressCount" style="color:rgba(255,255,255,0.5);font-size:11.5px">0 / 0</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);height:6px;border-radius:3px;overflow:hidden">
+        <div id="bgAdminProgressBar" style="height:100%;background:#A7D500;width:0%;transition:width .12s"></div>
+      </div>
+      <div id="bgAdminProgressLog" style="margin-top:9px;max-height:110px;overflow:auto;font-family:'SF Mono',Menlo,monospace;font-size:10.5px;color:rgba(255,255,255,0.55);line-height:1.6"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+      <strong style="font-size:12.5px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1.5px">CURRENT BACKGROUNDS</strong>
+      <button onclick="bgAdminRefreshGrid()" style="background:transparent;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:5px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:700;letter-spacing:1px">↻ REFRESH</button>
+      <span id="bgAdminGridStatus" style="color:rgba(255,255,255,0.5);font-size:11px;margin-left:4px">—</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="bgAdminGrid" style="border-collapse:collapse;font-size:11px;min-width:100%"><thead></thead><tbody></tbody></table>
+    </div>
   </div>
 </div>
 
@@ -564,8 +618,313 @@ function loadBackgroundFor(rosterSchool, sport) {
   return p;
 }
 
-// (Previous refresh helper removed — admins manage data via admin.html.
-//  Users get fresh state with a normal page reload.)
+// ══════════════════════════════════════════════
+//  ADMIN — POW Background uploads (gated to POW_BG_ADMINS)
+// ══════════════════════════════════════════════
+// Email allowlist for the in-page background upload overlay. Kept here
+// (rather than in admin.html) so the Admin Console stays focused on
+// cross-Hub admin (Claude Audit etc.) and per-page admin lives with its
+// page. Authenticated user resolved via window.cusaAuth.currentUser().
+const POW_BG_ADMINS = [
+  'kking@conferenceusa.com',
+  'afranklin@conferenceusa.com',
+];
+
+// All schools/sports we expect to populate. Mirrors the slug pipeline used
+// when potw.html reads backgrounds, so the grid the admin sees is
+// definitive — a green ✓ here means the public page will find the image.
+const POW_BG_SCHOOLS = ['Delaware','FIU','Jacksonville State','Kennesaw State','Liberty','Louisiana Tech','Middle Tennessee','Missouri State','New Mexico State','Sam Houston','WKU'];
+const POW_BG_SPORTS  = ['Football','MBB','WBB','Baseball','Softball','Soccer','Volleyball','Beach VB','Tennis','Golf','Track','CC','Bowling'];
+
+// Filename aliases — accept the common short forms the design team uses
+// in their layered PSDs (KSU/LA Tech/MTSU/...) and normalize to the
+// canonical roster school name before slugifying for storage.
+const POW_BG_SCHOOL_ALIAS = {
+  'MO State':'Missouri State','Missouri State':'Missouri State',
+  'Delaware':'Delaware',
+  'FIU':'FIU','Florida International':'FIU',
+  'Jax State':'Jacksonville State','Jacksonville State':'Jacksonville State',
+  'KSU':'Kennesaw State','Kennesaw State':'Kennesaw State',
+  'LA Tech':'Louisiana Tech','Louisiana Tech':'Louisiana Tech',
+  'Liberty':'Liberty',
+  'MTSU':'Middle Tennessee','Middle Tennessee':'Middle Tennessee',
+  'NM State':'New Mexico State','New Mexico State':'New Mexico State',
+  'Sam Houston':'Sam Houston','SHSU':'Sam Houston',
+  'WKU':'WKU','Western Kentucky':'WKU'
+};
+const POW_BG_SPORT_ALIAS = {
+  'Baseball':'Baseball',
+  'Beach VB':'Beach VB','Beach Volleyball':'Beach VB',
+  'Bowling':'Bowling',
+  'CC':'CC','Cross Country':'CC',
+  'Football':'Football',
+  'Golf':'Golf',
+  'MBB':'MBB','Basketball':'MBB',
+  'Soccer':'Soccer','Softball':'Softball','Tennis':'Tennis',
+  'Track':'Track','Track and Field':'Track','T&F':'Track',
+  'Volleyball':'Volleyball',
+  'WBB':'WBB','W Basketball':'WBB'
+};
+
+// Reveal the Admin button after auth resolves if the current user is in
+// POW_BG_ADMINS. Hidden otherwise — non-admins won't even see the entry
+// point. (Defense-in-depth: Supabase Storage RLS is open per
+// pow_backgrounds_storage.sql, so the real gate is the page UI + the
+// admin allowlist below.)
+function _bgAdminMaybeShow() {
+  try {
+    const u = window.cusaAuth && window.cusaAuth.currentUser && window.cusaAuth.currentUser();
+    const email = (u && u.email || '').toLowerCase();
+    const btn = document.getElementById('bgAdminBtn');
+    if (btn) btn.style.display = POW_BG_ADMINS.includes(email) ? '' : 'none';
+  } catch (_) {}
+}
+
+function openBgAdmin() {
+  const u = window.cusaAuth && window.cusaAuth.currentUser && window.cusaAuth.currentUser();
+  const email = (u && u.email || '').toLowerCase();
+  if (!POW_BG_ADMINS.includes(email)) {
+    alert('This panel is for admins only.');
+    return;
+  }
+  if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+    alert('Supabase not configured — check config.js.');
+    return;
+  }
+  document.getElementById('bgAdminOverlay').style.display = 'flex';
+  _bgAdminWire();
+  bgAdminRefreshGrid();
+}
+function closeBgAdmin() {
+  document.getElementById('bgAdminOverlay').style.display = 'none';
+}
+
+let _bgAdminWired = false;
+function _bgAdminWire() {
+  if (_bgAdminWired) return;
+  _bgAdminWired = true;
+  const drop = document.getElementById('bgAdminDrop');
+  const input = document.getElementById('bgAdminInput');
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('dragover', e => {
+    e.preventDefault();
+    drop.style.borderColor = '#EB1946';
+    drop.style.background  = 'rgba(235,25,70,0.10)';
+  });
+  drop.addEventListener('dragleave', () => {
+    drop.style.borderColor = 'rgba(235,25,70,0.35)';
+    drop.style.background  = 'rgba(235,25,70,0.04)';
+  });
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.style.borderColor = 'rgba(235,25,70,0.35)';
+    drop.style.background  = 'rgba(235,25,70,0.04)';
+    _bgAdminHandle(Array.from(e.dataTransfer.files));
+  });
+  input.addEventListener('change', e => {
+    _bgAdminHandle(Array.from(e.target.files));
+    input.value = '';
+  });
+  // Esc to close.
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('bgAdminOverlay').style.display === 'flex') {
+      closeBgAdmin();
+    }
+  });
+}
+
+function _bgAdminLog(msg, cls) {
+  const el = document.getElementById('bgAdminProgressLog');
+  const d = document.createElement('div');
+  if (cls === 'ok')  d.style.color = '#A7D500';
+  if (cls === 'err') d.style.color = '#ff7d8a';
+  d.textContent = msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function _bgAdminPgShow(label) {
+  document.getElementById('bgAdminProgress').style.display = 'block';
+  document.getElementById('bgAdminProgressLabel').textContent = label;
+  document.getElementById('bgAdminProgressLog').innerHTML = '';
+  document.getElementById('bgAdminProgressCount').textContent = '0 / 0';
+  document.getElementById('bgAdminProgressBar').style.width = '0%';
+}
+function _bgAdminPgCount(done, total) {
+  document.getElementById('bgAdminProgressCount').textContent = done + ' / ' + total;
+  document.getElementById('bgAdminProgressBar').style.width = (total ? Math.round(done/total*100) : 0) + '%';
+}
+function _bgAdminPgDone(label) {
+  document.getElementById('bgAdminProgressLabel').textContent = label;
+}
+
+// Recursively unzip — accepts the master "zip of school zips" or any nesting.
+async function _bgAdminExtract(files) {
+  const out = [];
+  for (const f of files) {
+    if (/\.zip$/i.test(f.name)) {
+      const zip = await JSZip.loadAsync(f);
+      const entries = Object.values(zip.files).filter(z =>
+        !z.dir && !z.name.includes('__MACOSX') && !/(^|\/)\._/.test(z.name)
+      );
+      for (const e of entries) {
+        const inner = await e.async('blob');
+        if (/\.zip$/i.test(e.name)) {
+          const child = new File([inner], e.name.split('/').pop());
+          const nested = await _bgAdminExtract([child]);
+          out.push(...nested);
+        } else if (/\.(png|jpe?g|webp)$/i.test(e.name)) {
+          out.push({ name: e.name.split('/').pop(), blob: inner });
+        }
+      }
+    } else if (/\.(png|jpe?g|webp)$/i.test(f.name)) {
+      out.push({ name: f.name, blob: f });
+    }
+  }
+  return out;
+}
+
+function _bgAdminParse(name) {
+  const base = name.replace(/\.(png|jpe?g|webp)$/i, '');
+  const dash = base.indexOf(' - ');
+  if (dash < 0) return null;
+  const schoolPart = base.substring(0, dash).trim();
+  const sportPart  = base.substring(dash + 3).trim();
+  const school = POW_BG_SCHOOL_ALIAS[schoolPart];
+  const bgKey  = POW_BG_SPORT_ALIAS[sportPart];
+  if (!school || !bgKey) return null;
+  return { school, bgKey };
+}
+function _bgAdminMime(name) {
+  if (/\.png$/i.test(name))     return 'image/png';
+  if (/\.(jpe?g)$/i.test(name)) return 'image/jpeg';
+  if (/\.webp$/i.test(name))    return 'image/webp';
+  return 'application/octet-stream';
+}
+
+async function _bgAdminHandle(raw) {
+  if (!raw || !raw.length) return;
+  _bgAdminPgShow('Extracting…');
+  _bgAdminLog('Processing ' + raw.length + ' input file(s)');
+  let imgs;
+  try { imgs = await _bgAdminExtract(raw); }
+  catch (e) { _bgAdminLog('Zip extract failed: ' + (e.message||e), 'err'); _bgAdminPgDone('Failed.'); return; }
+  if (!imgs.length) { _bgAdminLog('No images found.', 'err'); _bgAdminPgDone('Done — nothing to upload.'); return; }
+
+  const queue = [];
+  imgs.forEach(img => {
+    const p = _bgAdminParse(img.name);
+    if (!p) { _bgAdminLog('skip: ' + img.name + '  (unrecognized filename)', 'err'); return; }
+    queue.push({
+      path: schoolSlug(p.school) + '/' + sportSlug(p.bgKey) + '.png',
+      blob: img.blob,
+      contentType: _bgAdminMime(img.name),
+      label: p.school + ' · ' + p.bgKey
+    });
+  });
+  if (!queue.length) { _bgAdminPgDone('Done — no recognized filenames.'); return; }
+  _bgAdminPgDone('Uploading…');
+  _bgAdminPgCount(0, queue.length);
+
+  const d = window.cusaAuth && window.cusaAuth.db && window.cusaAuth.db();
+  if (!d) { _bgAdminLog('Supabase client unavailable', 'err'); _bgAdminPgDone('Failed.'); return; }
+
+  let done = 0, errs = 0;
+  for (const item of queue) {
+    try {
+      const res = await d.storage.from(POW_BG_BUCKET).upload(item.path, item.blob, {
+        contentType: item.contentType,
+        upsert: true,
+        cacheControl: '60'
+      });
+      if (res.error) throw res.error;
+      _bgAdminLog('✓ ' + item.path + '  (' + item.label + ')', 'ok');
+      // Drop the in-page cache so the next selection re-fetches the new image.
+      const cacheKey = `${item.label.split(' · ')[0]}|${item.label.split(' · ')[1]}`;
+      delete _bgFetchPromises[cacheKey];
+      const sch = item.label.split(' · ')[0];
+      if (BG_IMGS[sch]) delete BG_IMGS[sch][item.label.split(' · ')[1]];
+    } catch (e) {
+      errs++;
+      _bgAdminLog('✗ ' + item.path + ': ' + (e.message||e), 'err');
+    }
+    done++;
+    _bgAdminPgCount(done, queue.length);
+  }
+  _bgAdminPgDone(errs ? ('Done with ' + errs + ' error(s).') : 'Done — all uploaded.');
+  bgAdminRefreshGrid();
+}
+
+async function bgAdminRefreshGrid() {
+  const grid   = document.getElementById('bgAdminGrid');
+  const status = document.getElementById('bgAdminGridStatus');
+  status.textContent = 'Refreshing…';
+  const d = window.cusaAuth && window.cusaAuth.db && window.cusaAuth.db();
+  if (!d) { status.textContent = 'Supabase client unavailable.'; return; }
+
+  const existing = {};
+  let total = 0;
+  try {
+    for (const sch of POW_BG_SCHOOLS) {
+      const res = await d.storage.from(POW_BG_BUCKET).list(schoolSlug(sch), { limit: 100, offset: 0 });
+      if (res.error) continue;
+      existing[sch] = {};
+      (res.data || []).forEach(o => {
+        const sportKey = o.name.replace(/\.(png|jpe?g|webp)$/i, '');
+        existing[sch][sportKey] = o;
+        total++;
+      });
+    }
+  } catch (e) {
+    status.textContent = '✗ ' + (e.message || e);
+    return;
+  }
+
+  const thead = grid.querySelector('thead');
+  const tbody = grid.querySelector('tbody');
+  let thHtml = '<tr><th style="text-align:left;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.1);font-family:\'Barlow Condensed\',sans-serif;font-weight:800;letter-spacing:1.5px;color:rgba(255,255,255,0.5);text-transform:uppercase;font-size:10.5px">School</th>';
+  POW_BG_SPORTS.forEach(sp => {
+    thHtml += '<th style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.1);font-family:\'Barlow Condensed\',sans-serif;font-weight:800;letter-spacing:1.5px;color:rgba(255,255,255,0.5);text-transform:uppercase;font-size:10px;white-space:nowrap">' + sp + '</th>';
+  });
+  thHtml += '</tr>';
+  thead.innerHTML = thHtml;
+
+  tbody.innerHTML = POW_BG_SCHOOLS.map(sch => {
+    const cells = POW_BG_SPORTS.map(sp => {
+      const slugSp = sportSlug(sp);
+      const has = !!(existing[sch] && existing[sch][slugSp]);
+      const url = bgPublicUrl(sch, sp);
+      if (has) {
+        return '<td style="padding:5px 6px;border-bottom:1px solid rgba(255,255,255,0.08);text-align:center;background:rgba(167,213,0,0.06)">'
+             + '<a href="' + url + '" target="_blank" title="View" style="color:#A7D500;text-decoration:none;font-weight:700;font-size:13px">✓</a>'
+             + ' <button onclick="bgAdminDelete(\'' + encodeURIComponent(sch) + '\',\'' + encodeURIComponent(sp) + '\')" title="Delete" style="background:none;border:0;color:rgba(255,255,255,.25);cursor:pointer;font-size:11px;padding:0 2px">✕</button>'
+             + '</td>';
+      }
+      return '<td style="padding:5px 6px;border-bottom:1px solid rgba(255,255,255,0.08);text-align:center;color:rgba(255,255,255,0.18)">·</td>';
+    }).join('');
+    return '<tr><td style="padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.08);font-weight:700;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px;font-size:12px;white-space:nowrap">' + sch + '</td>' + cells + '</tr>';
+  }).join('');
+
+  status.textContent = total + ' / ' + (POW_BG_SCHOOLS.length * POW_BG_SPORTS.length) + ' slots filled';
+}
+
+async function bgAdminDelete(schEnc, spEnc) {
+  const sch = decodeURIComponent(schEnc);
+  const sp  = decodeURIComponent(spEnc);
+  if (!confirm('Delete ' + sch + ' · ' + sp + '?')) return;
+  const d = window.cusaAuth && window.cusaAuth.db && window.cusaAuth.db();
+  const path = schoolSlug(sch) + '/' + sportSlug(sp) + '.png';
+  try {
+    const res = await d.storage.from(POW_BG_BUCKET).remove([path]);
+    if (res.error) throw res.error;
+    // Bust the in-page caches so the next selection re-fetches (and 404s).
+    const bgKey = POW_BG_SPORT_ALIAS[sp] || sp;
+    if (BG_IMGS[sch]) delete BG_IMGS[sch][bgKey];
+    delete _bgFetchPromises[`${sch}|${bgKey}`];
+    bgAdminRefreshGrid();
+  } catch (e) {
+    alert('Delete failed: ' + (e.message || e));
+  }
+}
 
 // ══════════════════════════════════════════════
 //  DROPDOWN CASCADE
@@ -1085,6 +1444,8 @@ document.body.addEventListener('change', _potwPersist, { capture: true });
   if (window.cusaPage) {
     await window.cusaPage.boot({ pageKey: 'potw', stateKey: STATE_KEY });
   }
+  // Reveal the admin Backgrounds button if the signed-in user is allowlisted.
+  _bgAdminMaybeShow();
 
   // Fetch Master Roster live from the shared gviz endpoint. Same source the
   // rest of the Creative Hub uses; no per-operator CSV upload needed.
