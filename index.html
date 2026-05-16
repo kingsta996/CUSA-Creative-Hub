@@ -101,6 +101,9 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
   <div class="header-sub">Select a tool to launch &nbsp;·&nbsp; All graphics export full-resolution PNG</div>
 </div>
 
+<!-- Claude Audit indicator (auto-hides when no Critical/High alerts) -->
+<div id="claudeAuditIndicator" style="max-width:1180px;margin:0 auto 18px;padding:0 22px"></div>
+
 <div class="sections">
 
   <!-- ═══ STANDINGS ═══ -->
@@ -438,6 +441,29 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100vh}
     <span>Powered by Claude · <a href="mailto:kking@conferenceusa.com">Email Keith</a></span>
   </div>
 </div>
+
+<!-- Supabase + Claude Audit indicator (only shows when admin is signed in) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="claude-audit-ui.js"></script>
+<script>
+  (function () {
+    var c = document.getElementById('claudeAuditIndicator');
+    if (!c || !window.ClaudeAudit || !window.ClaudeAudit.mountIndicator) return;
+    if (typeof supabase === 'undefined' || !window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return;
+    var db = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    window.ClaudeAudit.mountIndicator({
+      db: db,
+      container: c,
+      repoFilter: '%/cusa-creative-hub%',
+      hubLabel: 'Creative Hub',
+      linkUrl: 'admin.html',
+      sessionKey: 'cusa_creative_admin_user',
+      days: 7,
+      refreshMs: 60000
+    });
+  })();
+</script>
 
 <script>
   // Creative Hub is internal-office only — show support chat to everyone.
