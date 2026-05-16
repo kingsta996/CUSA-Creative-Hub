@@ -610,8 +610,16 @@ function drawSchoolSide(side){
   }
   ctx.fillRect(x, y, w, h);
   // logoScale zooms only the inner IMS logo (not the color block) around the
-  // box center, so the operator can grow / shrink the mark independently.
-  if (sObj.logoImg) drawContainFit(sObj.logoImg, x, y, w, h, adj.logoScale);
+  // box center. The logo is clipped to the block bounds so an oversized mark
+  // cannot bleed outside the color block.
+  if (sObj.logoImg) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    drawContainFit(sObj.logoImg, x, y, w, h, adj.logoScale);
+    ctx.restore();
+  }
 }
 
 function drawCoverFit(img, x, y, w, h, dx, dy){
