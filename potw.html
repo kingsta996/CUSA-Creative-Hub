@@ -757,7 +757,13 @@ function _bgAdminPgDone(label) {
   document.getElementById('bgAdminProgressLabel').textContent = label;
 }
 
-// Recursively unzip — accepts the master "zip of school zips" or any nesting.
+// Recursively unzip — accepts the master "zip of school zips" or any
+// nesting. JSZip's async('blob') returns a Blob with type='', and
+// supabase-js uploads Blobs via FormData where the multipart part's
+// Content-Type comes from the Blob's own .type — empty → octet-stream →
+// the bucket's allowed_mime_types check rejects it. Re-wrap each Blob
+// with an explicit MIME type at extraction time so the upload step sees
+// image/png (etc.) end-to-end.
 async function _bgAdminExtract(files) {
   const out = [];
   for (const f of files) {
@@ -773,11 +779,15 @@ async function _bgAdminExtract(files) {
           const nested = await _bgAdminExtract([child]);
           out.push(...nested);
         } else if (/\.(png|jpe?g|webp)$/i.test(e.name)) {
-          out.push({ name: e.name.split('/').pop(), blob: inner });
+          const name = e.name.split('/').pop();
+          out.push({ name, blob: new Blob([inner], { type: _bgAdminMime(name) }) });
         }
       }
     } else if (/\.(png|jpe?g|webp)$/i.test(f.name)) {
-      out.push({ name: f.name, blob: f });
+      // File objects from <input type=file> already carry a proper .type
+      // from the OS, but re-wrap defensively so the upload always sees
+      // a Blob whose .type matches the filename extension.
+      out.push({ name: f.name, blob: new Blob([f], { type: f.type || _bgAdminMime(f.name) }) });
     }
   }
   return out;
