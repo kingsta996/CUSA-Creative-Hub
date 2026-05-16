@@ -595,6 +595,31 @@ function bgPublicUrl(rosterSchool, bgKey) {
 // Cache so we don't refetch on every redraw. Keyed by `${school}|${bgKey}`.
 const _bgFetchPromises = {};
 
+// Per-school availability cache so the Sport dropdown can show accurate
+// ✓ / ○ markers before the user actually selects a sport. Populated by a
+// single Supabase Storage list() call per school, the first time that
+// school is picked. Public bucket → anon read is fine.
+const _bgAvailability = {}; // { rosterSchool: Set<bgKey> }
+async function loadBackgroundAvailability(rosterSchool) {
+  if (_bgAvailability[rosterSchool]) return _bgAvailability[rosterSchool];
+  const d = window.cusaAuth && window.cusaAuth.db && window.cusaAuth.db();
+  if (!d) return new Set();
+  try {
+    const res = await d.storage.from(POW_BG_BUCKET).list(schoolSlug(rosterSchool), { limit: 100 });
+    if (res.error) return new Set();
+    const slugs = new Set((res.data || []).map(o => o.name.replace(/\.(png|jpe?g|webp)$/i, '')));
+    const bgKeys = new Set();
+    Object.values(SPORT_TO_BG).forEach(bgKey => {
+      if (bgKey && slugs.has(sportSlug(bgKey))) bgKeys.add(bgKey);
+    });
+    _bgAvailability[rosterSchool] = bgKeys;
+    return bgKeys;
+  } catch (e) {
+    console.warn('Background availability list failed for', rosterSchool, e);
+    return new Set();
+  }
+}
+
 function loadBackgroundFor(rosterSchool, sport) {
   const bgKey = SPORT_TO_BG[sport];
   if (!rosterSchool || !bgKey) return Promise.resolve(null);
@@ -848,11 +873,13 @@ async function _bgAdminHandle(raw) {
       });
       if (res.error) throw res.error;
       _bgAdminLog('✓ ' + item.path + '  (' + item.label + ')', 'ok');
-      // Drop the in-page cache so the next selection re-fetches the new image.
-      const cacheKey = `${item.label.split(' · ')[0]}|${item.label.split(' · ')[1]}`;
-      delete _bgFetchPromises[cacheKey];
+      // Drop the in-page caches so the next selection re-fetches the new
+      // image and the Sport dropdown indicators re-derive availability.
       const sch = item.label.split(' · ')[0];
-      if (BG_IMGS[sch]) delete BG_IMGS[sch][item.label.split(' · ')[1]];
+      const bgKey = item.label.split(' · ')[1];
+      delete _bgFetchPromises[`${sch}|${bgKey}`];
+      if (BG_IMGS[sch]) delete BG_IMGS[sch][bgKey];
+      delete _bgAvailability[sch];
     } catch (e) {
       errs++;
       _bgAdminLog('✗ ' + item.path + ': ' + (e.message||e), 'err');
@@ -930,6 +957,7 @@ async function bgAdminDelete(schEnc, spEnc) {
     const bgKey = POW_BG_SPORT_ALIAS[sp] || sp;
     if (BG_IMGS[sch]) delete BG_IMGS[sch][bgKey];
     delete _bgFetchPromises[`${sch}|${bgKey}`];
+    delete _bgAvailability[sch];
     bgAdminRefreshGrid();
   } catch (e) {
     alert('Delete failed: ' + (e.message || e));
@@ -951,6 +979,14 @@ function populateSchoolDropdown() {
   if (prev && ROSTER[prev]) { sel.value = prev; onSchoolChange(); }
 }
 
+function _hasBg(school, bgKey) {
+  if (!bgKey) return false;
+  // Either we've already fetched + drawn it this session, OR the bucket
+  // listing for this school includes it.
+  if (BG_IMGS[school]?.[bgKey]) return true;
+  return _bgAvailability[school] instanceof Set && _bgAvailability[school].has(bgKey);
+}
+
 function onSchoolChange() {
   const school = document.getElementById('potwSchool').value;
   const ss = document.getElementById('potwSport');
@@ -963,11 +999,13 @@ function onSchoolChange() {
       const o = document.createElement('option');
       o.value = sport;
       const bgKey = SPORT_TO_BG[sport];
-      const hasBg = bgKey && BG_IMGS[school]?.[bgKey];
-      o.textContent = (hasBg ? '✓ ' : '○ ') + sport;
+      o.textContent = (_hasBg(school, bgKey) ? '✓ ' : '○ ') + sport;
       ss.appendChild(o);
     });
     ss.disabled = false;
+    // Kick off a Storage list for this school so the ○ / ✓ markers
+    // reflect actual cloud availability, not just the in-page cache.
+    loadBackgroundAvailability(school).then(() => refreshSportBgIndicators());
   }
   drawPOTW();
 }
@@ -978,8 +1016,7 @@ function refreshSportBgIndicators() {
   Array.from(ss.options).forEach(o => {
     if (!o.value) return;
     const bgKey = SPORT_TO_BG[o.value];
-    const hasBg = bgKey && BG_IMGS[school]?.[bgKey];
-    o.textContent = (hasBg ? '✓ ' : '○ ') + o.value;
+    o.textContent = (_hasBg(school, bgKey) ? '✓ ' : '○ ') + o.value;
   });
 }
 
@@ -999,13 +1036,15 @@ function onSportChange() {
     sp.disabled = false;
   }
   // Async-load BG from Supabase Storage if not cached. Page draws a
-  // placeholder until the image lands, then redraws.
+  // placeholder until the image lands, then redraws. _setText() is
+  // null-safe because the public LOAD DATA panel was removed; only the
+  // admin overlay (and a few page-wide indicators) still mount these IDs.
   if (school && sport) {
-    document.getElementById('bgStatus').textContent = `Backgrounds: loading ${sport}…`;
+    _setText('bgStatus', `Backgrounds: loading ${sport}…`);
     loadBackgroundFor(school, sport).then(img => {
       refreshSportBgIndicators();
       if (!img) {
-        document.getElementById('bgStatus').textContent = `✗ No cloud background for ${school} · ${sport}`;
+        _setText('bgStatus', `✗ No cloud background for ${school} · ${sport}`);
       } else {
         updateBgStatus();
       }
