@@ -135,26 +135,8 @@ select option.has-bg::after{content:' ✓'}
   <div class="panel" id="potwPanel">
     <div class="panel-head">PLAYER OF THE WEEK</div>
 
-    <!-- ── LOAD DATA ── -->
-    <div>
-      <label class="lbl">LOAD DATA</label>
-      <div class="load-row">
-        <label class="load-btn" id="rosterBtn">
-          <input type="file" accept=".csv" onchange="onRosterUpload(event)">
-          <span class="load-btn-icon">📄</span>
-          <span class="load-btn-label">MASTER ROSTER<br>CSV</span>
-        </label>
-        <label class="load-btn" id="bgBtn">
-          <input type="file" accept=".zip,image/png,image/jpeg" multiple onchange="onBgUpload(event)">
-          <span class="load-btn-icon">🖼</span>
-          <span class="load-btn-label">SPORT BG<br>ZIP / PNG</span>
-        </label>
-      </div>
-      <div class="load-status" id="rosterStatus">No roster loaded</div>
-      <div class="load-status" id="bgStatus">No backgrounds loaded</div>
-    </div>
-
-    <div class="divider"></div>
+    <!-- Master Roster + backgrounds load silently from gviz + Supabase
+         Storage. Admins manage uploads via admin.html → POW Backgrounds. -->
 
     <!-- ── SCHOOL ── -->
     <div>
@@ -486,115 +468,104 @@ const SPORT_FILE_ALIASES = {
 };
 
 // ══════════════════════════════════════════════
-//  CSV PARSING
+//  MASTER ROSTER — Google Sheet gviz JSON
+//  Same source the rest of the Creative Hub uses (campus-insider.html, etc).
+//  Sheet must be "Anyone with the link → Viewer".
 // ══════════════════════════════════════════════
-function parseCSVRow(row) {
-  const result = []; let inQ = false, cell = '';
-  for (const ch of row) {
-    if (ch === '"') { inQ = !inQ; }
-    else if (ch === ',' && !inQ) { result.push(cell.trim()); cell = ''; }
-    else { cell += ch; }
-  }
-  result.push(cell.trim());
-  return result;
-}
+const MASTER_ROSTER_SHEET_ID = '1NpjMZH0p70pYAnZ_BkqxevJ5XoZDoeucZq4nF1cAw50';
+const MASTER_ROSTER_TAB      = 'Master Roster';
+let _rosterFetchAt = 0;
 
-function parseRosterCSV(text) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
-  const roster = {};
-  for (let i = 1; i < lines.length; i++) {
-    const c = parseCSVRow(lines[i]);
-    const school = c[0], sport = c[1], num = c[2], name = c[3], pos = c[4], cls = c[7];
-    if (!school || !sport || !name) continue;
-    if (!roster[school]) roster[school] = {};
-    if (!roster[school][sport]) roster[school][sport] = [];
-    roster[school][sport].push({num, name, pos, cls});
-  }
-  return roster;
-}
-
-// ══════════════════════════════════════════════
-//  UPLOAD HANDLERS
-// ══════════════════════════════════════════════
-function onRosterUpload(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      ROSTER = parseRosterCSV(ev.target.result);
-      try { localStorage.setItem('cusa_roster_csv', ev.target.result); } catch(err) {}
-      populateSchoolDropdown();
-      updateRosterStatus();
-      document.getElementById('rosterBtn').classList.add('loaded');
-    } catch(err) { console.error('Roster parse error:', err); }
-  };
-  reader.readAsText(file);
-}
-
-function onBgUpload(e) {
-  const files = Array.from(e.target.files);
-  files.forEach(file => {
-    if (file.name.match(/\.zip$/i)) {
-      processZip(file);
-    } else if (file.name.match(/\.(png|jpg|jpeg)$/i)) {
-      processImageFile(file);
-    }
-  });
-  if (files.length) document.getElementById('bgBtn').classList.add('loaded');
-}
-
-function processZip(zipFile) {
-  document.getElementById('bgStatus').textContent = `Reading ${zipFile.name}…`;
-  JSZip.loadAsync(zipFile).then(zip => {
-    const entries = Object.values(zip.files).filter(f =>
-      !f.dir && f.name.match(/\.(png|jpg|jpeg)$/i) && !f.name.includes('__MACOSX')
-    );
-    let loaded = 0;
-    entries.forEach(entry => {
-      entry.async('blob').then(blob => {
-        const filename = entry.name.split('/').pop(); // strip folder path
-        processImageBlob(blob, filename, () => {
-          loaded++;
-          updateBgStatus();
-          if (document.getElementById('potwSchool').value) refreshSportBgIndicators();
-          drawPOTW();
-        });
-      });
+async function fetchMasterRoster(force) {
+  // Respect a 60-second client cache so the refresh button is cheap and the
+  // School dropdown change doesn't re-pull the sheet.
+  if (!force && (Date.now() - _rosterFetchAt) < 60 * 1000 && Object.keys(ROSTER).length) return;
+  const url = `https://docs.google.com/spreadsheets/d/${MASTER_ROSTER_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(MASTER_ROSTER_TAB)}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Sheet fetch failed (HTTP ${res.status}). The sheet must be public ("Anyone with the link → Viewer").`);
+  const text = await res.text();
+  const m = text.match(/setResponse\(([\s\S]+)\);?\s*$/);
+  if (!m) throw new Error('Unexpected gviz response shape');
+  const data = JSON.parse(m[1]);
+  const cols = (data.table?.cols || []).map(c => String(c.label || c.id || '').trim().toLowerCase());
+  const rows = (data.table?.rows || []).map(r => {
+    const obj = {};
+    (r.c || []).forEach((cell, i) => {
+      if (!cols[i]) return;
+      obj[cols[i]] = cell == null ? '' : (cell.f != null ? cell.f : cell.v);
     });
-  }).catch(err => {
-    console.error('ZIP error:', err);
-    document.getElementById('bgStatus').textContent = 'ZIP read error — check console';
+    return obj;
   });
+  const next = {};
+  rows.forEach(r => {
+    const school = String(r['school'] || '').trim();
+    const sport  = String(r['sport']  || '').trim();
+    const name   = String(r['name'] || r['full name'] || r['player'] || '').trim();
+    if (!school || !sport || !name) return;
+    const num = String(r['#'] || r['number'] || r['jersey'] || r['no.'] || r['no'] || '').replace(/\.0+$/, '').trim();
+    const pos = String(r['position'] || r['pos'] || '').trim();
+    const cls = String(r['class'] || r['cl'] || r['yr'] || '').trim();
+    if (!next[school]) next[school] = {};
+    if (!next[school][sport]) next[school][sport] = [];
+    next[school][sport].push({num, name, pos, cls});
+  });
+  ROSTER = next;
+  _rosterFetchAt = Date.now();
 }
 
-function processImageFile(file) {
-  processImageBlob(file, file.name, () => {
-    updateBgStatus();
-    if (document.getElementById('potwSchool').value) refreshSportBgIndicators();
-    drawPOTW();
-  });
+// ══════════════════════════════════════════════
+//  SPORT BACKGROUNDS — Supabase Storage
+//  Public bucket `pow-backgrounds`, path: <school-slug>/<sport-slug>.png
+//  Admins upload via admin.html → POW Backgrounds tab.
+// ══════════════════════════════════════════════
+const POW_BG_BUCKET = 'pow-backgrounds';
+
+// Roster school name → URL slug. Lowercase, hyphenated.
+function schoolSlug(rosterSchool) {
+  if (!rosterSchool) return '';
+  return String(rosterSchool).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-function processImageBlob(blob, filename, onDone) {
-  const base = filename.replace(/\.(png|jpg|jpeg)$/i, '');
-  const dashIdx = base.indexOf(' - ');
-  if (dashIdx < 0) { console.warn('No " - " in filename:', filename); return; }
-  const schoolFile = base.substring(0, dashIdx).trim();
-  const sportFile  = base.substring(dashIdx + 3).trim();
-  const rosterSchool = SCHOOL_FILE_ALIASES[schoolFile];
-  const bgKey = SPORT_FILE_ALIASES[sportFile];
-  if (!rosterSchool) { console.warn('Unknown school:', schoolFile); return; }
-  if (!bgKey)        { console.warn('Unknown sport:',  sportFile);  return; }
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  img.onload = () => {
-    if (!BG_IMGS[rosterSchool]) BG_IMGS[rosterSchool] = {};
-    BG_IMGS[rosterSchool][bgKey] = img;
-    if (onDone) onDone();
-  };
-  img.onerror = () => { if (onDone) onDone(); };
-  img.src = url;
+// BG_KEY ("WBB", "Beach VB", …) → URL slug.
+function sportSlug(bgKey) {
+  if (!bgKey) return '';
+  return String(bgKey).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
+
+function bgPublicUrl(rosterSchool, bgKey) {
+  if (!window.SUPABASE_URL) return null;
+  const path = `${schoolSlug(rosterSchool)}/${sportSlug(bgKey)}.png`;
+  return `${window.SUPABASE_URL.replace(/\/+$/, '')}/storage/v1/object/public/${POW_BG_BUCKET}/${path}`;
+}
+
+// Cache so we don't refetch on every redraw. Keyed by `${school}|${bgKey}`.
+const _bgFetchPromises = {};
+
+function loadBackgroundFor(rosterSchool, sport) {
+  const bgKey = SPORT_TO_BG[sport];
+  if (!rosterSchool || !bgKey) return Promise.resolve(null);
+  if (BG_IMGS[rosterSchool]?.[bgKey]) return Promise.resolve(BG_IMGS[rosterSchool][bgKey]);
+  const cacheKey = `${rosterSchool}|${bgKey}`;
+  if (_bgFetchPromises[cacheKey]) return _bgFetchPromises[cacheKey];
+  const url = bgPublicUrl(rosterSchool, bgKey);
+  if (!url) return Promise.resolve(null);
+  const p = new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (!BG_IMGS[rosterSchool]) BG_IMGS[rosterSchool] = {};
+      BG_IMGS[rosterSchool][bgKey] = img;
+      resolve(img);
+    };
+    img.onerror = () => resolve(null);
+    img.src = url + '?cb=' + (_rosterFetchAt || 0); // cache-bust on refresh
+  });
+  _bgFetchPromises[cacheKey] = p;
+  return p;
+}
+
+// (Previous refresh helper removed — admins manage data via admin.html.
+//  Users get fresh state with a normal page reload.)
 
 // ══════════════════════════════════════════════
 //  DROPDOWN CASCADE
@@ -658,6 +629,20 @@ function onSportChange() {
     });
     sp.disabled = false;
   }
+  // Async-load BG from Supabase Storage if not cached. Page draws a
+  // placeholder until the image lands, then redraws.
+  if (school && sport) {
+    document.getElementById('bgStatus').textContent = `Backgrounds: loading ${sport}…`;
+    loadBackgroundFor(school, sport).then(img => {
+      refreshSportBgIndicators();
+      if (!img) {
+        document.getElementById('bgStatus').textContent = `✗ No cloud background for ${school} · ${sport}`;
+      } else {
+        updateBgStatus();
+      }
+      drawPOTW();
+    });
+  }
   drawPOTW();
 }
 
@@ -696,20 +681,28 @@ function toggleNameOverride() {
 // ══════════════════════════════════════════════
 //  STATUS UPDATES
 // ══════════════════════════════════════════════
+// Status helpers — the visible LOAD DATA panel was removed from the public
+// view (admin.html handles updates), so each setter is a null-safe no-op
+// when its element is absent. statusMsg (the page-wide indicator) is
+// still always present.
+function _setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
 function updateRosterStatus() {
   const schools = Object.keys(ROSTER).length;
   const players = Object.values(ROSTER).reduce((a, s) =>
     a + Object.values(s).reduce((b, pl) => b + pl.length, 0), 0);
-  document.getElementById('rosterStatus').textContent =
-    `Roster: ${schools} schools · ${players} players`;
-  document.getElementById('statusMsg').textContent = `Roster loaded · ${players} players`;
+  _setText('rosterStatus', `Roster: ${schools} schools · ${players} players (live)`);
+  _setText('statusMsg', `Roster loaded · ${players} players`);
 }
 
 function updateBgStatus() {
   const imgCount = Object.values(BG_IMGS).reduce((a, s) => a + Object.keys(s).length, 0);
-  const schoolCount = Object.keys(BG_IMGS).length;
-  document.getElementById('bgStatus').textContent =
-    `Backgrounds: ${imgCount} images across ${schoolCount} school${schoolCount!==1?'s':''}`;
+  _setText('bgStatus', imgCount
+    ? `Backgrounds: ${imgCount} cached this session`
+    : 'Backgrounds: cloud library');
 }
 
 // ══════════════════════════════════════════════
@@ -743,7 +736,7 @@ function drawPOTW(){
     ctx.fillStyle='#0a1628';ctx.fillRect(0,0,P_CW,P_CH);
     ctx.fillStyle='rgba(255,255,255,0.07)';
     ctx.font='800 18px "Barlow Condensed"';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('SELECT A SCHOOL TO LOAD BACKGROUND',P_CW/2,P_CH/2);
+    ctx.fillText('SELECT SCHOOL + SPORT TO LOAD BACKGROUND',P_CW/2,P_CH/2);
     return;
   }
 
@@ -1085,16 +1078,6 @@ document.body.addEventListener('change', _potwPersist, { capture: true });
 //  INIT
 // ══════════════════════════════════════════════
 (async function init() {
-  // Auto-restore roster from localStorage (existing behavior).
-  try {
-    const saved = localStorage.getItem('cusa_roster_csv');
-    if (saved) {
-      ROSTER = parseRosterCSV(saved);
-      populateSchoolDropdown();
-      updateRosterStatus();
-      document.getElementById('rosterBtn').classList.add('loaded');
-    }
-  } catch(e) { console.warn('Could not restore roster:', e); }
   drawPOTW();
 
   // Auth + cloud sync — pulls global state into localStorage; reloads once
@@ -1102,8 +1085,33 @@ document.body.addEventListener('change', _potwPersist, { capture: true });
   if (window.cusaPage) {
     await window.cusaPage.boot({ pageKey: 'potw', stateKey: STATE_KEY });
   }
-  // Apply persisted form state to inputs after auth resolves.
+
+  // Fetch Master Roster live from the shared gviz endpoint. Same source the
+  // rest of the Creative Hub uses; no per-operator CSV upload needed.
+  try {
+    await fetchMasterRoster();
+    populateSchoolDropdown();
+    updateRosterStatus();
+  } catch (err) {
+    console.error('Master Roster fetch failed:', err);
+    _setText('rosterStatus', '✗ Roster: ' + (err.message || 'fetch failed'));
+    _setText('statusMsg', '✗ Master Roster fetch failed — see console');
+  }
+
+  // Apply persisted form state to inputs after auth + roster resolve so the
+  // school/sport restore can land on real options.
   restoreFormState();
+
+  // If state restored a school+sport, kick the background fetch immediately.
+  const sch = document.getElementById('potwSchool').value;
+  const spt = document.getElementById('potwSport').value;
+  if (sch && spt) {
+    loadBackgroundFor(sch, spt).then(img => {
+      refreshSportBgIndicators();
+      if (img) updateBgStatus();
+      drawPOTW();
+    });
+  }
 })();
 </script>
 </body>

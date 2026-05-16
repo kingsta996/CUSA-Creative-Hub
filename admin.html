@@ -87,11 +87,54 @@
 
 <div class="tabs">
   <button class="active" data-tab="claude-audit" onclick="showTab('claude-audit')">🛡 Claude Audit</button>
+  <button data-tab="pow-bg" onclick="showTab('pow-bg')">🖼 POW Backgrounds</button>
 </div>
 
 <section class="tab active" id="tab-claude-audit">
   <div id="claudeAuditMount"></div>
 </section>
+
+<section class="tab" id="tab-pow-bg">
+  <div id="powBgMount" style="max-width:1100px">
+    <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:18px;letter-spacing:1.5px;font-weight:900;margin-bottom:6px">PLAYER OF THE WEEK · BACKGROUNDS</h2>
+    <p style="color:var(--mute);font-size:12.5px;line-height:1.6;margin-bottom:18px">
+      One PNG per school × sport. Drop the master <strong>POW Backgrounds</strong> zip, a per-school zip, or
+      individual PNGs. Filenames must follow <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;font-family:'SF Mono',Menlo,monospace">School - Sport.png</code> (e.g. <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;font-family:'SF Mono',Menlo,monospace">Kennesaw State - WBB.png</code>). Stored in Supabase bucket
+      <code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;font-family:'SF Mono',Menlo,monospace">pow-backgrounds</code>.
+    </p>
+
+    <div id="powBgDrop" style="border:2px dashed rgba(235,25,70,0.35);border-radius:10px;padding:32px;text-align:center;background:rgba(235,25,70,0.04);cursor:pointer;transition:all .15s;margin-bottom:16px">
+      <div style="font-size:28px;margin-bottom:6px">🖼</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,.85)">DROP ZIP OR PNG FILES HERE</div>
+      <div style="font-size:11.5px;color:var(--mute);margin-top:4px">or click to browse · accepts .zip and image files</div>
+      <input type="file" id="powBgInput" accept=".zip,image/png,image/jpeg,image/webp" multiple style="display:none">
+    </div>
+
+    <div id="powBgProgress" style="display:none;background:rgba(0,0,0,0.25);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong id="powBgProgressLabel" style="font-size:13px">Uploading…</strong>
+        <span id="powBgProgressCount" style="color:var(--mute);font-size:12px">0 / 0</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);height:6px;border-radius:3px;overflow:hidden">
+        <div id="powBgProgressBar" style="height:100%;background:var(--green);width:0%;transition:width .12s"></div>
+      </div>
+      <div id="powBgProgressLog" style="margin-top:10px;max-height:120px;overflow:auto;font-family:'SF Mono',Menlo,monospace;font-size:10.5px;color:var(--mute);line-height:1.6"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+      <strong style="font-size:13px;font-family:'Barlow Condensed',sans-serif;letter-spacing:1.5px">CURRENT BACKGROUNDS</strong>
+      <button class="btn btn-secondary" onclick="powBgRefresh()" style="padding:5px 11px;font-size:10px">↻ Refresh</button>
+      <span id="powBgGridStatus" style="color:var(--mute);font-size:11.5px;margin-left:6px">—</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table id="powBgGrid" style="border-collapse:collapse;font-size:11.5px;min-width:100%">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <script>
   var SUPER_EMAIL = 'kking@conferenceusa.com';
@@ -102,7 +145,15 @@
     { hash: '9a874f8b06ebb0eb63336db78b70ca149513a237de8395d8e858ee8f0c702ae2', email: 'kking@conferenceusa.com', display_name: 'Keith King' },
     { hash: 'ee0579f300f3d10b330e1b9a9d122d6638f9ab54a2fa6c28dd8e5e972c0fadf1', email: 'bcarter@gxait.com',        display_name: 'GXA IT — B. Carter' }
   ];
-  var ALLOWED_EMAILS = LOCAL_ADMINS.map(function (u) { return u.email; });
+  // DB-fallback admins: their email is allowlisted here, but they authenticate
+  // against creative_hub_users with their existing password. The DB-path role
+  // check (normally `role === 'admin'`) is BYPASSED for these emails — useful
+  // for granting admin-page access without changing a user's stored role
+  // (which would affect their permissions across the rest of the Hub).
+  var DB_ADMINS = [
+    'afranklin@conferenceusa.com'   // Addison Franklin — signs in with her existing Creative Hub password
+  ];
+  var ALLOWED_EMAILS = LOCAL_ADMINS.map(function (u) { return u.email; }).concat(DB_ADMINS);
   var SESSION_KEY = 'cusa_creative_admin_user';
   var _db = null, _user = null;
 
@@ -150,7 +201,10 @@
       var resp = await d.from('creative_hub_users').select('email, pw_hash, display_name, is_active, role').eq('email', email).maybeSingle();
       if (resp.error) throw resp.error;
       var row = resp.data;
-      if (!row || !row.is_active || row.pw_hash !== h || row.role !== 'admin') {
+      // Skip the role check for explicitly-allowlisted DB admins (e.g. Addison)
+      // so we can grant page-level admin without globally elevating their role.
+      var roleOk = (row && row.role === 'admin') || DB_ADMINS.indexOf(email) !== -1;
+      if (!row || !row.is_active || row.pw_hash !== h || !roleOk) {
         err.textContent = 'Incorrect password or insufficient role.';
         btn.disabled = false; btn.textContent = 'Sign in'; return;
       }
@@ -190,6 +244,289 @@
     document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
     document.querySelectorAll('section.tab').forEach(function (s) { s.classList.toggle('active', s.id === 'tab-' + name); });
     if (name === 'claude-audit') mountClaudeAudit();
+    if (name === 'pow-bg')       mountPowBg();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  POW Backgrounds — Supabase Storage bucket `pow-backgrounds`
+  //  Path: <school-slug>/<sport-slug>.png
+  // ═══════════════════════════════════════════════════════════════════════
+  var POW_BG_BUCKET = 'pow-backgrounds';
+
+  // Mirror the maps in potw.html so filenames round-trip correctly. School
+  // string (filename) → canonical roster school → slug.
+  var POW_SCHOOL_ALIASES = {
+    'MO State':'Missouri State','Missouri State':'Missouri State',
+    'Delaware':'Delaware',
+    'FIU':'FIU','Florida International':'FIU',
+    'Jax State':'Jacksonville State','Jacksonville State':'Jacksonville State',
+    'KSU':'Kennesaw State','Kennesaw State':'Kennesaw State',
+    'LA Tech':'Louisiana Tech','Louisiana Tech':'Louisiana Tech',
+    'Liberty':'Liberty',
+    'MTSU':'Middle Tennessee','Middle Tennessee':'Middle Tennessee',
+    'NM State':'New Mexico State','New Mexico State':'New Mexico State',
+    'Sam Houston':'Sam Houston','SHSU':'Sam Houston',
+    'WKU':'WKU','Western Kentucky':'WKU'
+  };
+  var POW_SPORT_ALIASES = {
+    'Baseball':'Baseball',
+    'Beach VB':'Beach VB','Beach Volleyball':'Beach VB',
+    'Bowling':'Bowling',
+    'CC':'CC','Cross Country':'CC',
+    'Football':'Football',
+    'Golf':'Golf',
+    'MBB':'MBB','Basketball':'MBB',
+    'Soccer':'Soccer',
+    'Softball':'Softball',
+    'Tennis':'Tennis',
+    'Track':'Track','Track and Field':'Track','T&F':'Track',
+    'Volleyball':'Volleyball',
+    'WBB':'WBB','W Basketball':'WBB'
+  };
+  // The full grid we expect to populate.
+  var POW_SCHOOLS = ['Delaware','FIU','Jacksonville State','Kennesaw State','Liberty','Louisiana Tech','Middle Tennessee','Missouri State','New Mexico State','Sam Houston','WKU'];
+  var POW_SPORTS  = ['Football','MBB','WBB','Baseball','Softball','Soccer','Volleyball','Beach VB','Tennis','Golf','Track','CC','Bowling'];
+
+  function slugify(s) {
+    return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
+  var _powMounted = false;
+  function mountPowBg() {
+    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+      document.getElementById('powBgGridStatus').textContent = 'Supabase not configured — check config.js.';
+      return;
+    }
+    if (_powMounted) { powBgRefresh(); return; }
+    _powMounted = true;
+
+    var drop = document.getElementById('powBgDrop');
+    var input = document.getElementById('powBgInput');
+    drop.addEventListener('click', function () { input.click(); });
+    drop.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      drop.style.borderColor = 'var(--red)';
+      drop.style.background = 'rgba(235,25,70,0.10)';
+    });
+    drop.addEventListener('dragleave', function () {
+      drop.style.borderColor = 'rgba(235,25,70,0.35)';
+      drop.style.background = 'rgba(235,25,70,0.04)';
+    });
+    drop.addEventListener('drop', function (e) {
+      e.preventDefault();
+      drop.style.borderColor = 'rgba(235,25,70,0.35)';
+      drop.style.background = 'rgba(235,25,70,0.04)';
+      handleFiles(Array.from(e.dataTransfer.files));
+    });
+    input.addEventListener('change', function (e) {
+      handleFiles(Array.from(e.target.files));
+      input.value = '';
+    });
+    powBgRefresh();
+  }
+
+  function pgLog(msg, cls) {
+    var el = document.getElementById('powBgProgressLog');
+    var div = document.createElement('div');
+    if (cls === 'ok')  div.style.color = '#A7D500';
+    if (cls === 'err') div.style.color = '#ff7d8a';
+    div.textContent = msg;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+  function pgShow(label) {
+    document.getElementById('powBgProgress').style.display = 'block';
+    document.getElementById('powBgProgressLabel').textContent = label;
+    document.getElementById('powBgProgressLog').innerHTML = '';
+    document.getElementById('powBgProgressCount').textContent = '0 / 0';
+    document.getElementById('powBgProgressBar').style.width = '0%';
+  }
+  function pgCount(done, total) {
+    document.getElementById('powBgProgressCount').textContent = done + ' / ' + total;
+    var pct = total ? Math.round(done / total * 100) : 0;
+    document.getElementById('powBgProgressBar').style.width = pct + '%';
+  }
+  function pgDone(label) {
+    document.getElementById('powBgProgressLabel').textContent = label;
+  }
+
+  // Flattens the drop list into a flat array of { name, blob } image entries,
+  // recursively unpacking any zips (including the master zip-of-school-zips
+  // shipped at /Users/keithking/Movies/Dynamic PSD Folder/POW Backgrounds.zip).
+  async function extractImageEntries(files) {
+    var out = [];
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      if (f.name.match(/\.zip$/i)) {
+        var zip = await JSZip.loadAsync(f);
+        var entries = Object.values(zip.files).filter(function (z) {
+          return !z.dir && !z.name.includes('__MACOSX') && !/(^|\/)\._/.test(z.name);
+        });
+        for (var j = 0; j < entries.length; j++) {
+          var e = entries[j];
+          var inner = await e.async('blob');
+          if (e.name.match(/\.zip$/i)) {
+            // School-zip-within-master-zip — recurse.
+            var childFile = new File([inner], e.name.split('/').pop());
+            var nested = await extractImageEntries([childFile]);
+            out.push.apply(out, nested);
+          } else if (e.name.match(/\.(png|jpe?g|webp)$/i)) {
+            out.push({ name: e.name.split('/').pop(), blob: inner });
+          }
+        }
+      } else if (f.name.match(/\.(png|jpe?g|webp)$/i)) {
+        out.push({ name: f.name, blob: f });
+      }
+    }
+    return out;
+  }
+
+  // Filename `Kennesaw State - WBB.png` → { school: 'Kennesaw State', bgKey: 'WBB' }.
+  function parseFilename(name) {
+    var base = name.replace(/\.(png|jpe?g|webp)$/i, '');
+    var dash = base.indexOf(' - ');
+    if (dash < 0) return null;
+    var schoolPart = base.substring(0, dash).trim();
+    var sportPart  = base.substring(dash + 3).trim();
+    var school = POW_SCHOOL_ALIASES[schoolPart];
+    var bgKey  = POW_SPORT_ALIASES[sportPart];
+    if (!school || !bgKey) return null;
+    return { school: school, bgKey: bgKey };
+  }
+
+  function mimeFor(name) {
+    if (/\.png$/i.test(name))            return 'image/png';
+    if (/\.(jpe?g)$/i.test(name))        return 'image/jpeg';
+    if (/\.webp$/i.test(name))           return 'image/webp';
+    return 'application/octet-stream';
+  }
+
+  async function handleFiles(rawFiles) {
+    if (!rawFiles || !rawFiles.length) return;
+    pgShow('Extracting…');
+    pgLog('Processing ' + rawFiles.length + ' input file(s)');
+    var imgs;
+    try {
+      imgs = await extractImageEntries(rawFiles);
+    } catch (e) {
+      pgLog('Zip extract failed: ' + (e.message || e), 'err');
+      pgDone('Failed.');
+      return;
+    }
+    if (!imgs.length) { pgLog('No images found in input.', 'err'); pgDone('Done — nothing to upload.'); return; }
+
+    // Match each entry to a school/sport slot. Anything unrecognized just
+    // gets reported in the log and skipped, never uploaded under a wrong path.
+    var queue = [];
+    imgs.forEach(function (img) {
+      var parsed = parseFilename(img.name);
+      if (!parsed) { pgLog('skip: ' + img.name + '  (unrecognized filename)', 'err'); return; }
+      queue.push({
+        path: slugify(parsed.school) + '/' + slugify(parsed.bgKey) + '.png',
+        blob: img.blob,
+        contentType: mimeFor(img.name),
+        label: parsed.school + ' · ' + parsed.bgKey
+      });
+    });
+
+    if (!queue.length) { pgDone('Done — no recognized filenames.'); return; }
+    pgDone('Uploading…');
+    pgCount(0, queue.length);
+
+    var d = db();
+    if (!d) { pgLog('Supabase client unavailable', 'err'); pgDone('Failed.'); return; }
+
+    var done = 0, errs = 0;
+    for (var k = 0; k < queue.length; k++) {
+      var item = queue[k];
+      try {
+        var res = await d.storage.from(POW_BG_BUCKET).upload(item.path, item.blob, {
+          contentType: item.contentType,
+          upsert: true,
+          cacheControl: '60'
+        });
+        if (res.error) throw res.error;
+        pgLog('✓ ' + item.path + '  (' + item.label + ')', 'ok');
+      } catch (e) {
+        errs++;
+        pgLog('✗ ' + item.path + ': ' + (e.message || e), 'err');
+      }
+      done++;
+      pgCount(done, queue.length);
+    }
+    pgDone(errs ? ('Done with ' + errs + ' error(s).') : 'Done — all uploaded.');
+    powBgRefresh();
+  }
+
+  async function powBgRefresh() {
+    var grid = document.getElementById('powBgGrid');
+    var status = document.getElementById('powBgGridStatus');
+    status.textContent = 'Refreshing…';
+    var d = db();
+    if (!d) { status.textContent = 'Supabase client unavailable.'; return; }
+
+    // List bucket — flat under root, so we list each school slug's folder.
+    var existing = {};
+    var total = 0;
+    try {
+      for (var s = 0; s < POW_SCHOOLS.length; s++) {
+        var slug = slugify(POW_SCHOOLS[s]);
+        var res = await d.storage.from(POW_BG_BUCKET).list(slug, { limit: 100, offset: 0 });
+        if (res.error) continue;
+        existing[POW_SCHOOLS[s]] = {};
+        (res.data || []).forEach(function (o) {
+          var sportKey = o.name.replace(/\.(png|jpe?g|webp)$/i, '');
+          existing[POW_SCHOOLS[s]][sportKey] = o;
+          total++;
+        });
+      }
+    } catch (e) {
+      status.textContent = '✗ ' + (e.message || e);
+      return;
+    }
+
+    // Build the grid: rows = schools, cols = sports.
+    var thead = grid.querySelector('thead');
+    var tbody = grid.querySelector('tbody');
+    var thHtml = '<tr><th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);font-family:\'Barlow Condensed\',sans-serif;font-weight:800;letter-spacing:1.5px;color:var(--mute);text-transform:uppercase;font-size:10.5px">School</th>';
+    POW_SPORTS.forEach(function (sp) {
+      thHtml += '<th style="padding:6px 8px;border-bottom:1px solid var(--line);font-family:\'Barlow Condensed\',sans-serif;font-weight:800;letter-spacing:1.5px;color:var(--mute);text-transform:uppercase;font-size:10px;white-space:nowrap">' + sp + '</th>';
+    });
+    thHtml += '</tr>';
+    thead.innerHTML = thHtml;
+
+    tbody.innerHTML = POW_SCHOOLS.map(function (sch) {
+      var cells = POW_SPORTS.map(function (sp) {
+        var slugSport = slugify(sp);
+        var has = !!(existing[sch] && existing[sch][slugSport]);
+        var publicUrl = window.SUPABASE_URL.replace(/\/+$/,'') + '/storage/v1/object/public/' + POW_BG_BUCKET + '/' + slugify(sch) + '/' + slugSport + '.png';
+        if (has) {
+          return '<td style="padding:5px 6px;border-bottom:1px solid var(--line);text-align:center;background:rgba(167,213,0,0.06)">'
+               + '<a href="' + publicUrl + '" target="_blank" title="View" style="color:var(--green);text-decoration:none;font-weight:700;font-size:13px">✓</a>'
+               + ' <button onclick="powBgDelete(\'' + encodeURIComponent(sch) + '\',\'' + encodeURIComponent(sp) + '\')" title="Delete" style="background:none;border:0;color:rgba(255,255,255,.25);cursor:pointer;font-size:11px;padding:0 2px">✕</button>'
+               + '</td>';
+        }
+        return '<td style="padding:5px 6px;border-bottom:1px solid var(--line);text-align:center;color:rgba(255,255,255,.18)">·</td>';
+      }).join('');
+      return '<tr><td style="padding:6px 10px;border-bottom:1px solid var(--line);font-weight:700;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px;font-size:12px;white-space:nowrap">' + sch + '</td>' + cells + '</tr>';
+    }).join('');
+
+    status.textContent = total + ' / ' + (POW_SCHOOLS.length * POW_SPORTS.length) + ' slots filled';
+  }
+
+  async function powBgDelete(schEnc, spEnc) {
+    var sch = decodeURIComponent(schEnc);
+    var sp  = decodeURIComponent(spEnc);
+    if (!confirm('Delete ' + sch + ' · ' + sp + '?')) return;
+    var d = db();
+    var path = slugify(sch) + '/' + slugify(sp) + '.png';
+    try {
+      var res = await d.storage.from(POW_BG_BUCKET).remove([path]);
+      if (res.error) throw res.error;
+      powBgRefresh();
+    } catch (e) {
+      alert('Delete failed: ' + (e.message || e));
+    }
   }
 
   function mountClaudeAudit() {
